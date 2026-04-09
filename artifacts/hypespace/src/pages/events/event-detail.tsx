@@ -46,11 +46,11 @@ export default function EventDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const { data: event, isLoading: isEventLoading } = useGetEvent(eventId, { query: { enabled: !!eventId } });
-  const { data: guests, isLoading: isGuestsLoading } = useListGuests(eventId, undefined, { query: { enabled: !!eventId } });
+  const { data: event, isLoading: isEventLoading } = useGetEvent(1, eventId, { query: { enabled: !!eventId } });
+  const { data: guests, isLoading: isGuestsLoading } = useListGuests(1, eventId, undefined, { query: { enabled: !!eventId } });
   const { data: campaigns, isLoading: isCampaignsLoading } = useListCampaigns(1, { eventId }, { query: { enabled: !!eventId } });
   const { data: socialPosts, isLoading: isSocialLoading } = useListSocialPosts(1, { eventId }, { query: { enabled: !!eventId } });
-  const { data: reminders, isLoading: isRemindersLoading } = useListReminders(eventId, { query: { enabled: !!eventId } });
+  const { data: reminders, isLoading: isRemindersLoading } = useListReminders(1, eventId, { query: { enabled: !!eventId } });
   
   const addGuest = useAddGuest();
   const [isAddGuestOpen, setIsAddGuestOpen] = useState(false);
@@ -67,7 +67,7 @@ export default function EventDetail() {
 
   const onAddGuest = (data: AddGuestFormValues) => {
     addGuest.mutate(
-      { eventId, data },
+      { orgId: 1, eventId, data },
       {
         onSuccess: () => {
           toast({ title: "Guest added successfully" });
