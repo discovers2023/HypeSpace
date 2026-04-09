@@ -3,20 +3,37 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: HypeSpace Event Management SaaS API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
+  - name: organizations
+    description: Organization management
+  - name: events
+    description: Event management
+  - name: guests
+    description: Guest list management
+  - name: campaigns
+    description: Email campaign management
+  - name: templates
+    description: Email templates
+  - name: social
+    description: Social media posts
+  - name: team
+    description: Team member management
+  - name: dashboard
+    description: Dashboard analytics
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +41,839 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+
+  /organizations:
+    get:
+      operationId: listOrganizations
+      tags: [organizations]
+      summary: List organizations for current user
+      responses:
+        "200":
+          description: List of organizations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Organization"
+    post:
+      operationId: createOrganization
+      tags: [organizations]
+      summary: Create a new organization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrganizationBody"
+      responses:
+        "201":
+          description: Created organization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organization"
+
+  /organizations/{orgId}:
+    get:
+      operationId: getOrganization
+      tags: [organizations]
+      summary: Get organization by ID
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Organization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organization"
+    put:
+      operationId: updateOrganization
+      tags: [organizations]
+      summary: Update organization
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrganizationBody"
+      responses:
+        "200":
+          description: Updated organization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organization"
+
+  /organizations/{orgId}/team:
+    get:
+      operationId: listTeamMembers
+      tags: [team]
+      summary: List team members of an organization
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Team members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeamMember"
+    post:
+      operationId: inviteTeamMember
+      tags: [team]
+      summary: Invite a team member
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteTeamMemberBody"
+      responses:
+        "201":
+          description: Invited team member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamMember"
+
+  /organizations/{orgId}/team/{memberId}:
+    put:
+      operationId: updateTeamMember
+      tags: [team]
+      summary: Update team member role
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTeamMemberBody"
+      responses:
+        "200":
+          description: Updated team member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamMember"
+    delete:
+      operationId: removeTeamMember
+      tags: [team]
+      summary: Remove a team member
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Removed
+
+  /organizations/{orgId}/events:
+    get:
+      operationId: listEvents
+      tags: [events]
+      summary: List events for an organization
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, published, cancelled, completed]
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [onsite, remote, hybrid]
+      responses:
+        "200":
+          description: List of events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Event"
+    post:
+      operationId: createEvent
+      tags: [events]
+      summary: Create a new event
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEventBody"
+      responses:
+        "201":
+          description: Created event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+
+  /organizations/{orgId}/events/{eventId}:
+    get:
+      operationId: getEvent
+      tags: [events]
+      summary: Get event by ID
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+    put:
+      operationId: updateEvent
+      tags: [events]
+      summary: Update an event
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateEventBody"
+      responses:
+        "200":
+          description: Updated event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+    delete:
+      operationId: deleteEvent
+      tags: [events]
+      summary: Delete an event
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /organizations/{orgId}/events/{eventId}/guests:
+    get:
+      operationId: listGuests
+      tags: [guests]
+      summary: List guests for an event
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [invited, confirmed, declined, waitlisted, attended]
+      responses:
+        "200":
+          description: List of guests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Guest"
+    post:
+      operationId: addGuest
+      tags: [guests]
+      summary: Add a guest to event
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddGuestBody"
+      responses:
+        "201":
+          description: Added guest
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Guest"
+
+  /organizations/{orgId}/events/{eventId}/guests/bulk:
+    post:
+      operationId: bulkAddGuests
+      tags: [guests]
+      summary: Bulk add guests to event
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkAddGuestsBody"
+      responses:
+        "201":
+          description: Added guests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Guest"
+
+  /organizations/{orgId}/events/{eventId}/guests/{guestId}:
+    put:
+      operationId: updateGuest
+      tags: [guests]
+      summary: Update guest RSVP status
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: guestId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGuestBody"
+      responses:
+        "200":
+          description: Updated guest
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Guest"
+    delete:
+      operationId: removeGuest
+      tags: [guests]
+      summary: Remove a guest from event
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: guestId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Removed
+
+  /organizations/{orgId}/campaigns:
+    get:
+      operationId: listCampaigns
+      tags: [campaigns]
+      summary: List email campaigns for organization
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of campaigns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Campaign"
+    post:
+      operationId: createCampaign
+      tags: [campaigns]
+      summary: Create an email campaign
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCampaignBody"
+      responses:
+        "201":
+          description: Created campaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+
+  /organizations/{orgId}/campaigns/{campaignId}:
+    get:
+      operationId: getCampaign
+      tags: [campaigns]
+      summary: Get campaign by ID
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: campaignId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Campaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+    put:
+      operationId: updateCampaign
+      tags: [campaigns]
+      summary: Update a campaign
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: campaignId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCampaignBody"
+      responses:
+        "200":
+          description: Updated campaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+    delete:
+      operationId: deleteCampaign
+      tags: [campaigns]
+      summary: Delete a campaign
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: campaignId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /organizations/{orgId}/campaigns/{campaignId}/send:
+    post:
+      operationId: sendCampaign
+      tags: [campaigns]
+      summary: Send a campaign
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: campaignId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Campaign sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+
+  /organizations/{orgId}/campaigns/ai-generate:
+    post:
+      operationId: aiGenerateCampaign
+      tags: [campaigns]
+      summary: Generate email campaign content with AI
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiGenerateCampaignBody"
+      responses:
+        "200":
+          description: Generated campaign content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiGeneratedCampaign"
+
+  /organizations/{orgId}/social-posts:
+    get:
+      operationId: listSocialPosts
+      tags: [social]
+      summary: List social media posts for organization
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of social posts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SocialPost"
+    post:
+      operationId: createSocialPost
+      tags: [social]
+      summary: Create a social media post
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSocialPostBody"
+      responses:
+        "201":
+          description: Created social post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SocialPost"
+
+  /organizations/{orgId}/social-posts/{postId}:
+    put:
+      operationId: updateSocialPost
+      tags: [social]
+      summary: Update a social media post
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSocialPostBody"
+      responses:
+        "200":
+          description: Updated social post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SocialPost"
+    delete:
+      operationId: deleteSocialPost
+      tags: [social]
+      summary: Delete a social media post
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /organizations/{orgId}/social-posts/{postId}/publish:
+    post:
+      operationId: publishSocialPost
+      tags: [social]
+      summary: Publish a social media post
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Published post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SocialPost"
+
+  /organizations/{orgId}/dashboard:
+    get:
+      operationId: getDashboardStats
+      tags: [dashboard]
+      summary: Get dashboard statistics for an organization
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /organizations/{orgId}/activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      summary: Get recent activity feed
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  /organizations/{orgId}/events/{eventId}/reminders:
+    get:
+      operationId: listReminders
+      tags: [campaigns]
+      summary: List reminders for an event
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of reminders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Reminder"
+    post:
+      operationId: createReminder
+      tags: [campaigns]
+      summary: Create a reminder for an event
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReminderBody"
+      responses:
+        "201":
+          description: Created reminder
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reminder"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +884,699 @@ components:
       required:
         - status
 
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required:
+        - id
+        - email
+        - name
+        - createdAt
+
+    Organization:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+          nullable: true
+        logoUrl:
+          type: string
+          nullable: true
+        plan:
+          type: string
+          enum: [free, starter, professional, enterprise]
+        ownerId:
+          type: integer
+        memberCount:
+          type: integer
+        eventCount:
+          type: integer
+        createdAt:
+          type: string
+      required:
+        - id
+        - name
+        - slug
+        - plan
+        - ownerId
+        - memberCount
+        - eventCount
+        - createdAt
+
+    CreateOrganizationBody:
+      type: object
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+          nullable: true
+      required:
+        - name
+        - slug
+
+    UpdateOrganizationBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        logoUrl:
+          type: string
+          nullable: true
+
+    TeamMember:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        organizationId:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [owner, admin, manager, member]
+        status:
+          type: string
+          enum: [active, invited, suspended]
+        joinedAt:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+      required:
+        - id
+        - userId
+        - organizationId
+        - email
+        - name
+        - role
+        - status
+
+    InviteTeamMemberBody:
+      type: object
+      properties:
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [admin, manager, member]
+      required:
+        - email
+        - name
+        - role
+
+    UpdateTeamMemberBody:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [admin, manager, member]
+        status:
+          type: string
+          enum: [active, suspended]
+
+    Event:
+      type: object
+      properties:
+        id:
+          type: integer
+        organizationId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [onsite, remote, hybrid]
+        category:
+          type: string
+          enum: [conference, study_club, workshop, webinar, networking, seminar, other]
+        status:
+          type: string
+          enum: [draft, published, cancelled, completed]
+        startDate:
+          type: string
+        endDate:
+          type: string
+        timezone:
+          type: string
+        location:
+          type: string
+          nullable: true
+        onlineUrl:
+          type: string
+          nullable: true
+        capacity:
+          type: integer
+          nullable: true
+        coverImageUrl:
+          type: string
+          nullable: true
+        guestCount:
+          type: integer
+        confirmedCount:
+          type: integer
+        createdAt:
+          type: string
+      required:
+        - id
+        - organizationId
+        - title
+        - type
+        - category
+        - status
+        - startDate
+        - endDate
+        - timezone
+        - guestCount
+        - confirmedCount
+        - createdAt
+
+    CreateEventBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [onsite, remote, hybrid]
+        category:
+          type: string
+          enum: [conference, study_club, workshop, webinar, networking, seminar, other]
+        startDate:
+          type: string
+        endDate:
+          type: string
+        timezone:
+          type: string
+        location:
+          type: string
+          nullable: true
+        onlineUrl:
+          type: string
+          nullable: true
+        capacity:
+          type: integer
+          nullable: true
+        coverImageUrl:
+          type: string
+          nullable: true
+      required:
+        - title
+        - type
+        - category
+        - startDate
+        - endDate
+        - timezone
+
+    UpdateEventBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [onsite, remote, hybrid]
+        category:
+          type: string
+          enum: [conference, study_club, workshop, webinar, networking, seminar, other]
+        status:
+          type: string
+          enum: [draft, published, cancelled, completed]
+        startDate:
+          type: string
+        endDate:
+          type: string
+        timezone:
+          type: string
+        location:
+          type: string
+          nullable: true
+        onlineUrl:
+          type: string
+          nullable: true
+        capacity:
+          type: integer
+          nullable: true
+        coverImageUrl:
+          type: string
+          nullable: true
+
+    Guest:
+      type: object
+      properties:
+        id:
+          type: integer
+        eventId:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        company:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [invited, confirmed, declined, waitlisted, attended]
+        notes:
+          type: string
+          nullable: true
+        invitedAt:
+          type: string
+          nullable: true
+        respondedAt:
+          type: string
+          nullable: true
+      required:
+        - id
+        - eventId
+        - email
+        - name
+        - status
+
+    AddGuestBody:
+      type: object
+      properties:
+        email:
+          type: string
+        name:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        company:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+      required:
+        - email
+        - name
+
+    BulkAddGuestsBody:
+      type: object
+      properties:
+        guests:
+          type: array
+          items:
+            $ref: "#/components/schemas/AddGuestBody"
+      required:
+        - guests
+
+    UpdateGuestBody:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [invited, confirmed, declined, waitlisted, attended]
+        notes:
+          type: string
+          nullable: true
+
+    Campaign:
+      type: object
+      properties:
+        id:
+          type: integer
+        organizationId:
+          type: integer
+        eventId:
+          type: integer
+          nullable: true
+        name:
+          type: string
+        subject:
+          type: string
+        type:
+          type: string
+          enum: [invitation, reminder, followup, announcement, custom]
+        status:
+          type: string
+          enum: [draft, scheduled, sent, failed]
+        htmlContent:
+          type: string
+          nullable: true
+        textContent:
+          type: string
+          nullable: true
+        scheduledAt:
+          type: string
+          nullable: true
+        sentAt:
+          type: string
+          nullable: true
+        recipientCount:
+          type: integer
+        openRate:
+          type: number
+          nullable: true
+        clickRate:
+          type: number
+          nullable: true
+        createdAt:
+          type: string
+      required:
+        - id
+        - organizationId
+        - name
+        - subject
+        - type
+        - status
+        - recipientCount
+        - createdAt
+
+    CreateCampaignBody:
+      type: object
+      properties:
+        eventId:
+          type: integer
+          nullable: true
+        name:
+          type: string
+        subject:
+          type: string
+        type:
+          type: string
+          enum: [invitation, reminder, followup, announcement, custom]
+        htmlContent:
+          type: string
+          nullable: true
+        textContent:
+          type: string
+          nullable: true
+        scheduledAt:
+          type: string
+          nullable: true
+      required:
+        - name
+        - subject
+        - type
+
+    UpdateCampaignBody:
+      type: object
+      properties:
+        name:
+          type: string
+        subject:
+          type: string
+        htmlContent:
+          type: string
+          nullable: true
+        textContent:
+          type: string
+          nullable: true
+        scheduledAt:
+          type: string
+          nullable: true
+
+    AiGenerateCampaignBody:
+      type: object
+      properties:
+        eventId:
+          type: integer
+          nullable: true
+        campaignType:
+          type: string
+          enum: [invitation, reminder, followup, announcement, custom]
+        tone:
+          type: string
+          enum: [professional, friendly, formal, casual, urgent]
+        additionalContext:
+          type: string
+          nullable: true
+      required:
+        - campaignType
+        - tone
+
+    AiGeneratedCampaign:
+      type: object
+      properties:
+        subject:
+          type: string
+        htmlContent:
+          type: string
+        textContent:
+          type: string
+        suggestions:
+          type: array
+          items:
+            type: string
+      required:
+        - subject
+        - htmlContent
+        - textContent
+        - suggestions
+
+    SocialPost:
+      type: object
+      properties:
+        id:
+          type: integer
+        organizationId:
+          type: integer
+        eventId:
+          type: integer
+          nullable: true
+        platform:
+          type: string
+          enum: [twitter, linkedin, facebook, instagram]
+        content:
+          type: string
+        imageUrl:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [draft, scheduled, published, failed]
+        scheduledAt:
+          type: string
+          nullable: true
+        publishedAt:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required:
+        - id
+        - organizationId
+        - platform
+        - content
+        - status
+        - createdAt
+
+    CreateSocialPostBody:
+      type: object
+      properties:
+        eventId:
+          type: integer
+          nullable: true
+        platform:
+          type: string
+          enum: [twitter, linkedin, facebook, instagram]
+        content:
+          type: string
+        imageUrl:
+          type: string
+          nullable: true
+        scheduledAt:
+          type: string
+          nullable: true
+      required:
+        - platform
+        - content
+
+    UpdateSocialPostBody:
+      type: object
+      properties:
+        content:
+          type: string
+        imageUrl:
+          type: string
+          nullable: true
+        scheduledAt:
+          type: string
+          nullable: true
+
+    Reminder:
+      type: object
+      properties:
+        id:
+          type: integer
+        eventId:
+          type: integer
+        type:
+          type: string
+          enum: [before_event, after_event, custom]
+        offsetHours:
+          type: integer
+        subject:
+          type: string
+        message:
+          type: string
+        status:
+          type: string
+          enum: [pending, sent, failed]
+        scheduledAt:
+          type: string
+          nullable: true
+        sentAt:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required:
+        - id
+        - eventId
+        - type
+        - offsetHours
+        - subject
+        - message
+        - status
+        - createdAt
+
+    CreateReminderBody:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [before_event, after_event, custom]
+        offsetHours:
+          type: integer
+        subject:
+          type: string
+        message:
+          type: string
+      required:
+        - type
+        - offsetHours
+        - subject
+        - message
+
+    DashboardStats:
+      type: object
+      properties:
+        totalEvents:
+          type: integer
+        activeEvents:
+          type: integer
+        totalGuests:
+          type: integer
+        confirmedGuests:
+          type: integer
+        campaignsSent:
+          type: integer
+        avgOpenRate:
+          type: number
+        upcomingEvents:
+          type: array
+          items:
+            $ref: "#/components/schemas/Event"
+        guestsByStatus:
+          type: object
+          properties:
+            invited:
+              type: integer
+            confirmed:
+              type: integer
+            declined:
+              type: integer
+            attended:
+              type: integer
+          required:
+            - invited
+            - confirmed
+            - declined
+            - attended
+        eventsByType:
+          type: object
+          properties:
+            onsite:
+              type: integer
+            remote:
+              type: integer
+            hybrid:
+              type: integer
+          required:
+            - onsite
+            - remote
+            - hybrid
+      required:
+        - totalEvents
+        - activeEvents
+        - totalGuests
+        - confirmedGuests
+        - campaignsSent
+        - avgOpenRate
+        - upcomingEvents
+        - guestsByStatus
+        - eventsByType
+
+    ActivityItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [event_created, event_published, guest_added, campaign_sent, member_invited, social_posted]
+        title:
+          type: string
+        description:
+          type: string
+        entityId:
+          type: integer
+          nullable: true
+        entityType:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required:
+        - id
+        - type
+        - title
+        - description
+        - createdAt
