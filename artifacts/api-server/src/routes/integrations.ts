@@ -13,7 +13,6 @@ async function fetchGHLContacts(apiKey: string, locationId: string, tag: string)
 }>> {
   const url = new URL(`${GHL_BASE}/contacts/`);
   url.searchParams.set("locationId", locationId);
-  url.searchParams.set("tags", tag);
   url.searchParams.set("limit", "100");
 
   const resp = await fetch(url.toString(), {
@@ -28,7 +27,15 @@ async function fetchGHLContacts(apiKey: string, locationId: string, tag: string)
   const data = await resp.json() as { contacts?: any[] };
   const contacts = data.contacts ?? [];
 
-  return contacts.map((c: any) => ({
+  const tagLower = tag.toLowerCase();
+  const filtered = tag.trim()
+    ? contacts.filter((c: any) => {
+        const tags: string[] = c.tags ?? [];
+        return tags.some((t: string) => t.toLowerCase() === tagLower);
+      })
+    : contacts;
+
+  return filtered.map((c: any) => ({
     name: [c.firstName, c.lastName].filter(Boolean).join(" ") || c.email || "Unknown",
     email: c.email ?? "",
     phone: c.phone ?? null,
