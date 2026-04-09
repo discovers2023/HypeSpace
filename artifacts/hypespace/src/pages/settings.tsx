@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useGetOrganization, useUpdateOrganization } from "@workspace/api-client-react";
+import { useGetOrganization, useUpdateOrganization, useListEvents } from "@workspace/api-client-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Form,
@@ -63,6 +63,7 @@ type FieldDef = {
   type?: "text" | "password";
   hint?: string;
   required?: boolean;
+  raw?: boolean; // store actual value even when type="password" (needed for API integrations that make calls)
 };
 
 type PlatformCredDef = {
@@ -257,6 +258,20 @@ const PLATFORM_CREDS: Record<string, PlatformCredDef> = {
       { key: "publicKey", label: "Public Key (Site ID)", type: "text", placeholder: "XXXXXX", required: true },
     ],
   },
+  gohighlevel: {
+    accountNameKey: "locationId",
+    summary: "Import contacts tagged 'studyclub' directly from your Go HighLevel sub-account into any event guest list.",
+    helpUrl: "https://help.gohighlevel.com/support/solutions/articles/155000002166",
+    zapierHelpUrl: "https://zapier.com/apps/gohighlevel/integrations",
+    apiFields: [
+      { key: "apiKey", label: "Private Integration Token", type: "password", placeholder: "eyJhbGci...", required: true, raw: true, hint: "Go HighLevel > Settings > Integrations > Private Integrations > Create" },
+      { key: "locationId", label: "Location / Sub-account ID", type: "text", placeholder: "abc123XYZxxx", required: true, raw: true, hint: "Go HighLevel > Settings > Business Info > Location ID" },
+    ],
+    zapierFields: [
+      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true },
+      { key: "locationId", label: "Location ID", type: "text", placeholder: "abc123XYZxxx", required: true },
+    ],
+  },
 };
 
 // --- Platform definitions ---
@@ -286,6 +301,7 @@ const CRM_PLATFORMS: Platform[] = [
   { id: "activecampaign", name: "ActiveCampaign", type: "crm", color: "#356AE6", textColor: "#fff", description: "Automate email sequences and manage contacts.", icon: "⚡" },
   { id: "zoho", name: "Zoho CRM", type: "crm", color: "#E42527", textColor: "#fff", description: "Manage leads and contacts from your events.", icon: "📊" },
   { id: "klaviyo", name: "Klaviyo", type: "crm", color: "#1A1A1A", textColor: "#fff", description: "Power data-driven email and SMS campaigns for events.", icon: "📧" },
+  { id: "gohighlevel", name: "Go HighLevel", type: "crm", color: "#F97316", textColor: "#fff", description: "Import contacts with a tag (e.g. studyclub) directly into your event guest lists.", icon: "🚀" },
 ];
 
 const ALL_PLATFORMS = [...SOCIAL_PLATFORMS, ...CRM_PLATFORMS];
@@ -529,12 +545,220 @@ function ConnectModal({
   );
 }
 
+// --- GHL Import Modal ---
+type GHLContact = { name: string; email: string; phone: string | null; company: string | null };
+type ImportStep = "configure" | "preview" | "success";
+
+function GHLImportModal({ orgId, open, onClose }: { orgId: number; open: boolean; onClose: () => void }) {
+  const { data: eventsData } = useListEvents(orgId);
+  const events = eventsData ?? [];
+
+  const [step, setStep] = useState<ImportStep>("configure");
+  const [tag, setTag] = useState("studyclub");
+  const [eventId, setEventId] = useState<string>("");
+  const [contacts, setContacts] = useState<GHLContact[]>([]);
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const reset = () => {
+    setStep("configure");
+    setTag("studyclub");
+    setEventId("");
+    setContacts([]);
+    setImportResult(null);
+    setErrorMsg("");
+  };
+
+  const handleClose = () => { reset(); onClose(); };
+
+  const handlePreview = async () => {
+    if (!tag.trim()) { setErrorMsg("Please enter a tag to search for."); return; }
+    setErrorMsg("");
+    setLoading(true);
+    try {
+      const res = await fetch(`${BASE}/api/organizations/${orgId}/integrations/gohighlevel/preview`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tag: tag.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to fetch contacts");
+      setContacts(data.contacts ?? []);
+      setStep("preview");
+    } catch (err: any) {
+      setErrorMsg(err.message ?? "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImport = async () => {
+    if (!eventId) { setErrorMsg("Please select an event to import contacts into."); return; }
+    setErrorMsg("");
+    setLoading(true);
+    try {
+      const res = await fetch(`${BASE}/api/organizations/${orgId}/integrations/gohighlevel/import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tag: tag.trim(), eventId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Import failed");
+      setImportResult({ imported: data.imported, skipped: data.skipped });
+      setStep("success");
+    } catch (err: any) {
+      setErrorMsg(err.message ?? "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span className="text-xl">🚀</span> Go HighLevel — Import Contacts
+          </DialogTitle>
+          <DialogDescription>
+            {step === "configure" && "Fetch contacts by tag from your GHL sub-account."}
+            {step === "preview" && `${contacts.length} contact${contacts.length !== 1 ? "s" : ""} found with tag "${tag}".`}
+            {step === "success" && "Import complete!"}
+          </DialogDescription>
+        </DialogHeader>
+
+        {step === "configure" && (
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Tag to import</label>
+              <Input
+                value={tag}
+                onChange={(e) => setTag(e.target.value)}
+                placeholder="studyclub"
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground">Contacts in GHL with this tag will be imported.</p>
+            </div>
+            {errorMsg && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{errorMsg}</p>}
+            <DialogFooter>
+              <Button variant="outline" onClick={handleClose}>Cancel</Button>
+              <Button
+                className="bg-gradient-to-r from-[#F97316] to-[#FF1493] text-white border-0 hover:opacity-90"
+                onClick={handlePreview}
+                disabled={loading}
+              >
+                {loading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Fetching…</> : "Fetch Contacts →"}
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+
+        {step === "preview" && (
+          <div className="space-y-4 py-2">
+            {contacts.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground text-sm">
+                No contacts found with tag <strong>"{tag}"</strong> in Go HighLevel.
+              </div>
+            ) : (
+              <div className="rounded-lg border overflow-hidden">
+                <div className="max-h-52 overflow-y-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/50 sticky top-0">
+                      <tr>
+                        <th className="text-left px-3 py-2 font-medium">Name</th>
+                        <th className="text-left px-3 py-2 font-medium">Email</th>
+                        <th className="text-left px-3 py-2 font-medium hidden sm:table-cell">Company</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {contacts.map((c, i) => (
+                        <tr key={i} className="border-t hover:bg-muted/20">
+                          <td className="px-3 py-2 font-medium">{c.name}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{c.email}</td>
+                          <td className="px-3 py-2 text-muted-foreground hidden sm:table-cell">{c.company ?? "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Import into event</label>
+              <select
+                value={eventId}
+                onChange={(e) => setEventId(e.target.value)}
+                className="w-full border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">Select an event…</option>
+                {events.map((ev: any) => (
+                  <option key={ev.id} value={ev.id}>{ev.title}</option>
+                ))}
+              </select>
+            </div>
+
+            {errorMsg && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{errorMsg}</p>}
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setStep("configure"); setErrorMsg(""); }}>← Back</Button>
+              <Button
+                className="bg-gradient-to-r from-[#F97316] to-[#FF1493] text-white border-0 hover:opacity-90"
+                onClick={handleImport}
+                disabled={loading || contacts.length === 0}
+              >
+                {loading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Importing…</> : `Import ${contacts.length} Contact${contacts.length !== 1 ? "s" : ""}`}
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+
+        {step === "success" && importResult && (
+          <div className="space-y-4 py-2">
+            <div className="flex flex-col items-center gap-3 py-4 text-center">
+              <div className="w-14 h-14 rounded-full bg-green-50 flex items-center justify-center">
+                <CheckCircle2 className="h-7 w-7 text-green-500" />
+              </div>
+              <div>
+                <p className="font-semibold text-[#1a0533]">
+                  {importResult.imported} contact{importResult.imported !== 1 ? "s" : ""} imported
+                </p>
+                {importResult.skipped > 0 && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {importResult.skipped} skipped (already in guest list)
+                  </p>
+                )}
+              </div>
+              <div className="flex gap-2 mt-2">
+                <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
+                  ✓ {importResult.imported} added
+                </Badge>
+                {importResult.skipped > 0 && (
+                  <Badge variant="outline" className="text-muted-foreground">
+                    ⊘ {importResult.skipped} skipped
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={reset}>Import more</Button>
+              <Button className="bg-gradient-to-r from-[#F97316] to-[#FF1493] text-white border-0" onClick={handleClose}>Done</Button>
+            </DialogFooter>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // --- Platform Card ---
-function PlatformCard({ platform, connected, onConnect, onDisconnect, isLoading }: {
+function PlatformCard({ platform, connected, onConnect, onDisconnect, onImport, isLoading }: {
   platform: Platform;
   connected: Integration | undefined;
   onConnect: (p: Platform) => void;
   onDisconnect: (p: Platform) => void;
+  onImport?: (p: Platform) => void;
   isLoading: boolean;
 }) {
   return (
@@ -581,18 +805,30 @@ function PlatformCard({ platform, connected, onConnect, onDisconnect, isLoading 
           </div>
         )}
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {connected ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1 text-xs text-destructive hover:text-destructive border-destructive/30"
-              onClick={() => onDisconnect(platform)}
-              disabled={isLoading}
-            >
-              {isLoading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-              Disconnect
-            </Button>
+            <>
+              {onImport && (
+                <Button
+                  size="sm"
+                  className="flex-1 text-xs bg-gradient-to-r from-[#F97316] to-[#FF1493] border-0 text-white hover:opacity-90"
+                  onClick={() => onImport(platform)}
+                  disabled={isLoading}
+                >
+                  Import Contacts
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className={`text-xs text-destructive hover:text-destructive border-destructive/30 ${onImport ? "" : "flex-1"}`}
+                onClick={() => onDisconnect(platform)}
+                disabled={isLoading}
+              >
+                {isLoading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                Disconnect
+              </Button>
+            </>
           ) : (
             <Button
               size="sm"
@@ -619,6 +855,7 @@ function IntegrationsTab({ orgId }: { orgId: number }) {
 
   const [modalPlatform, setModalPlatform] = useState<Platform | null>(null);
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
+  const [ghlImportOpen, setGhlImportOpen] = useState(false);
 
   const getConnected = (platformId: string) =>
     integrations?.find((i) => i.platform === platformId);
@@ -633,11 +870,11 @@ function IntegrationsTab({ orgId }: { orgId: number }) {
     const accountNameKey = cred.accountNameKey;
     const accountName = values[accountNameKey] || modalPlatform.name;
 
-    // Mask secrets in stored metadata
+    // Store metadata — mask secrets unless field.raw is true (raw fields are needed for API calls)
     const metadata: Record<string, string> = { connectionMethod: method };
     const fields = method === "api" ? cred.apiFields : cred.zapierFields;
     for (const f of fields) {
-      if (f.type === "password") {
+      if (f.type === "password" && !f.raw) {
         metadata[f.key] = maskSecret(values[f.key] || "");
       } else {
         metadata[f.key] = values[f.key] || "";
@@ -693,6 +930,7 @@ function IntegrationsTab({ orgId }: { orgId: number }) {
         onSubmit={handleModalSubmit}
         isSubmitting={connectMutation.isPending}
       />
+      <GHLImportModal orgId={orgId} open={ghlImportOpen} onClose={() => setGhlImportOpen(false)} />
 
       <div className="space-y-8">
         {connectedCount > 0 && (
@@ -737,6 +975,7 @@ function IntegrationsTab({ orgId }: { orgId: number }) {
                 connected={getConnected(platform.id)}
                 onConnect={handleConnect}
                 onDisconnect={handleDisconnect}
+                onImport={platform.id === "gohighlevel" ? () => setGhlImportOpen(true) : undefined}
                 isLoading={disconnectingId === platform.id}
               />
             ))}
