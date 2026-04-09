@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Calendar, MapPin, Users, Mail, Share2, ArrowLeft, Plus, Clock, Video, Settings, Trash2, MoreHorizontal, CheckCircle2, XCircle, Clock3, Search, Activity } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -75,6 +76,9 @@ export default function EventDetail() {
   const [isAddGuestOpen, setIsAddGuestOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [guestToRemove, setGuestToRemove] = useState<{ id: number; name: string } | null>(null);
+  const [selectedGuests, setSelectedGuests] = useState<Set<number>>(new Set());
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   const guestForm = useForm<AddGuestFormValues>({
     resolver: zodResolver(addGuestSchema),
@@ -88,6 +92,43 @@ export default function EventDetail() {
   const invalidateGuests = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/organizations", 1, "events", eventId, "guests"] });
     queryClient.invalidateQueries({ queryKey: ["/api/organizations", 1, "events", eventId] });
+  };
+
+  const toggleGuestSelection = (id: number) => {
+    setSelectedGuests(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (!filteredGuests) return;
+    if (selectedGuests.size === filteredGuests.length) {
+      setSelectedGuests(new Set());
+    } else {
+      setSelectedGuests(new Set(filteredGuests.map(g => g.id)));
+    }
+  };
+
+  const onBulkDelete = async () => {
+    setIsBulkDeleting(true);
+    const ids = Array.from(selectedGuests);
+    try {
+      await Promise.all(ids.map(guestId =>
+        new Promise<void>((resolve, reject) => {
+          removeGuest.mutate({ orgId: 1, eventId, guestId }, { onSuccess: () => resolve(), onError: reject });
+        })
+      ));
+      toast({ title: `${ids.length} guest${ids.length === 1 ? "" : "s"} removed` });
+      setSelectedGuests(new Set());
+      invalidateGuests();
+    } catch {
+      toast({ title: "Some guests could not be removed", variant: "destructive" });
+    } finally {
+      setIsBulkDeleting(false);
+      setIsBulkDeleteOpen(false);
+    }
   };
 
   const onAddGuest = (data: AddGuestFormValues) => {
@@ -323,6 +364,50 @@ export default function EventDetail() {
                   </div>
                 </div>
 
+                {selectedGuests.size > 0 && (
+                  <div className="flex items-center gap-3 px-4 py-2.5 bg-primary/5 border border-primary/20 rounded-xl mb-2">
+                    <span className="text-sm font-medium text-foreground">
+                      {selectedGuests.size} guest{selectedGuests.size === 1 ? "" : "s"} selected
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs h-7 px-2"
+                      onClick={() => setSelectedGuests(new Set())}
+                    >
+                      Clear
+                    </Button>
+                    <div className="ml-auto flex gap-2">
+                      <AlertDialog open={isBulkDeleteOpen} onOpenChange={setIsBulkDeleteOpen}>
+                        <AlertDialogTrigger asChild>
+                          <Button size="sm" variant="destructive" className="h-7 text-xs gap-1.5">
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Delete {selectedGuests.size} selected
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete {selectedGuests.size} guest{selectedGuests.size === 1 ? "" : "s"}?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently remove {selectedGuests.size === 1 ? "this guest" : `these ${selectedGuests.size} guests`} from the event. This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={onBulkDelete}
+                              disabled={isBulkDeleting}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              {isBulkDeleting ? "Deleting…" : `Delete ${selectedGuests.size} guest${selectedGuests.size === 1 ? "" : "s"}`}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                )}
+
                 <div className="rounded-xl border bg-card overflow-hidden">
                   {isGuestsLoading ? (
                     <div className="p-8 text-center"><Skeleton className="h-8 w-full mb-4" /><Skeleton className="h-8 w-full" /></div>
@@ -337,7 +422,14 @@ export default function EventDetail() {
                       <table className="w-full text-sm text-left">
                         <thead className="bg-muted/50 border-b">
                           <tr>
-                            <th className="px-6 py-4 font-medium text-muted-foreground">Guest</th>
+                            <th className="px-4 py-4 w-10">
+                              <Checkbox
+                                checked={!!filteredGuests?.length && selectedGuests.size === filteredGuests.length}
+                                onCheckedChange={toggleSelectAll}
+                                aria-label="Select all guests"
+                              />
+                            </th>
+                            <th className="px-4 py-4 font-medium text-muted-foreground">Guest</th>
                             <th className="px-6 py-4 font-medium text-muted-foreground">Company</th>
                             <th className="px-6 py-4 font-medium text-muted-foreground">Status</th>
                             <th className="px-6 py-4 font-medium text-muted-foreground">Added</th>
@@ -346,8 +438,15 @@ export default function EventDetail() {
                         </thead>
                         <tbody className="divide-y">
                           {filteredGuests?.map((guest) => (
-                            <tr key={guest.id} className="hover:bg-muted/30 transition-colors group">
-                              <td className="px-6 py-4">
+                            <tr key={guest.id} className={`hover:bg-muted/30 transition-colors group ${selectedGuests.has(guest.id) ? "bg-primary/5" : ""}`}>
+                              <td className="px-4 py-4 w-10">
+                                <Checkbox
+                                  checked={selectedGuests.has(guest.id)}
+                                  onCheckedChange={() => toggleGuestSelection(guest.id)}
+                                  aria-label={`Select ${guest.name}`}
+                                />
+                              </td>
+                              <td className="px-4 py-4">
                                 <div className="font-medium text-foreground">{guest.name}</div>
                                 <div className="text-muted-foreground text-xs">{guest.email}</div>
                               </td>
