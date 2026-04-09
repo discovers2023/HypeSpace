@@ -38,6 +38,10 @@ import {
   ExternalLink,
   Eye,
   EyeOff,
+  Palette,
+  Mail,
+  Upload,
+  RefreshCw,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -50,7 +54,7 @@ const orgSchema = z.object({
 });
 type OrgFormValues = z.infer<typeof orgSchema>;
 
-type TabId = "general" | "integrations" | "billing";
+type TabId = "general" | "branding" | "integrations" | "billing";
 
 // --- Platform field definitions ---
 type FieldDef = {
@@ -912,6 +916,302 @@ function IntegrationsTab({ orgId }: { orgId: number }) {
   );
 }
 
+// --- Branding schemas ---
+const brandingSchema = z.object({
+  logoUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  primaryColor: z.string().min(4, "Select a color"),
+  accentColor: z.string().min(4, "Select a color"),
+  fromEmail: z.string().email("Must be a valid email").optional().or(z.literal("")),
+  replyToEmail: z.string().email("Must be a valid email").optional().or(z.literal("")),
+  emailFooterText: z.string().optional(),
+});
+type BrandingFormValues = z.infer<typeof brandingSchema>;
+
+// --- Branding Tab ---
+function BrandingTab({ orgId }: { orgId: number }) {
+  const { data: org, isLoading } = useGetOrganization(orgId);
+  const updateOrg = useUpdateOrganization();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const form = useForm<BrandingFormValues>({
+    resolver: zodResolver(brandingSchema),
+    defaultValues: {
+      logoUrl: "",
+      primaryColor: "#FF8C00",
+      accentColor: "#FF1493",
+      fromEmail: "",
+      replyToEmail: "",
+      emailFooterText: "",
+    },
+  });
+
+  useEffect(() => {
+    if (org) {
+      form.reset({
+        logoUrl: org.logoUrl || "",
+        primaryColor: org.primaryColor || "#FF8C00",
+        accentColor: org.accentColor || "#FF1493",
+        fromEmail: org.fromEmail || "",
+        replyToEmail: org.replyToEmail || "",
+        emailFooterText: org.emailFooterText || "",
+      });
+    }
+  }, [org, form]);
+
+  const watched = form.watch();
+
+  const onSubmit = (data: BrandingFormValues) => {
+    updateOrg.mutate(
+      { orgId, data: { logoUrl: data.logoUrl || null, primaryColor: data.primaryColor, accentColor: data.accentColor, fromEmail: data.fromEmail || null, replyToEmail: data.replyToEmail || null, emailFooterText: data.emailFooterText || null } },
+      {
+        onSuccess: () => {
+          toast({ title: "Branding saved" });
+          queryClient.invalidateQueries({ queryKey: ["/api/organizations", orgId] });
+        },
+        onError: (err) => {
+          toast({ title: "Failed to save branding", description: err.message, variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+      </div>
+    );
+  }
+
+  const previewGradient = `linear-gradient(135deg, ${watched.primaryColor || "#FF8C00"}, ${watched.accentColor || "#FF1493"})`;
+  const orgName = org?.name || "Your Organization";
+  const footerText = watched.emailFooterText || `You're receiving this because you're on our guest list. © ${orgName}`;
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+
+        {/* Logo */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Logo</CardTitle>
+            <CardDescription>Shown in the email header and on your event pages.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-6">
+              <div className="h-20 w-20 rounded-xl border bg-muted overflow-hidden flex items-center justify-center shrink-0">
+                {watched.logoUrl ? (
+                  <img src={watched.logoUrl} alt="Logo preview" className="w-full h-full object-contain p-1" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                ) : (
+                  <Building className="h-8 w-8 text-muted-foreground/40" />
+                )}
+              </div>
+              <div className="flex-1">
+                <FormField
+                  control={form.control}
+                  name="logoUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Logo URL</FormLabel>
+                      <FormControl>
+                        <div className="flex gap-2">
+                          <Input placeholder="https://yoursite.com/logo.png" {...field} />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Brand Colors */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Brand Colors</CardTitle>
+            <CardDescription>Used in email headers, buttons, and accent elements.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <FormField
+                control={form.control}
+                name="primaryColor"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Primary Color</FormLabel>
+                    <FormControl>
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <input
+                            type="color"
+                            value={field.value || "#FF8C00"}
+                            onChange={(e) => field.onChange(e.target.value)}
+                            className="w-12 h-10 rounded-lg border cursor-pointer p-0.5 bg-transparent"
+                          />
+                        </div>
+                        <Input
+                          value={field.value || ""}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          placeholder="#FF8C00"
+                          className="font-mono uppercase"
+                          maxLength={7}
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="accentColor"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Accent Color</FormLabel>
+                    <FormControl>
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <input
+                            type="color"
+                            value={field.value || "#FF1493"}
+                            onChange={(e) => field.onChange(e.target.value)}
+                            className="w-12 h-10 rounded-lg border cursor-pointer p-0.5 bg-transparent"
+                          />
+                        </div>
+                        <Input
+                          value={field.value || ""}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          placeholder="#FF1493"
+                          className="font-mono uppercase"
+                          maxLength={7}
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="mt-4 h-10 rounded-lg overflow-hidden" style={{ background: previewGradient }}>
+              <div className="h-full flex items-center justify-center text-white text-xs font-semibold opacity-90 tracking-wide">Gradient Preview</div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Email Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Email Sender Settings</CardTitle>
+            <CardDescription>Control how your campaigns appear in recipients' inboxes.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="fromEmail"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>From Email</FormLabel>
+                    <FormControl>
+                      <Input placeholder="events@yourcompany.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="replyToEmail"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Reply-To Email</FormLabel>
+                    <FormControl>
+                      <Input placeholder="hello@yourcompany.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <FormField
+              control={form.control}
+              name="emailFooterText"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email Footer</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder={`You're receiving this because you're on our guest list. © ${orgName}. Unsubscribe`}
+                      className="resize-none min-h-[80px]"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Live Email Preview */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              Email Preview
+            </CardTitle>
+            <CardDescription>Live preview of how your branded emails will look.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0 overflow-hidden rounded-b-xl">
+            <div className="scale-[0.85] origin-top-left w-[117%] pointer-events-none select-none">
+              <div style={{ fontFamily: "Arial, sans-serif", maxWidth: 600, margin: "0 auto", background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8 }}>
+                <div style={{ background: previewGradient, padding: "32px 40px", textAlign: "center" }}>
+                  {watched.logoUrl ? (
+                    <img src={watched.logoUrl} alt="Logo" style={{ height: 40, maxWidth: 160, objectFit: "contain", marginBottom: 12 }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                  ) : (
+                    <div style={{ color: "white", fontWeight: 700, fontSize: 22, marginBottom: 4 }}>{orgName}</div>
+                  )}
+                  <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 14 }}>Where moments are made</div>
+                </div>
+                <div style={{ padding: "32px 40px" }}>
+                  <h2 style={{ color: "#1a0533", fontSize: 20, fontWeight: 700, marginBottom: 12 }}>You're Invited to Our Upcoming Event</h2>
+                  <p style={{ color: "#4a4a6a", lineHeight: 1.7, fontSize: 14, marginBottom: 20 }}>
+                    We'd love to have you join us for a special experience curated just for you. Reserve your spot today before seats fill up.
+                  </p>
+                  <div style={{ textAlign: "center", margin: "24px 0" }}>
+                    <a style={{ display: "inline-block", background: previewGradient, color: "white", padding: "12px 28px", borderRadius: 8, fontWeight: 600, fontSize: 14, textDecoration: "none" }}>
+                      Reserve My Spot
+                    </a>
+                  </div>
+                  <p style={{ color: "#4a4a6a", lineHeight: 1.7, fontSize: 13 }}>
+                    If you have questions, reply to this email or contact our team. We look forward to seeing you.
+                  </p>
+                  <p style={{ color: "#4a4a6a", fontSize: 13, marginTop: 16 }}>Warmly,<br /><strong>{orgName}</strong></p>
+                </div>
+                <div style={{ background: "#1a0533", padding: "20px 40px", textAlign: "center" }}>
+                  <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, margin: 0 }}>{footerText}</p>
+                  {watched.fromEmail && (
+                    <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, margin: "6px 0 0" }}>Sent from: {watched.fromEmail}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-end">
+          <Button type="submit" disabled={updateOrg.isPending || !form.formState.isDirty} className="bg-gradient-to-r from-primary to-accent border-0 text-white">
+            {updateOrg.isPending ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Saving…</> : "Save Branding"}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
+
 // --- Settings Page ---
 export default function Settings() {
   const orgId = 1;
@@ -949,6 +1249,7 @@ export default function Settings() {
 
   const tabs: { id: TabId; label: string; icon: React.ElementType }[] = [
     { id: "general", label: "General", icon: Building },
+    { id: "branding", label: "Branding", icon: Palette },
     { id: "integrations", label: "Integrations", icon: LinkIcon },
     { id: "billing", label: "Billing & Plan", icon: CreditCard },
   ];
@@ -1063,6 +1364,10 @@ export default function Settings() {
                   </CardContent>
                 </Card>
               </>
+            )}
+
+            {activeTab === "branding" && (
+              <BrandingTab orgId={orgId} />
             )}
 
             {activeTab === "integrations" && (

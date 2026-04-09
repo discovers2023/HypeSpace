@@ -11,6 +11,11 @@ export const organizationsTable = pgTable("organizations", {
   logoUrl: text("logo_url"),
   plan: text("plan").notNull().default("free"),
   ownerId: integer("owner_id").notNull().references(() => usersTable.id),
+  primaryColor: text("primary_color").default("#FF8C00"),
+  accentColor: text("accent_color").default("#FF1493"),
+  fromEmail: text("from_email"),
+  replyToEmail: text("reply_to_email"),
+  emailFooterText: text("email_footer_text"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

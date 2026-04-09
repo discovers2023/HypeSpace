@@ -18,4 +18,9 @@ export interface Organization {
   memberCount: number;
   eventCount: number;
   createdAt: string;
+  primaryColor?: string | null;
+  accentColor?: string | null;
+  fromEmail?: string | null;
+  replyToEmail?: string | null;
+  emailFooterText?: string | null;
 }

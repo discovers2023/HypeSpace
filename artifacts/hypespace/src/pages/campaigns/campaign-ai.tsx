@@ -5,7 +5,7 @@ import { Link, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useAiGenerateCampaign, useListEvents, useCreateCampaign } from "@workspace/api-client-react";
+import { useAiGenerateCampaign, useListEvents, useCreateCampaign, useGetOrganization } from "@workspace/api-client-react";
 import { ArrowLeft, Sparkles, Wand2, Mail, Check, AlertCircle } from "lucide-react";
 import {
   Form,
@@ -31,12 +31,39 @@ const aiCampaignSchema = z.object({
 
 type AiCampaignFormValues = z.infer<typeof aiCampaignSchema>;
 
+function applyBranding(html: string, branding: { primaryColor?: string | null; accentColor?: string | null; name: string; logoUrl?: string | null; emailFooterText?: string | null; fromEmail?: string | null }) {
+  let out = html;
+  const primary = branding.primaryColor || "#FF8C00";
+  const accent = branding.accentColor || "#FF1493";
+
+  out = out.replace(/#FF8C00/g, primary).replace(/#FF1493/g, accent);
+  out = out.replace(/HypeSpace Events/g, branding.name);
+  out = out.replace(/Where moments are made/g, branding.fromEmail ? `Sent by ${branding.fromEmail}` : "Where moments are made");
+
+  if (branding.logoUrl) {
+    out = out.replace(
+      /<h1 style[^>]*>.*?<\/h1>/,
+      `<img src="${branding.logoUrl}" alt="${branding.name}" style="max-height:48px;max-width:180px;object-fit:contain;margin-bottom:8px;" />`
+    );
+  }
+
+  if (branding.emailFooterText) {
+    out = out.replace(
+      /You're receiving this email because you're on our guest list\./,
+      branding.emailFooterText
+    );
+  }
+
+  return out;
+}
+
 export default function CampaignAi() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const generateCampaign = useAiGenerateCampaign();
   const createCampaign = useCreateCampaign();
   const { data: events, isLoading: isEventsLoading } = useListEvents(1);
+  const { data: org } = useGetOrganization(1);
   
   const [generatedResult, setGeneratedResult] = useState<{
     subject: string;
@@ -70,8 +97,17 @@ export default function CampaignAi() {
       {
         onSuccess: (result) => {
           toast({ title: "Campaign generated successfully!" });
+          const branding = org ? {
+            primaryColor: org.primaryColor,
+            accentColor: org.accentColor,
+            name: org.name,
+            logoUrl: org.logoUrl,
+            emailFooterText: org.emailFooterText,
+            fromEmail: org.fromEmail,
+          } : { name: "HypeSpace Events" };
           setGeneratedResult({
             ...result,
+            htmlContent: applyBranding(result.htmlContent, branding),
             selectedEventId: parseInt(data.eventId, 10),
             selectedType: data.campaignType
           });

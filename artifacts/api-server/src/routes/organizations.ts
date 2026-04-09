@@ -25,6 +25,11 @@ function formatOrg(org: typeof organizationsTable.$inferSelect, memberCount: num
     memberCount,
     eventCount,
     createdAt: org.createdAt.toISOString(),
+    primaryColor: org.primaryColor ?? null,
+    accentColor: org.accentColor ?? null,
+    fromEmail: org.fromEmail ?? null,
+    replyToEmail: org.replyToEmail ?? null,
+    emailFooterText: org.emailFooterText ?? null,
   };
 }
 
