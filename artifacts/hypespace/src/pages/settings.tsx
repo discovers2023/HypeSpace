@@ -38,9 +38,6 @@ import {
   ExternalLink,
   Eye,
   EyeOff,
-  Key,
-  Webhook,
-  AlertTriangle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -78,199 +75,144 @@ type PlatformCredDef = {
 const PLATFORM_CREDS: Record<string, PlatformCredDef> = {
   instagram: {
     accountNameKey: "username",
-    summary: "Connect via the Instagram Graph API to schedule posts and track engagement.",
+    summary: "Schedule posts and track engagement via Instagram.",
     helpUrl: "https://developers.facebook.com/docs/instagram-api/getting-started",
     zapierHelpUrl: "https://zapier.com/apps/instagram/integrations",
     apiFields: [
-      { key: "accessToken", label: "Access Token", type: "password", placeholder: "EAABsbCS...", required: true, hint: "Long-lived access token from Meta Developer Portal" },
+      { key: "accessToken", label: "Access Token", type: "password", placeholder: "EAABsbCS...", required: true, hint: "Meta Developer Portal → Your App → Access Tokens" },
       { key: "username", label: "Instagram Username", type: "text", placeholder: "@yourbrand", required: true },
     ],
-    zapierFields: [
-      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true, hint: "Paste the webhook URL from your Zapier Instagram trigger" },
-      { key: "username", label: "Instagram Username", type: "text", placeholder: "@yourbrand", required: true },
-    ],
+    zapierFields: [],
   },
   tiktok: {
     accountNameKey: "handle",
-    summary: "Connect via TikTok for Business API to publish event videos and ads.",
+    summary: "Publish event videos and ads via TikTok for Business.",
     helpUrl: "https://ads.tiktok.com/marketing_api/docs",
-    zapierHelpUrl: "https://zapier.com/apps/tiktok-lead-generation/integrations",
+    zapierHelpUrl: "",
     apiFields: [
-      { key: "appId", label: "App ID", type: "text", placeholder: "7xxxxxxxxxxxxxxxxx", required: true },
-      { key: "appSecret", label: "App Secret", type: "password", placeholder: "Your app secret", required: true },
-      { key: "accessToken", label: "Access Token", type: "password", placeholder: "Bearer token from TikTok", required: true },
+      { key: "accessToken", label: "Access Token", type: "password", placeholder: "Bearer token from TikTok", required: true, hint: "TikTok for Business → Assets → App Management" },
       { key: "handle", label: "TikTok Handle", type: "text", placeholder: "@yourbrand", required: true },
     ],
-    zapierFields: [
-      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true },
-      { key: "handle", label: "TikTok Handle", type: "text", placeholder: "@yourbrand", required: true },
-    ],
+    zapierFields: [],
   },
   facebook: {
     accountNameKey: "pageName",
-    summary: "Connect via Facebook Graph API to publish events and posts to your Page.",
+    summary: "Publish events and posts to your Facebook Page.",
     helpUrl: "https://developers.facebook.com/docs/graph-api/get-started",
-    zapierHelpUrl: "https://zapier.com/apps/facebook-pages/integrations",
+    zapierHelpUrl: "",
     apiFields: [
-      { key: "pageAccessToken", label: "Page Access Token", type: "password", placeholder: "EAABsbCS...", required: true, hint: "From Meta Developer Portal > Your App > Access Tokens" },
-      { key: "pageId", label: "Page ID", type: "text", placeholder: "123456789012345", required: true },
+      { key: "pageAccessToken", label: "Page Access Token", type: "password", placeholder: "EAABsbCS...", required: true, hint: "Meta Developer Portal → Your App → Access Tokens" },
       { key: "pageName", label: "Page Name", type: "text", placeholder: "Your Brand Page", required: true },
     ],
-    zapierFields: [
-      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true },
-      { key: "pageName", label: "Page Name", type: "text", placeholder: "Your Brand Page", required: true },
-    ],
+    zapierFields: [],
   },
   twitter: {
     accountNameKey: "handle",
-    summary: "Connect via X (Twitter) API v2 to schedule tweets and engage attendees.",
-    helpUrl: "https://developer.twitter.com/en/docs/twitter-api/getting-started/getting-access-to-the-twitter-api",
-    zapierHelpUrl: "https://zapier.com/apps/twitter/integrations",
+    summary: "Schedule tweets and engage attendees via X (Twitter) API v2.",
+    helpUrl: "https://developer.twitter.com/en/portal/dashboard",
+    zapierHelpUrl: "",
     apiFields: [
-      { key: "apiKey", label: "API Key", type: "password", placeholder: "Your consumer API key", required: true },
-      { key: "apiSecret", label: "API Secret", type: "password", placeholder: "Your consumer API secret", required: true },
-      { key: "accessToken", label: "Access Token", type: "password", placeholder: "Your access token", required: true },
-      { key: "accessTokenSecret", label: "Access Token Secret", type: "password", placeholder: "Your access token secret", required: true },
-      { key: "handle", label: "X (Twitter) Handle", type: "text", placeholder: "@yourbrand", required: true },
-    ],
-    zapierFields: [
-      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true },
+      { key: "bearerToken", label: "Bearer Token", type: "password", placeholder: "AAAAAAAAA...", required: true, hint: "developer.twitter.com → Your App → Keys and Tokens" },
       { key: "handle", label: "X Handle", type: "text", placeholder: "@yourbrand", required: true },
     ],
+    zapierFields: [],
   },
   linkedin: {
     accountNameKey: "pageName",
-    summary: "Connect via LinkedIn Marketing API to publish updates to your Company Page.",
-    helpUrl: "https://learn.microsoft.com/en-us/linkedin/marketing/getting-started",
-    zapierHelpUrl: "https://zapier.com/apps/linkedin/integrations",
+    summary: "Publish updates to your LinkedIn Company Page.",
+    helpUrl: "https://www.linkedin.com/developers/apps",
+    zapierHelpUrl: "",
     apiFields: [
-      { key: "clientId", label: "Client ID", type: "text", placeholder: "Your LinkedIn app Client ID", required: true },
-      { key: "clientSecret", label: "Client Secret", type: "password", placeholder: "Your LinkedIn app Client Secret", required: true },
-      { key: "accessToken", label: "Access Token", type: "password", placeholder: "OAuth 2.0 access token", required: true, hint: "Generated from LinkedIn OAuth 2.0 flow" },
+      { key: "accessToken", label: "Access Token", type: "password", placeholder: "AQV...", required: true, hint: "LinkedIn Developer Portal → Your App → Auth → OAuth 2.0 tokens" },
       { key: "pageName", label: "Company Page Name", type: "text", placeholder: "Your Company", required: true },
     ],
-    zapierFields: [
-      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true },
-      { key: "pageName", label: "Company Page Name", type: "text", placeholder: "Your Company", required: true },
-    ],
+    zapierFields: [],
   },
   youtube: {
     accountNameKey: "channelName",
-    summary: "Connect via YouTube Data API to manage your channel and stream events live.",
-    helpUrl: "https://developers.google.com/youtube/v3/getting-started",
-    zapierHelpUrl: "https://zapier.com/apps/youtube/integrations",
+    summary: "Manage your channel and live-stream events via YouTube.",
+    helpUrl: "https://console.cloud.google.com/apis/credentials",
+    zapierHelpUrl: "",
     apiFields: [
-      { key: "apiKey", label: "API Key", type: "password", placeholder: "AIzaSy...", required: true, hint: "From Google Cloud Console > Credentials" },
-      { key: "channelId", label: "Channel ID", type: "text", placeholder: "UCxxxxxxxxxxxxxxxxxx", required: true },
+      { key: "apiKey", label: "API Key", type: "password", placeholder: "AIzaSy...", required: true, hint: "Google Cloud Console → APIs & Services → Credentials" },
       { key: "channelName", label: "Channel Name", type: "text", placeholder: "Your YouTube Channel", required: true },
     ],
-    zapierFields: [
-      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true },
-      { key: "channelName", label: "Channel Name", type: "text", placeholder: "Your YouTube Channel", required: true },
-    ],
+    zapierFields: [],
   },
   hubspot: {
     accountNameKey: "portalId",
-    summary: "Sync guest data, deals, and contacts with your HubSpot portal.",
-    helpUrl: "https://developers.hubspot.com/docs/api/private-apps",
-    zapierHelpUrl: "https://zapier.com/apps/hubspot/integrations",
+    summary: "Sync contacts and manage event pipelines in HubSpot.",
+    helpUrl: "https://app.hubspot.com/private-apps",
+    zapierHelpUrl: "",
     apiFields: [
-      { key: "privateAppToken", label: "Private App Token", type: "password", placeholder: "pat-na1-...", required: true, hint: "Create under HubSpot > Settings > Integrations > Private Apps" },
-      { key: "portalId", label: "Portal ID (Hub ID)", type: "text", placeholder: "12345678", required: true },
-    ],
-    zapierFields: [
-      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true },
+      { key: "privateAppToken", label: "Private App Token", type: "password", placeholder: "pat-na1-...", required: true, hint: "HubSpot → Settings → Integrations → Private Apps → Create app" },
       { key: "portalId", label: "Portal ID", type: "text", placeholder: "12345678", required: true },
     ],
+    zapierFields: [],
   },
   salesforce: {
     accountNameKey: "instanceUrl",
-    summary: "Sync event registrations and guest data directly into Salesforce.",
-    helpUrl: "https://help.salesforce.com/s/articleView?id=sf.remoteaccess_oauth_web_server_flow.htm",
-    zapierHelpUrl: "https://zapier.com/apps/salesforce/integrations",
+    summary: "Sync event registrations and guest data into Salesforce.",
+    helpUrl: "https://login.salesforce.com",
+    zapierHelpUrl: "",
     apiFields: [
-      { key: "consumerKey", label: "Consumer Key", type: "text", placeholder: "3MVG9...", required: true, hint: "From Salesforce > Setup > App Manager > Connected App" },
-      { key: "consumerSecret", label: "Consumer Secret", type: "password", placeholder: "Your consumer secret", required: true },
-      { key: "accessToken", label: "Access Token", type: "password", placeholder: "Salesforce access token", required: true },
+      { key: "accessToken", label: "Access Token", type: "password", placeholder: "00D...", required: true, hint: "Salesforce → Setup → App Manager → Connected App" },
       { key: "instanceUrl", label: "Instance URL", type: "text", placeholder: "https://yourorg.salesforce.com", required: true },
     ],
-    zapierFields: [
-      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true },
-      { key: "instanceUrl", label: "Instance URL", type: "text", placeholder: "https://yourorg.salesforce.com", required: true },
-    ],
+    zapierFields: [],
   },
   mailchimp: {
-    accountNameKey: "audienceId",
+    accountNameKey: "apiKey",
     summary: "Export guest lists and sync contacts with your Mailchimp audience.",
-    helpUrl: "https://mailchimp.com/developer/marketing/guides/quick-start/",
-    zapierHelpUrl: "https://zapier.com/apps/mailchimp/integrations",
+    helpUrl: "https://us1.admin.mailchimp.com/account/api/",
+    zapierHelpUrl: "",
     apiFields: [
-      { key: "apiKey", label: "API Key", type: "password", placeholder: "xxxxxxxxxxxxxxxxxxxx-us1", required: true, hint: "From Mailchimp > Account > Extras > API Keys" },
-      { key: "serverPrefix", label: "Server Prefix", type: "text", placeholder: "us1", required: true, hint: "The prefix in your API key after the dash (e.g., us1)" },
-      { key: "audienceId", label: "Audience (List) ID", type: "text", placeholder: "abc123def", required: true },
+      { key: "apiKey", label: "API Key", type: "password", placeholder: "xxxxxxxxxxxxxxxxxxxx-us1", required: true, hint: "Mailchimp → Account → Extras → API Keys → Create A Key" },
     ],
-    zapierFields: [
-      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true },
-      { key: "audienceId", label: "Audience ID", type: "text", placeholder: "abc123def", required: true },
-    ],
+    zapierFields: [],
   },
   activecampaign: {
     accountNameKey: "apiUrl",
-    summary: "Automate event follow-up emails and sync guest contacts with ActiveCampaign.",
-    helpUrl: "https://developers.activecampaign.com/reference/authentication",
-    zapierHelpUrl: "https://zapier.com/apps/activecampaign/integrations",
+    summary: "Automate follow-up emails and sync guest contacts with ActiveCampaign.",
+    helpUrl: "https://www.activecampaign.com/api/",
+    zapierHelpUrl: "",
     apiFields: [
-      { key: "apiUrl", label: "API URL", type: "text", placeholder: "https://youraccountname.api-us1.com", required: true, hint: "Found in ActiveCampaign > Settings > Developer" },
-      { key: "apiKey", label: "API Key", type: "password", placeholder: "Your ActiveCampaign API key", required: true },
+      { key: "apiKey", label: "API Key", type: "password", placeholder: "Your ActiveCampaign API key", required: true, hint: "ActiveCampaign → Settings → Developer → API Access" },
+      { key: "apiUrl", label: "Account URL", type: "text", placeholder: "https://youraccount.api-us1.com", required: true },
     ],
-    zapierFields: [
-      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true },
-      { key: "apiUrl", label: "Account URL", type: "text", placeholder: "https://youraccountname.api-us1.com", required: true },
-    ],
+    zapierFields: [],
   },
   zoho: {
-    accountNameKey: "orgId",
+    accountNameKey: "accessToken",
     summary: "Manage leads and contacts from your events inside Zoho CRM.",
-    helpUrl: "https://www.zoho.com/crm/developer/docs/api/v2/oauth-overview.html",
-    zapierHelpUrl: "https://zapier.com/apps/zoho-crm/integrations",
+    helpUrl: "https://api-console.zoho.com/",
+    zapierHelpUrl: "",
     apiFields: [
-      { key: "clientId", label: "Client ID", type: "text", placeholder: "1000.XXXXXXXXXXXX", required: true, hint: "From Zoho API Console > OAuth Apps" },
-      { key: "clientSecret", label: "Client Secret", type: "password", placeholder: "Your Zoho client secret", required: true },
-      { key: "accessToken", label: "Access Token", type: "password", placeholder: "Generated via OAuth", required: true },
-      { key: "orgId", label: "Organization ID", type: "text", placeholder: "Your Zoho Org ID", required: true },
+      { key: "accessToken", label: "Access Token", type: "password", placeholder: "1000.xxx...", required: true, hint: "Zoho API Console → OAuth Apps → Generate Token" },
     ],
-    zapierFields: [
-      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true },
-      { key: "orgId", label: "Organization ID", type: "text", placeholder: "Your Zoho Org ID", required: true },
-    ],
+    zapierFields: [],
   },
   klaviyo: {
     accountNameKey: "publicKey",
-    summary: "Power event-driven email and SMS campaigns using Klaviyo's powerful flows.",
-    helpUrl: "https://developers.klaviyo.com/en/docs/retrieve_api_credentials",
-    zapierHelpUrl: "https://zapier.com/apps/klaviyo/integrations",
+    summary: "Power event-driven email and SMS campaigns using Klaviyo flows.",
+    helpUrl: "https://www.klaviyo.com/settings/account/api-keys",
+    zapierHelpUrl: "",
     apiFields: [
-      { key: "privateKey", label: "Private API Key", type: "password", placeholder: "pk_xxxxxxxxxxxxxxxxxxxx", required: true, hint: "From Klaviyo > Settings > API Keys > Create Private API Key" },
-      { key: "publicKey", label: "Public API Key (Site ID)", type: "text", placeholder: "XXXXXX", required: true },
+      { key: "privateKey", label: "Private API Key", type: "password", placeholder: "pk_xxxxxxxxxxxxxxxxxxxx", required: true, hint: "Klaviyo → Settings → API Keys → Create Private API Key" },
+      { key: "publicKey", label: "Site ID (Public Key)", type: "text", placeholder: "XXXXXX", required: true },
     ],
-    zapierFields: [
-      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true },
-      { key: "publicKey", label: "Public Key (Site ID)", type: "text", placeholder: "XXXXXX", required: true },
-    ],
+    zapierFields: [],
   },
   gohighlevel: {
     accountNameKey: "locationId",
-    summary: "Import contacts tagged 'studyclub' directly from your Go HighLevel sub-account into any event guest list.",
-    helpUrl: "https://help.gohighlevel.com/support/solutions/articles/155000002166",
-    zapierHelpUrl: "https://zapier.com/apps/gohighlevel/integrations",
+    summary: "Import contacts tagged 'studyclub' directly from your Go HighLevel sub-account.",
+    helpUrl: "https://app.gohighlevel.com/settings/integrations",
+    zapierHelpUrl: "",
     apiFields: [
-      { key: "apiKey", label: "Private Integration Token", type: "password", placeholder: "eyJhbGci...", required: true, raw: true, hint: "Go HighLevel > Settings > Integrations > Private Integrations > Create" },
-      { key: "locationId", label: "Location / Sub-account ID", type: "text", placeholder: "abc123XYZxxx", required: true, raw: true, hint: "Go HighLevel > Settings > Business Info > Location ID" },
+      { key: "apiKey", label: "Private Integration Token", type: "password", placeholder: "eyJhbGci...", required: true, raw: true, hint: "Go HighLevel → Settings → Integrations → Private Integrations" },
+      { key: "locationId", label: "Location ID", type: "text", placeholder: "abc123XYZxxx", required: true, raw: true, hint: "Go HighLevel → Settings → Business Info → Location ID" },
     ],
-    zapierFields: [
-      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true },
-      { key: "locationId", label: "Location ID", type: "text", placeholder: "abc123XYZxxx", required: true },
-    ],
+    zapierFields: [],
   },
 };
 
@@ -375,24 +317,17 @@ function ConnectModal({
   onSubmit: (values: Record<string, string>, method: "api" | "zapier") => void;
   isSubmitting: boolean;
 }) {
-  const [method, setMethod] = useState<"api" | "zapier">("api");
   const [showFields, setShowFields] = useState<Record<string, boolean>>({});
   const [values, setValues] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (open) {
-      setMethod("api");
-      setValues({});
-      setErrors({});
-      setShowFields({});
-    }
+    if (open) { setValues({}); setErrors({}); setShowFields({}); }
   }, [open, platform]);
 
   if (!platform) return null;
-
   const cred = PLATFORM_CREDS[platform.id];
-  const fields = method === "api" ? cred.apiFields : cred.zapierFields;
+  const fields = cred.apiFields;
 
   const handleChange = (key: string, val: string) => {
     setValues(v => ({ ...v, [key]: val }));
@@ -402,22 +337,17 @@ function ConnectModal({
   const handleSubmit = () => {
     const newErrors: Record<string, string> = {};
     for (const f of fields) {
-      if (f.required && !values[f.key]?.trim()) {
-        newErrors[f.key] = `${f.label} is required`;
-      }
+      if (f.required && !values[f.key]?.trim()) newErrors[f.key] = "Required";
     }
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
-    onSubmit(values, method);
+    if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
+    onSubmit(values, "api");
   };
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-sm">
         <DialogHeader>
-          <div className="flex items-center gap-3 mb-1">
+          <div className="flex items-center gap-3">
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0"
               style={{ backgroundColor: platform.color, color: platform.textColor }}
@@ -425,119 +355,63 @@ function ConnectModal({
               {platform.icon}
             </div>
             <div>
-              <DialogTitle>Connect {platform.name}</DialogTitle>
-              <DialogDescription className="text-xs mt-0.5">{cred.summary}</DialogDescription>
+              <DialogTitle className="text-base">Connect {platform.name}</DialogTitle>
+              <a
+                href={cred.helpUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-[#FF8C00] hover:underline inline-flex items-center gap-0.5"
+              >
+                Where to find my credentials <ExternalLink className="h-2.5 w-2.5" />
+              </a>
             </div>
           </div>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Method tabs */}
-          <Tabs value={method} onValueChange={(v) => { setMethod(v as "api" | "zapier"); setValues({}); setErrors({}); }}>
-            <TabsList className="w-full">
-              <TabsTrigger value="api" className="flex-1 gap-1.5 text-xs">
-                <Key className="h-3.5 w-3.5" />
-                API / Token
-              </TabsTrigger>
-              <TabsTrigger value="zapier" className="flex-1 gap-1.5 text-xs">
-                <Webhook className="h-3.5 w-3.5" />
-                Zapier Webhook
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="api" className="mt-4 space-y-4">
-              <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-lg">
-                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-700">
-                  Your credentials are encrypted and stored securely. They are never exposed in the UI.{" "}
-                  <a href={cred.helpUrl} target="_blank" rel="noopener noreferrer" className="underline font-medium">
-                    How to get your keys →
-                  </a>
-                </p>
+        <div className="space-y-3 py-1">
+          {fields.map((field) => (
+            <div key={field.key} className="space-y-1">
+              <label className="text-sm font-medium">{field.label}</label>
+              <div className="relative">
+                <Input
+                  type={field.type === "password" && !showFields[field.key] ? "password" : "text"}
+                  placeholder={field.placeholder}
+                  value={values[field.key] || ""}
+                  onChange={(e) => handleChange(field.key, e.target.value)}
+                  className={`h-9 text-sm font-mono ${errors[field.key] ? "border-destructive" : ""}`}
+                  autoComplete="off"
+                />
+                {field.type === "password" && (
+                  <button
+                    type="button"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowFields(s => ({ ...s, [field.key]: !s[field.key] }))}
+                  >
+                    {showFields[field.key] ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
+                )}
               </div>
-
-              {fields.map((field) => (
-                <div key={field.key} className="space-y-1.5">
-                  <label className="text-sm font-medium">
-                    {field.label}
-                    {field.required && <span className="text-destructive ml-1">*</span>}
-                  </label>
-                  <div className="relative">
-                    <Input
-                      type={field.type === "password" && !showFields[field.key] ? "password" : "text"}
-                      placeholder={field.placeholder}
-                      value={values[field.key] || ""}
-                      onChange={(e) => handleChange(field.key, e.target.value)}
-                      className={errors[field.key] ? "border-destructive" : ""}
-                    />
-                    {field.type === "password" && (
-                      <button
-                        type="button"
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        onClick={() => setShowFields(s => ({ ...s, [field.key]: !s[field.key] }))}
-                      >
-                        {showFields[field.key] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    )}
-                  </div>
-                  {field.hint && <p className="text-xs text-muted-foreground">{field.hint}</p>}
-                  {errors[field.key] && <p className="text-xs text-destructive">{errors[field.key]}</p>}
-                </div>
-              ))}
-            </TabsContent>
-
-            <TabsContent value="zapier" className="mt-4 space-y-4">
-              <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg space-y-2">
-                <p className="text-xs font-medium text-blue-800">How to set up Zapier:</p>
-                <ol className="text-xs text-blue-700 space-y-1 list-decimal list-inside">
-                  <li>Go to <a href="https://zapier.com" target="_blank" rel="noopener noreferrer" className="underline font-medium">zapier.com</a> and create a new Zap</li>
-                  <li>Choose <strong>{platform.name}</strong> as your trigger app</li>
-                  <li>Choose <strong>Webhooks by Zapier</strong> as your action app</li>
-                  <li>Copy the generated webhook URL and paste it below</li>
-                </ol>
-                <a
-                  href={cred.zapierHelpUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-blue-700 underline font-medium"
-                >
-                  Browse {platform.name} Zapier templates <ExternalLink className="h-3 w-3" />
-                </a>
-              </div>
-
-              {fields.map((field) => (
-                <div key={field.key} className="space-y-1.5">
-                  <label className="text-sm font-medium">
-                    {field.label}
-                    {field.required && <span className="text-destructive ml-1">*</span>}
-                  </label>
-                  <Input
-                    type="text"
-                    placeholder={field.placeholder}
-                    value={values[field.key] || ""}
-                    onChange={(e) => handleChange(field.key, e.target.value)}
-                    className={errors[field.key] ? "border-destructive" : ""}
-                  />
-                  {field.hint && <p className="text-xs text-muted-foreground">{field.hint}</p>}
-                  {errors[field.key] && <p className="text-xs text-destructive">{errors[field.key]}</p>}
-                </div>
-              ))}
-            </TabsContent>
-          </Tabs>
+              {field.hint && !errors[field.key] && (
+                <p className="text-xs text-muted-foreground">{field.hint}</p>
+              )}
+              {errors[field.key] && <p className="text-xs text-destructive">{errors[field.key]}</p>}
+            </div>
+          ))}
         </div>
 
-        <DialogFooter className="mt-2">
-          <Button variant="outline" onClick={onClose} disabled={isSubmitting}>Cancel</Button>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" size="sm" onClick={onClose} disabled={isSubmitting}>Cancel</Button>
           <Button
+            size="sm"
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="bg-gradient-to-r from-primary to-accent border-0 text-white"
+            className="flex-1 text-white border-0 hover:opacity-90"
+            style={{ background: `linear-gradient(135deg, ${platform.color}, ${platform.color}bb)` }}
           >
-            {isSubmitting ? (
-              <><Loader2 className="h-4 w-4 animate-spin mr-2" />Connecting…</>
-            ) : (
-              `Connect ${platform.name}`
-            )}
+            {isSubmitting
+              ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />Connecting…</>
+              : "Connect"
+            }
           </Button>
         </DialogFooter>
       </DialogContent>
