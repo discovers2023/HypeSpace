@@ -91,7 +91,7 @@ export default function EventNew() {
     };
 
     createEvent.mutate(
-      { data: formattedData },
+      { orgId: 1, data: formattedData },
       {
         onSuccess: (newEvent) => {
           toast({ title: "Event created successfully!" });
