@@ -7,3 +7,4 @@ export * from "./campaigns";
 export * from "./social_posts";
 export * from "./reminders";
 export * from "./activity";
+export * from "./integrations";

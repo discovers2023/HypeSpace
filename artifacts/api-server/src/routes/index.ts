@@ -9,6 +9,7 @@ import campaignsRouter from "./campaigns";
 import socialRouter from "./social";
 import dashboardRouter from "./dashboard";
 import remindersRouter from "./reminders";
+import integrationsRouter from "./integrations";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(campaignsRouter);
 router.use(socialRouter);
 router.use(dashboardRouter);
 router.use(remindersRouter);
+router.use(integrationsRouter);
 
 export default router;
