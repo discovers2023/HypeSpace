@@ -36,7 +36,7 @@ export default function CampaignAi() {
   const { toast } = useToast();
   const generateCampaign = useAiGenerateCampaign();
   const createCampaign = useCreateCampaign();
-  const { data: events, isLoading: isEventsLoading } = useListEvents();
+  const { data: events, isLoading: isEventsLoading } = useListEvents(1);
   
   const [generatedResult, setGeneratedResult] = useState<{
     subject: string;

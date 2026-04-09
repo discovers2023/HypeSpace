@@ -64,7 +64,7 @@ type PostFormValues = z.infer<typeof postSchema>;
 
 export default function SocialList() {
   const { data: posts, isLoading } = useListSocialPosts(1);
-  const { data: events, isLoading: isEventsLoading } = useListEvents();
+  const { data: events, isLoading: isEventsLoading } = useListEvents(1);
   const deletePost = useDeleteSocialPost();
   const createPost = useCreateSocialPost();
   
