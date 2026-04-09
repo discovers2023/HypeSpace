@@ -428,16 +428,20 @@ function GHLImportModal({ orgId, open, onClose }: { orgId: number; open: boolean
   const events = eventsData ?? [];
 
   const [step, setStep] = useState<ImportStep>("configure");
-  const [tag, setTag] = useState("studyclub");
+  const [filterMode, setFilterMode] = useState<"all" | "tags">("all");
+  const [tagInput, setTagInput] = useState("");
   const [eventId, setEventId] = useState<string>("");
   const [contacts, setContacts] = useState<GHLContact[]>([]);
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  const parsedTags = tagInput.split(",").map(t => t.trim()).filter(Boolean);
+
   const reset = () => {
     setStep("configure");
-    setTag("studyclub");
+    setFilterMode("all");
+    setTagInput("");
     setEventId("");
     setContacts([]);
     setImportResult(null);
@@ -447,14 +451,17 @@ function GHLImportModal({ orgId, open, onClose }: { orgId: number; open: boolean
   const handleClose = () => { reset(); onClose(); };
 
   const handlePreview = async () => {
-    if (!tag.trim()) { setErrorMsg("Please enter a tag to search for."); return; }
     setErrorMsg("");
+    if (filterMode === "tags" && parsedTags.length === 0) {
+      setErrorMsg("Enter at least one tag, or switch to 'All contacts'.");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch(`${BASE}/api/organizations/${orgId}/integrations/gohighlevel/preview`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tag: tag.trim() }),
+        body: JSON.stringify({ tags: filterMode === "tags" ? parsedTags : [] }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to fetch contacts");
@@ -475,7 +482,7 @@ function GHLImportModal({ orgId, open, onClose }: { orgId: number; open: boolean
       const res = await fetch(`${BASE}/api/organizations/${orgId}/integrations/gohighlevel/import`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tag: tag.trim(), eventId }),
+        body: JSON.stringify({ tags: filterMode === "tags" ? parsedTags : [], eventId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Import failed");
@@ -488,6 +495,10 @@ function GHLImportModal({ orgId, open, onClose }: { orgId: number; open: boolean
     }
   };
 
+  const previewLabel = filterMode === "all"
+    ? `${contacts.length} contact${contacts.length !== 1 ? "s" : ""} found`
+    : `${contacts.length} contact${contacts.length !== 1 ? "s" : ""} with tag${parsedTags.length !== 1 ? "s" : ""} ${parsedTags.map(t => `"${t}"`).join(", ")}`;
+
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
       <DialogContent className="max-w-lg">
@@ -496,24 +507,65 @@ function GHLImportModal({ orgId, open, onClose }: { orgId: number; open: boolean
             <span className="text-xl">🚀</span> Go HighLevel — Import Contacts
           </DialogTitle>
           <DialogDescription>
-            {step === "configure" && "Fetch contacts by tag from your GHL sub-account."}
-            {step === "preview" && `${contacts.length} contact${contacts.length !== 1 ? "s" : ""} found with tag "${tag}".`}
+            {step === "configure" && "Choose which contacts to pull from your GHL sub-account."}
+            {step === "preview" && previewLabel}
             {step === "success" && "Import complete!"}
           </DialogDescription>
         </DialogHeader>
 
         {step === "configure" && (
           <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Tag to import</label>
-              <Input
-                value={tag}
-                onChange={(e) => setTag(e.target.value)}
-                placeholder="studyclub"
-                className="font-mono"
-              />
-              <p className="text-xs text-muted-foreground">Contacts in GHL with this tag will be imported.</p>
+            {/* Filter mode toggle */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setFilterMode("all")}
+                className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition-all text-left ${
+                  filterMode === "all"
+                    ? "border-[#FF8C00] bg-orange-50 text-[#FF8C00]"
+                    : "border-border bg-background text-muted-foreground hover:border-[#FF8C00]/50"
+                }`}
+              >
+                <div className="font-semibold">All contacts</div>
+                <div className="text-xs opacity-70 mt-0.5">Import everyone</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterMode("tags")}
+                className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition-all text-left ${
+                  filterMode === "tags"
+                    ? "border-[#FF8C00] bg-orange-50 text-[#FF8C00]"
+                    : "border-border bg-background text-muted-foreground hover:border-[#FF8C00]/50"
+                }`}
+              >
+                <div className="font-semibold">Filter by tag</div>
+                <div className="text-xs opacity-70 mt-0.5">One or more tags</div>
+              </button>
             </div>
+
+            {filterMode === "tags" && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Tags <span className="text-muted-foreground font-normal">(comma-separated)</span></label>
+                <Input
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  placeholder="studyclub, vip, speaker"
+                  className="font-mono"
+                  autoFocus
+                />
+                {parsedTags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 pt-0.5">
+                    {parsedTags.map(t => (
+                      <span key={t} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-xs font-medium">
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">Contacts matching any of these tags will be imported.</p>
+              </div>
+            )}
+
             {errorMsg && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{errorMsg}</p>}
             <DialogFooter>
               <Button variant="outline" onClick={handleClose}>Cancel</Button>

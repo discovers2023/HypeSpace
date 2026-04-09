@@ -8,7 +8,7 @@ const router = Router();
 const GHL_BASE = "https://services.leadconnectorhq.com";
 const GHL_VERSION = "2021-07-28";
 
-async function fetchGHLContacts(apiKey: string, locationId: string, tag: string): Promise<Array<{
+async function fetchGHLContacts(apiKey: string, locationId: string, tags: string[]): Promise<Array<{
   name: string; email: string; phone: string | null; company: string | null;
 }>> {
   const url = new URL(`${GHL_BASE}/contacts/`);
@@ -27,11 +27,11 @@ async function fetchGHLContacts(apiKey: string, locationId: string, tag: string)
   const data = await resp.json() as { contacts?: any[] };
   const contacts = data.contacts ?? [];
 
-  const tagLower = tag.toLowerCase();
-  const filtered = tag.trim()
+  const tagFilters = tags.map(t => t.toLowerCase()).filter(Boolean);
+  const filtered = tagFilters.length > 0
     ? contacts.filter((c: any) => {
-        const tags: string[] = c.tags ?? [];
-        return tags.some((t: string) => t.toLowerCase() === tagLower);
+        const contactTags: string[] = (c.tags ?? []).map((t: string) => t.toLowerCase());
+        return tagFilters.some(f => contactTags.includes(f));
       })
     : contacts;
 
@@ -101,7 +101,7 @@ router.post("/organizations/:orgId/integrations", async (req, res) => {
 router.post("/organizations/:orgId/integrations/gohighlevel/preview", async (req, res) => {
   try {
     const orgId = parseInt(req.params.orgId, 10);
-    const { tag = "studyclub" } = req.body;
+    const tags: string[] = Array.isArray(req.body.tags) ? req.body.tags : [];
 
     const [integration] = await db.select().from(integrationsTable).where(
       and(eq(integrationsTable.organizationId, orgId), eq(integrationsTable.platform, "gohighlevel"))
@@ -113,7 +113,7 @@ router.post("/organizations/:orgId/integrations/gohighlevel/preview", async (req
     const locationId = meta.locationId;
     if (!apiKey || !locationId) { res.status(400).json({ error: "Missing GHL credentials" }); return; }
 
-    const contacts = await fetchGHLContacts(apiKey, locationId, tag);
+    const contacts = await fetchGHLContacts(apiKey, locationId, tags);
     res.json({ contacts, total: contacts.length });
   } catch (err: any) {
     req.log.error(err);
@@ -125,7 +125,8 @@ router.post("/organizations/:orgId/integrations/gohighlevel/preview", async (req
 router.post("/organizations/:orgId/integrations/gohighlevel/import", async (req, res) => {
   try {
     const orgId = parseInt(req.params.orgId, 10);
-    const { tag = "studyclub", eventId } = req.body;
+    const tags: string[] = Array.isArray(req.body.tags) ? req.body.tags : [];
+    const { eventId } = req.body;
 
     if (!eventId) { res.status(400).json({ error: "eventId is required" }); return; }
 
@@ -145,7 +146,7 @@ router.post("/organizations/:orgId/integrations/gohighlevel/import", async (req,
     );
     if (!event) { res.status(404).json({ error: "Event not found" }); return; }
 
-    const contacts = await fetchGHLContacts(apiKey, locationId, tag);
+    const contacts = await fetchGHLContacts(apiKey, locationId, tags);
 
     // Get existing guests for deduplication
     const existing = await db.select({ email: guestsTable.email }).from(guestsTable)
@@ -153,6 +154,7 @@ router.post("/organizations/:orgId/integrations/gohighlevel/import", async (req,
     const existingEmails = new Set(existing.map((g) => g.email.toLowerCase()));
 
     const toInsert = contacts.filter((c) => !existingEmails.has(c.email.toLowerCase()));
+    const tagNote = tags.length > 0 ? `tags: ${tags.join(", ")}` : "all contacts";
 
     let imported = 0;
     if (toInsert.length > 0) {
@@ -164,7 +166,7 @@ router.post("/organizations/:orgId/integrations/gohighlevel/import", async (req,
           phone: c.phone ?? undefined,
           company: c.company ?? undefined,
           status: "invited" as const,
-          notes: `Imported from Go HighLevel (tag: ${tag})`,
+          notes: `Imported from Go HighLevel (${tagNote})`,
         }))
       );
       imported = toInsert.length;
