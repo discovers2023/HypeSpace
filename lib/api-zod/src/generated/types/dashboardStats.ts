@@ -19,4 +19,13 @@ export interface DashboardStats {
   upcomingEvents: Event[];
   guestsByStatus: DashboardStatsGuestsByStatus;
   eventsByType: DashboardStatsEventsByType;
+  perEventRsvp: Array<{
+    eventId: number;
+    title: string;
+    yes: number;
+    no: number;
+    maybe: number;
+    invited: number;
+    total: number;
+  }>;
 }

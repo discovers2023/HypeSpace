@@ -787,6 +787,7 @@ export const GetDashboardStatsResponse = zod.object({
     invited: zod.number(),
     confirmed: zod.number(),
     declined: zod.number(),
+    maybe: zod.number(),
     attended: zod.number(),
   }),
   eventsByType: zod.object({
@@ -794,6 +795,17 @@ export const GetDashboardStatsResponse = zod.object({
     remote: zod.number(),
     hybrid: zod.number(),
   }),
+  perEventRsvp: zod.array(
+    zod.object({
+      eventId: zod.number(),
+      title: zod.string(),
+      yes: zod.number(),
+      no: zod.number(),
+      maybe: zod.number(),
+      invited: zod.number(),
+      total: zod.number(),
+    }),
+  ),
 });
 
 /**

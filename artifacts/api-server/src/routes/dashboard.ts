@@ -65,6 +65,7 @@ router.get("/organizations/:orgId/dashboard", async (req, res): Promise<void> =>
     invited: eventGuests.filter(g => g.status === "invited").length,
     confirmed: eventGuests.filter(g => g.status === "confirmed").length,
     declined: eventGuests.filter(g => g.status === "declined").length,
+    maybe: eventGuests.filter(g => g.status === "maybe").length,
     attended: eventGuests.filter(g => g.status === "attended").length,
   };
 
@@ -73,6 +74,19 @@ router.get("/organizations/:orgId/dashboard", async (req, res): Promise<void> =>
     remote: events.filter(e => e.type === "remote").length,
     hybrid: events.filter(e => e.type === "hybrid").length,
   };
+
+  const perEventRsvp = events.map(event => {
+    const eg = eventGuests.filter(g => g.eventId === event.id);
+    return {
+      eventId: event.id,
+      title: event.title,
+      yes: eg.filter(g => g.status === "confirmed" || g.status === "attended").length,
+      no: eg.filter(g => g.status === "declined").length,
+      maybe: eg.filter(g => g.status === "maybe").length,
+      invited: eg.filter(g => g.status === "invited").length,
+      total: eg.length,
+    };
+  });
 
   res.json(GetDashboardStatsResponse.parse({
     totalEvents: events.length,
@@ -84,6 +98,7 @@ router.get("/organizations/:orgId/dashboard", async (req, res): Promise<void> =>
     upcomingEvents: upcomingFormatted,
     guestsByStatus,
     eventsByType,
+    perEventRsvp,
   }));
 });
 
