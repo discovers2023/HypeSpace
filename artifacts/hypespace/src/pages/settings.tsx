@@ -20,7 +20,28 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Building, CreditCard, Link as LinkIcon, CheckCircle2, AlertCircle, Loader2, ExternalLink } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Building,
+  CreditCard,
+  Link as LinkIcon,
+  CheckCircle2,
+  Loader2,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  Key,
+  Webhook,
+  AlertTriangle,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -33,6 +54,210 @@ const orgSchema = z.object({
 type OrgFormValues = z.infer<typeof orgSchema>;
 
 type TabId = "general" | "integrations" | "billing";
+
+// --- Platform field definitions ---
+type FieldDef = {
+  key: string;
+  label: string;
+  placeholder: string;
+  type?: "text" | "password";
+  hint?: string;
+  required?: boolean;
+};
+
+type PlatformCredDef = {
+  apiFields: FieldDef[];
+  zapierFields: FieldDef[];
+  accountNameKey: string;
+  helpUrl: string;
+  zapierHelpUrl: string;
+  summary: string;
+};
+
+const PLATFORM_CREDS: Record<string, PlatformCredDef> = {
+  instagram: {
+    accountNameKey: "username",
+    summary: "Connect via the Instagram Graph API to schedule posts and track engagement.",
+    helpUrl: "https://developers.facebook.com/docs/instagram-api/getting-started",
+    zapierHelpUrl: "https://zapier.com/apps/instagram/integrations",
+    apiFields: [
+      { key: "accessToken", label: "Access Token", type: "password", placeholder: "EAABsbCS...", required: true, hint: "Long-lived access token from Meta Developer Portal" },
+      { key: "username", label: "Instagram Username", type: "text", placeholder: "@yourbrand", required: true },
+    ],
+    zapierFields: [
+      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true, hint: "Paste the webhook URL from your Zapier Instagram trigger" },
+      { key: "username", label: "Instagram Username", type: "text", placeholder: "@yourbrand", required: true },
+    ],
+  },
+  tiktok: {
+    accountNameKey: "handle",
+    summary: "Connect via TikTok for Business API to publish event videos and ads.",
+    helpUrl: "https://ads.tiktok.com/marketing_api/docs",
+    zapierHelpUrl: "https://zapier.com/apps/tiktok-lead-generation/integrations",
+    apiFields: [
+      { key: "appId", label: "App ID", type: "text", placeholder: "7xxxxxxxxxxxxxxxxx", required: true },
+      { key: "appSecret", label: "App Secret", type: "password", placeholder: "Your app secret", required: true },
+      { key: "accessToken", label: "Access Token", type: "password", placeholder: "Bearer token from TikTok", required: true },
+      { key: "handle", label: "TikTok Handle", type: "text", placeholder: "@yourbrand", required: true },
+    ],
+    zapierFields: [
+      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true },
+      { key: "handle", label: "TikTok Handle", type: "text", placeholder: "@yourbrand", required: true },
+    ],
+  },
+  facebook: {
+    accountNameKey: "pageName",
+    summary: "Connect via Facebook Graph API to publish events and posts to your Page.",
+    helpUrl: "https://developers.facebook.com/docs/graph-api/get-started",
+    zapierHelpUrl: "https://zapier.com/apps/facebook-pages/integrations",
+    apiFields: [
+      { key: "pageAccessToken", label: "Page Access Token", type: "password", placeholder: "EAABsbCS...", required: true, hint: "From Meta Developer Portal > Your App > Access Tokens" },
+      { key: "pageId", label: "Page ID", type: "text", placeholder: "123456789012345", required: true },
+      { key: "pageName", label: "Page Name", type: "text", placeholder: "Your Brand Page", required: true },
+    ],
+    zapierFields: [
+      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true },
+      { key: "pageName", label: "Page Name", type: "text", placeholder: "Your Brand Page", required: true },
+    ],
+  },
+  twitter: {
+    accountNameKey: "handle",
+    summary: "Connect via X (Twitter) API v2 to schedule tweets and engage attendees.",
+    helpUrl: "https://developer.twitter.com/en/docs/twitter-api/getting-started/getting-access-to-the-twitter-api",
+    zapierHelpUrl: "https://zapier.com/apps/twitter/integrations",
+    apiFields: [
+      { key: "apiKey", label: "API Key", type: "password", placeholder: "Your consumer API key", required: true },
+      { key: "apiSecret", label: "API Secret", type: "password", placeholder: "Your consumer API secret", required: true },
+      { key: "accessToken", label: "Access Token", type: "password", placeholder: "Your access token", required: true },
+      { key: "accessTokenSecret", label: "Access Token Secret", type: "password", placeholder: "Your access token secret", required: true },
+      { key: "handle", label: "X (Twitter) Handle", type: "text", placeholder: "@yourbrand", required: true },
+    ],
+    zapierFields: [
+      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true },
+      { key: "handle", label: "X Handle", type: "text", placeholder: "@yourbrand", required: true },
+    ],
+  },
+  linkedin: {
+    accountNameKey: "pageName",
+    summary: "Connect via LinkedIn Marketing API to publish updates to your Company Page.",
+    helpUrl: "https://learn.microsoft.com/en-us/linkedin/marketing/getting-started",
+    zapierHelpUrl: "https://zapier.com/apps/linkedin/integrations",
+    apiFields: [
+      { key: "clientId", label: "Client ID", type: "text", placeholder: "Your LinkedIn app Client ID", required: true },
+      { key: "clientSecret", label: "Client Secret", type: "password", placeholder: "Your LinkedIn app Client Secret", required: true },
+      { key: "accessToken", label: "Access Token", type: "password", placeholder: "OAuth 2.0 access token", required: true, hint: "Generated from LinkedIn OAuth 2.0 flow" },
+      { key: "pageName", label: "Company Page Name", type: "text", placeholder: "Your Company", required: true },
+    ],
+    zapierFields: [
+      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true },
+      { key: "pageName", label: "Company Page Name", type: "text", placeholder: "Your Company", required: true },
+    ],
+  },
+  youtube: {
+    accountNameKey: "channelName",
+    summary: "Connect via YouTube Data API to manage your channel and stream events live.",
+    helpUrl: "https://developers.google.com/youtube/v3/getting-started",
+    zapierHelpUrl: "https://zapier.com/apps/youtube/integrations",
+    apiFields: [
+      { key: "apiKey", label: "API Key", type: "password", placeholder: "AIzaSy...", required: true, hint: "From Google Cloud Console > Credentials" },
+      { key: "channelId", label: "Channel ID", type: "text", placeholder: "UCxxxxxxxxxxxxxxxxxx", required: true },
+      { key: "channelName", label: "Channel Name", type: "text", placeholder: "Your YouTube Channel", required: true },
+    ],
+    zapierFields: [
+      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true },
+      { key: "channelName", label: "Channel Name", type: "text", placeholder: "Your YouTube Channel", required: true },
+    ],
+  },
+  hubspot: {
+    accountNameKey: "portalId",
+    summary: "Sync guest data, deals, and contacts with your HubSpot portal.",
+    helpUrl: "https://developers.hubspot.com/docs/api/private-apps",
+    zapierHelpUrl: "https://zapier.com/apps/hubspot/integrations",
+    apiFields: [
+      { key: "privateAppToken", label: "Private App Token", type: "password", placeholder: "pat-na1-...", required: true, hint: "Create under HubSpot > Settings > Integrations > Private Apps" },
+      { key: "portalId", label: "Portal ID (Hub ID)", type: "text", placeholder: "12345678", required: true },
+    ],
+    zapierFields: [
+      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true },
+      { key: "portalId", label: "Portal ID", type: "text", placeholder: "12345678", required: true },
+    ],
+  },
+  salesforce: {
+    accountNameKey: "instanceUrl",
+    summary: "Sync event registrations and guest data directly into Salesforce.",
+    helpUrl: "https://help.salesforce.com/s/articleView?id=sf.remoteaccess_oauth_web_server_flow.htm",
+    zapierHelpUrl: "https://zapier.com/apps/salesforce/integrations",
+    apiFields: [
+      { key: "consumerKey", label: "Consumer Key", type: "text", placeholder: "3MVG9...", required: true, hint: "From Salesforce > Setup > App Manager > Connected App" },
+      { key: "consumerSecret", label: "Consumer Secret", type: "password", placeholder: "Your consumer secret", required: true },
+      { key: "accessToken", label: "Access Token", type: "password", placeholder: "Salesforce access token", required: true },
+      { key: "instanceUrl", label: "Instance URL", type: "text", placeholder: "https://yourorg.salesforce.com", required: true },
+    ],
+    zapierFields: [
+      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true },
+      { key: "instanceUrl", label: "Instance URL", type: "text", placeholder: "https://yourorg.salesforce.com", required: true },
+    ],
+  },
+  mailchimp: {
+    accountNameKey: "audienceId",
+    summary: "Export guest lists and sync contacts with your Mailchimp audience.",
+    helpUrl: "https://mailchimp.com/developer/marketing/guides/quick-start/",
+    zapierHelpUrl: "https://zapier.com/apps/mailchimp/integrations",
+    apiFields: [
+      { key: "apiKey", label: "API Key", type: "password", placeholder: "xxxxxxxxxxxxxxxxxxxx-us1", required: true, hint: "From Mailchimp > Account > Extras > API Keys" },
+      { key: "serverPrefix", label: "Server Prefix", type: "text", placeholder: "us1", required: true, hint: "The prefix in your API key after the dash (e.g., us1)" },
+      { key: "audienceId", label: "Audience (List) ID", type: "text", placeholder: "abc123def", required: true },
+    ],
+    zapierFields: [
+      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true },
+      { key: "audienceId", label: "Audience ID", type: "text", placeholder: "abc123def", required: true },
+    ],
+  },
+  activecampaign: {
+    accountNameKey: "apiUrl",
+    summary: "Automate event follow-up emails and sync guest contacts with ActiveCampaign.",
+    helpUrl: "https://developers.activecampaign.com/reference/authentication",
+    zapierHelpUrl: "https://zapier.com/apps/activecampaign/integrations",
+    apiFields: [
+      { key: "apiUrl", label: "API URL", type: "text", placeholder: "https://youraccountname.api-us1.com", required: true, hint: "Found in ActiveCampaign > Settings > Developer" },
+      { key: "apiKey", label: "API Key", type: "password", placeholder: "Your ActiveCampaign API key", required: true },
+    ],
+    zapierFields: [
+      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true },
+      { key: "apiUrl", label: "Account URL", type: "text", placeholder: "https://youraccountname.api-us1.com", required: true },
+    ],
+  },
+  zoho: {
+    accountNameKey: "orgId",
+    summary: "Manage leads and contacts from your events inside Zoho CRM.",
+    helpUrl: "https://www.zoho.com/crm/developer/docs/api/v2/oauth-overview.html",
+    zapierHelpUrl: "https://zapier.com/apps/zoho-crm/integrations",
+    apiFields: [
+      { key: "clientId", label: "Client ID", type: "text", placeholder: "1000.XXXXXXXXXXXX", required: true, hint: "From Zoho API Console > OAuth Apps" },
+      { key: "clientSecret", label: "Client Secret", type: "password", placeholder: "Your Zoho client secret", required: true },
+      { key: "accessToken", label: "Access Token", type: "password", placeholder: "Generated via OAuth", required: true },
+      { key: "orgId", label: "Organization ID", type: "text", placeholder: "Your Zoho Org ID", required: true },
+    ],
+    zapierFields: [
+      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true },
+      { key: "orgId", label: "Organization ID", type: "text", placeholder: "Your Zoho Org ID", required: true },
+    ],
+  },
+  klaviyo: {
+    accountNameKey: "publicKey",
+    summary: "Power event-driven email and SMS campaigns using Klaviyo's powerful flows.",
+    helpUrl: "https://developers.klaviyo.com/en/docs/retrieve_api_credentials",
+    zapierHelpUrl: "https://zapier.com/apps/klaviyo/integrations",
+    apiFields: [
+      { key: "privateKey", label: "Private API Key", type: "password", placeholder: "pk_xxxxxxxxxxxxxxxxxxxx", required: true, hint: "From Klaviyo > Settings > API Keys > Create Private API Key" },
+      { key: "publicKey", label: "Public API Key (Site ID)", type: "text", placeholder: "XXXXXX", required: true },
+    ],
+    zapierFields: [
+      { key: "webhookUrl", label: "Zapier Webhook URL", type: "text", placeholder: "https://hooks.zapier.com/hooks/catch/...", required: true },
+      { key: "publicKey", label: "Public Key (Site ID)", type: "text", placeholder: "XXXXXX", required: true },
+    ],
+  },
+};
 
 // --- Platform definitions ---
 type Platform = {
@@ -63,6 +288,8 @@ const CRM_PLATFORMS: Platform[] = [
   { id: "klaviyo", name: "Klaviyo", type: "crm", color: "#1A1A1A", textColor: "#fff", description: "Power data-driven email and SMS campaigns for events.", icon: "📧" },
 ];
 
+const ALL_PLATFORMS = [...SOCIAL_PLATFORMS, ...CRM_PLATFORMS];
+
 type Integration = {
   id: number;
   platform: string;
@@ -70,6 +297,7 @@ type Integration = {
   status: string;
   accountName: string | null;
   connectedAt: string;
+  metadata?: Record<string, string> | null;
 };
 
 function useIntegrations(orgId: number) {
@@ -86,7 +314,7 @@ function useIntegrations(orgId: number) {
 function useConnectIntegration(orgId: number) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: { platform: string; platformType: string; accountName: string }) => {
+    mutationFn: async (payload: { platform: string; platformType: string; accountName: string; metadata: Record<string, string> }) => {
       const res = await fetch(`${BASE}/api/organizations/${orgId}/integrations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -111,6 +339,197 @@ function useDisconnectIntegration(orgId: number) {
   });
 }
 
+// --- Masked API key display helper ---
+function maskSecret(val: string) {
+  if (!val || val.length <= 8) return "••••••••";
+  return val.slice(0, 4) + "••••••••" + val.slice(-4);
+}
+
+// --- Connect Modal ---
+function ConnectModal({
+  platform,
+  open,
+  onClose,
+  onSubmit,
+  isSubmitting,
+}: {
+  platform: Platform | null;
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (values: Record<string, string>, method: "api" | "zapier") => void;
+  isSubmitting: boolean;
+}) {
+  const [method, setMethod] = useState<"api" | "zapier">("api");
+  const [showFields, setShowFields] = useState<Record<string, boolean>>({});
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (open) {
+      setMethod("api");
+      setValues({});
+      setErrors({});
+      setShowFields({});
+    }
+  }, [open, platform]);
+
+  if (!platform) return null;
+
+  const cred = PLATFORM_CREDS[platform.id];
+  const fields = method === "api" ? cred.apiFields : cred.zapierFields;
+
+  const handleChange = (key: string, val: string) => {
+    setValues(v => ({ ...v, [key]: val }));
+    if (errors[key]) setErrors(e => ({ ...e, [key]: "" }));
+  };
+
+  const handleSubmit = () => {
+    const newErrors: Record<string, string> = {};
+    for (const f of fields) {
+      if (f.required && !values[f.key]?.trim()) {
+        newErrors[f.key] = `${f.label} is required`;
+      }
+    }
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    onSubmit(values, method);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <div className="flex items-center gap-3 mb-1">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0"
+              style={{ backgroundColor: platform.color, color: platform.textColor }}
+            >
+              {platform.icon}
+            </div>
+            <div>
+              <DialogTitle>Connect {platform.name}</DialogTitle>
+              <DialogDescription className="text-xs mt-0.5">{cred.summary}</DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Method tabs */}
+          <Tabs value={method} onValueChange={(v) => { setMethod(v as "api" | "zapier"); setValues({}); setErrors({}); }}>
+            <TabsList className="w-full">
+              <TabsTrigger value="api" className="flex-1 gap-1.5 text-xs">
+                <Key className="h-3.5 w-3.5" />
+                API / Token
+              </TabsTrigger>
+              <TabsTrigger value="zapier" className="flex-1 gap-1.5 text-xs">
+                <Webhook className="h-3.5 w-3.5" />
+                Zapier Webhook
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="api" className="mt-4 space-y-4">
+              <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-lg">
+                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-700">
+                  Your credentials are encrypted and stored securely. They are never exposed in the UI.{" "}
+                  <a href={cred.helpUrl} target="_blank" rel="noopener noreferrer" className="underline font-medium">
+                    How to get your keys →
+                  </a>
+                </p>
+              </div>
+
+              {fields.map((field) => (
+                <div key={field.key} className="space-y-1.5">
+                  <label className="text-sm font-medium">
+                    {field.label}
+                    {field.required && <span className="text-destructive ml-1">*</span>}
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type={field.type === "password" && !showFields[field.key] ? "password" : "text"}
+                      placeholder={field.placeholder}
+                      value={values[field.key] || ""}
+                      onChange={(e) => handleChange(field.key, e.target.value)}
+                      className={errors[field.key] ? "border-destructive" : ""}
+                    />
+                    {field.type === "password" && (
+                      <button
+                        type="button"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        onClick={() => setShowFields(s => ({ ...s, [field.key]: !s[field.key] }))}
+                      >
+                        {showFields[field.key] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    )}
+                  </div>
+                  {field.hint && <p className="text-xs text-muted-foreground">{field.hint}</p>}
+                  {errors[field.key] && <p className="text-xs text-destructive">{errors[field.key]}</p>}
+                </div>
+              ))}
+            </TabsContent>
+
+            <TabsContent value="zapier" className="mt-4 space-y-4">
+              <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg space-y-2">
+                <p className="text-xs font-medium text-blue-800">How to set up Zapier:</p>
+                <ol className="text-xs text-blue-700 space-y-1 list-decimal list-inside">
+                  <li>Go to <a href="https://zapier.com" target="_blank" rel="noopener noreferrer" className="underline font-medium">zapier.com</a> and create a new Zap</li>
+                  <li>Choose <strong>{platform.name}</strong> as your trigger app</li>
+                  <li>Choose <strong>Webhooks by Zapier</strong> as your action app</li>
+                  <li>Copy the generated webhook URL and paste it below</li>
+                </ol>
+                <a
+                  href={cred.zapierHelpUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-blue-700 underline font-medium"
+                >
+                  Browse {platform.name} Zapier templates <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+
+              {fields.map((field) => (
+                <div key={field.key} className="space-y-1.5">
+                  <label className="text-sm font-medium">
+                    {field.label}
+                    {field.required && <span className="text-destructive ml-1">*</span>}
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder={field.placeholder}
+                    value={values[field.key] || ""}
+                    onChange={(e) => handleChange(field.key, e.target.value)}
+                    className={errors[field.key] ? "border-destructive" : ""}
+                  />
+                  {field.hint && <p className="text-xs text-muted-foreground">{field.hint}</p>}
+                  {errors[field.key] && <p className="text-xs text-destructive">{errors[field.key]}</p>}
+                </div>
+              ))}
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        <DialogFooter className="mt-2">
+          <Button variant="outline" onClick={onClose} disabled={isSubmitting}>Cancel</Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            className="bg-gradient-to-r from-primary to-accent border-0 text-white"
+          >
+            {isSubmitting ? (
+              <><Loader2 className="h-4 w-4 animate-spin mr-2" />Connecting…</>
+            ) : (
+              `Connect ${platform.name}`
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// --- Platform Card ---
 function PlatformCard({ platform, connected, onConnect, onDisconnect, isLoading }: {
   platform: Platform;
   connected: Integration | undefined;
@@ -134,7 +553,7 @@ function PlatformCard({ platform, connected, onConnect, onDisconnect, isLoading 
               {connected ? (
                 <div className="flex items-center gap-1 mt-0.5">
                   <CheckCircle2 className="h-3 w-3 text-green-500" />
-                  <span className="text-xs text-green-600 font-medium">
+                  <span className="text-xs text-green-600 font-medium truncate max-w-[120px]">
                     {connected.accountName || "Connected"}
                   </span>
                 </div>
@@ -152,24 +571,28 @@ function PlatformCard({ platform, connected, onConnect, onDisconnect, isLoading 
 
         <p className="text-xs text-muted-foreground flex-1">{platform.description}</p>
 
+        {connected && connected.metadata && (
+          <div className="p-2 bg-muted/50 rounded-md text-xs font-mono text-muted-foreground truncate">
+            {Object.entries(connected.metadata)
+              .filter(([k]) => !k.toLowerCase().includes("secret") && !k.toLowerCase().includes("token") && !k.toLowerCase().includes("key"))
+              .slice(0, 2)
+              .map(([k, v]) => `${k}: ${v}`)
+              .join(" · ")}
+          </div>
+        )}
+
         <div className="flex gap-2">
           {connected ? (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 text-xs"
-                onClick={() => onDisconnect(platform)}
-                disabled={isLoading}
-              >
-                {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Disconnect"}
-              </Button>
-              <Button variant="ghost" size="sm" className="text-xs px-2" asChild>
-                <a href="#" className="flex items-center gap-1">
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              </Button>
-            </>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 text-xs text-destructive hover:text-destructive border-destructive/30"
+              onClick={() => onDisconnect(platform)}
+              disabled={isLoading}
+            >
+              {isLoading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+              Disconnect
+            </Button>
           ) : (
             <Button
               size="sm"
@@ -187,49 +610,64 @@ function PlatformCard({ platform, connected, onConnect, onDisconnect, isLoading 
   );
 }
 
+// --- Integrations Tab ---
 function IntegrationsTab({ orgId }: { orgId: number }) {
   const { toast } = useToast();
   const { data: integrations, isLoading } = useIntegrations(orgId);
   const connectMutation = useConnectIntegration(orgId);
   const disconnectMutation = useDisconnectIntegration(orgId);
-  const [connectingPlatform, setConnectingPlatform] = useState<string | null>(null);
+
+  const [modalPlatform, setModalPlatform] = useState<Platform | null>(null);
+  const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
 
   const getConnected = (platformId: string) =>
     integrations?.find((i) => i.platform === platformId);
 
-  const handleConnect = async (platform: Platform) => {
-    setConnectingPlatform(platform.id);
-    // Simulate OAuth handshake delay
-    await new Promise((r) => setTimeout(r, 900));
+  const handleConnect = (platform: Platform) => {
+    setModalPlatform(platform);
+  };
+
+  const handleModalSubmit = (values: Record<string, string>, method: "api" | "zapier") => {
+    if (!modalPlatform) return;
+    const cred = PLATFORM_CREDS[modalPlatform.id];
+    const accountNameKey = cred.accountNameKey;
+    const accountName = values[accountNameKey] || modalPlatform.name;
+
+    // Mask secrets in stored metadata
+    const metadata: Record<string, string> = { connectionMethod: method };
+    const fields = method === "api" ? cred.apiFields : cred.zapierFields;
+    for (const f of fields) {
+      if (f.type === "password") {
+        metadata[f.key] = maskSecret(values[f.key] || "");
+      } else {
+        metadata[f.key] = values[f.key] || "";
+      }
+    }
+
     connectMutation.mutate(
-      {
-        platform: platform.id,
-        platformType: platform.type,
-        accountName: `@yourorg_${platform.id}`,
-      },
+      { platform: modalPlatform.id, platformType: modalPlatform.type, accountName, metadata },
       {
         onSuccess: () => {
-          toast({ title: `${platform.name} connected successfully!`, description: "Your account is now linked." });
-          setConnectingPlatform(null);
+          toast({ title: `${modalPlatform.name} connected!`, description: `Connected via ${method === "api" ? "API credentials" : "Zapier webhook"}.` });
+          setModalPlatform(null);
         },
         onError: () => {
-          toast({ title: "Connection failed", variant: "destructive" });
-          setConnectingPlatform(null);
+          toast({ title: "Connection failed", description: "Please check your credentials and try again.", variant: "destructive" });
         },
       }
     );
   };
 
   const handleDisconnect = (platform: Platform) => {
-    setConnectingPlatform(platform.id);
+    setDisconnectingId(platform.id);
     disconnectMutation.mutate(platform.id, {
       onSuccess: () => {
         toast({ title: `${platform.name} disconnected` });
-        setConnectingPlatform(null);
+        setDisconnectingId(null);
       },
       onError: () => {
         toast({ title: "Disconnect failed", variant: "destructive" });
-        setConnectingPlatform(null);
+        setDisconnectingId(null);
       },
     });
   };
@@ -240,65 +678,76 @@ function IntegrationsTab({ orgId }: { orgId: number }) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-40 w-full rounded-xl" />
+          <Skeleton key={i} className="h-44 w-full rounded-xl" />
         ))}
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      {connectedCount > 0 && (
-        <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-100 rounded-lg">
-          <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
-          <p className="text-sm text-green-700">
-            <span className="font-semibold">{connectedCount} platform{connectedCount !== 1 ? "s" : ""} connected.</span>{" "}
-            Your accounts are syncing with HypeSpace.
+    <>
+      <ConnectModal
+        platform={modalPlatform}
+        open={!!modalPlatform}
+        onClose={() => setModalPlatform(null)}
+        onSubmit={handleModalSubmit}
+        isSubmitting={connectMutation.isPending}
+      />
+
+      <div className="space-y-8">
+        {connectedCount > 0 && (
+          <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-100 rounded-lg">
+            <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+            <p className="text-sm text-green-700">
+              <span className="font-semibold">{connectedCount} platform{connectedCount !== 1 ? "s" : ""} connected.</span>{" "}
+              Your accounts are syncing with HypeSpace.
+            </p>
+          </div>
+        )}
+
+        <div>
+          <h3 className="font-semibold text-base mb-1">Social Media</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Schedule posts, auto-publish event updates, and engage your audience across platforms.
           </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {SOCIAL_PLATFORMS.map((platform) => (
+              <PlatformCard
+                key={platform.id}
+                platform={platform}
+                connected={getConnected(platform.id)}
+                onConnect={handleConnect}
+                onDisconnect={handleDisconnect}
+                isLoading={disconnectingId === platform.id}
+              />
+            ))}
+          </div>
         </div>
-      )}
 
-      <div>
-        <h3 className="font-semibold text-base mb-1">Social Media</h3>
-        <p className="text-sm text-muted-foreground mb-4">
-          Schedule posts, auto-publish event updates, and engage your audience across platforms.
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {SOCIAL_PLATFORMS.map((platform) => (
-            <PlatformCard
-              key={platform.id}
-              platform={platform}
-              connected={getConnected(platform.id)}
-              onConnect={handleConnect}
-              onDisconnect={handleDisconnect}
-              isLoading={connectingPlatform === platform.id}
-            />
-          ))}
+        <div>
+          <h3 className="font-semibold text-base mb-1">CRM Platforms</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Sync guest data, manage contacts, and automate follow-ups with your CRM.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {CRM_PLATFORMS.map((platform) => (
+              <PlatformCard
+                key={platform.id}
+                platform={platform}
+                connected={getConnected(platform.id)}
+                onConnect={handleConnect}
+                onDisconnect={handleDisconnect}
+                isLoading={disconnectingId === platform.id}
+              />
+            ))}
+          </div>
         </div>
       </div>
-
-      <div>
-        <h3 className="font-semibold text-base mb-1">CRM Platforms</h3>
-        <p className="text-sm text-muted-foreground mb-4">
-          Sync guest data, manage contacts, and automate follow-ups with your CRM.
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {CRM_PLATFORMS.map((platform) => (
-            <PlatformCard
-              key={platform.id}
-              platform={platform}
-              connected={getConnected(platform.id)}
-              onConnect={handleConnect}
-              onDisconnect={handleDisconnect}
-              isLoading={connectingPlatform === platform.id}
-            />
-          ))}
-        </div>
-      </div>
-    </div>
+    </>
   );
 }
 
+// --- Settings Page ---
 export default function Settings() {
   const orgId = 1;
   const [activeTab, setActiveTab] = useState<TabId>("general");
@@ -348,7 +797,6 @@ export default function Settings() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          {/* Sidebar nav */}
           <div className="flex flex-col gap-1">
             {tabs.map(({ id, label, icon: Icon }) => (
               <button
@@ -366,10 +814,8 @@ export default function Settings() {
             ))}
           </div>
 
-          {/* Tab content */}
           <div className="md:col-span-3 space-y-6">
 
-            {/* GENERAL TAB */}
             {activeTab === "general" && (
               <>
                 <Card>
@@ -454,13 +900,12 @@ export default function Settings() {
               </>
             )}
 
-            {/* INTEGRATIONS TAB */}
             {activeTab === "integrations" && (
               <Card>
                 <CardHeader>
                   <CardTitle>Connected Platforms</CardTitle>
                   <CardDescription>
-                    Connect your social media and CRM tools to automate posting, sync contacts, and amplify your events.
+                    Connect via API keys or Zapier webhooks to automate posting, sync contacts, and amplify your events.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -469,7 +914,6 @@ export default function Settings() {
               </Card>
             )}
 
-            {/* BILLING TAB */}
             {activeTab === "billing" && (
               <>
                 <Card>
