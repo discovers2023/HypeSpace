@@ -584,7 +584,7 @@ function GHLImportModal({ orgId, open, onClose }: { orgId: number; open: boolean
           <div className="space-y-4 py-2">
             {contacts.length === 0 ? (
               <div className="text-center py-6 text-muted-foreground text-sm">
-                No contacts found with tag <strong>"{tag}"</strong> in Go HighLevel.
+                No contacts found with tag <strong>"{tagInput}"</strong> in Go HighLevel.
               </div>
             ) : (
               <div className="rounded-lg border overflow-hidden">

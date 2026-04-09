@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
-import { useGetEvent, useListGuests, useAddGuest, useListCampaigns, useListSocialPosts, useListReminders } from "@workspace/api-client-react";
+import { useGetEvent, useListGuests, useAddGuest, useRemoveGuest, useUpdateGuest, useListCampaigns, useListSocialPosts, useListReminders } from "@workspace/api-client-react";
 import { useParams, Link } from "wouter";
 import { format, parseISO } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, Users, Mail, Share2, ArrowLeft, Plus, CheckCircle2, Clock, Globe, Video, Settings, Activity } from "lucide-react";
+import { Calendar, MapPin, Users, Mail, Share2, ArrowLeft, Plus, Clock, Video, Settings, Trash2, MoreHorizontal, CheckCircle2, XCircle, Clock3, Search, Activity } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,6 +18,23 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -53,8 +70,11 @@ export default function EventDetail() {
   const { data: reminders, isLoading: isRemindersLoading } = useListReminders(1, eventId, { query: { enabled: !!eventId } });
   
   const addGuest = useAddGuest();
+  const removeGuest = useRemoveGuest();
+  const updateGuest = useUpdateGuest();
   const [isAddGuestOpen, setIsAddGuestOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [guestToRemove, setGuestToRemove] = useState<{ id: number; name: string } | null>(null);
 
   const guestForm = useForm<AddGuestFormValues>({
     resolver: zodResolver(addGuestSchema),
@@ -65,24 +85,57 @@ export default function EventDetail() {
     }
   });
 
+  const invalidateGuests = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/organizations", 1, "events", eventId, "guests"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/organizations", 1, "events", eventId] });
+  };
+
   const onAddGuest = (data: AddGuestFormValues) => {
     addGuest.mutate(
       { orgId: 1, eventId, data },
       {
         onSuccess: () => {
-          toast({ title: "Guest added successfully" });
-          queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "guests"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/events", eventId] });
+          toast({ title: "Guest added" });
+          invalidateGuests();
           setIsAddGuestOpen(false);
           guestForm.reset();
         },
         onError: (err) => {
-          toast({ 
-            title: "Failed to add guest", 
-            description: err.message, 
-            variant: "destructive" 
-          });
-        }
+          toast({ title: "Failed to add guest", description: err.message, variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  const onRemoveGuest = () => {
+    if (!guestToRemove) return;
+    removeGuest.mutate(
+      { orgId: 1, eventId, guestId: guestToRemove.id },
+      {
+        onSuccess: () => {
+          toast({ title: `${guestToRemove.name} removed from guest list` });
+          invalidateGuests();
+          setGuestToRemove(null);
+        },
+        onError: (err) => {
+          toast({ title: "Failed to remove guest", description: err.message, variant: "destructive" });
+          setGuestToRemove(null);
+        },
+      }
+    );
+  };
+
+  const onUpdateStatus = (guestId: number, status: "invited" | "confirmed" | "declined") => {
+    updateGuest.mutate(
+      { orgId: 1, eventId, guestId, data: { status } },
+      {
+        onSuccess: () => {
+          toast({ title: `Guest marked as ${status}` });
+          invalidateGuests();
+        },
+        onError: (err) => {
+          toast({ title: "Failed to update status", description: err.message, variant: "destructive" });
+        },
       }
     );
   };
@@ -202,7 +255,7 @@ export default function EventDetail() {
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
-                    <Globe className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                   </div>
                   <div className="flex gap-2 w-full sm:w-auto">
                     <Button variant="outline" className="w-full sm:w-auto">Import CSV</Button>
@@ -293,26 +346,63 @@ export default function EventDetail() {
                         </thead>
                         <tbody className="divide-y">
                           {filteredGuests?.map((guest) => (
-                            <tr key={guest.id} className="hover:bg-muted/30 transition-colors">
+                            <tr key={guest.id} className="hover:bg-muted/30 transition-colors group">
                               <td className="px-6 py-4">
                                 <div className="font-medium text-foreground">{guest.name}</div>
                                 <div className="text-muted-foreground text-xs">{guest.email}</div>
                               </td>
-                              <td className="px-6 py-4 text-muted-foreground">{guest.company || '-'}</td>
+                              <td className="px-6 py-4 text-muted-foreground text-sm">{guest.company || '—'}</td>
                               <td className="px-6 py-4">
-                                <Badge variant="outline" className={`capitalize ${
+                                <Badge variant="outline" className={`capitalize text-xs ${
                                   guest.status === 'confirmed' ? 'bg-green-500/10 text-green-700 border-green-500/20' :
-                                  guest.status === 'invited' ? 'bg-blue-500/10 text-blue-700 border-blue-500/20' :
-                                  guest.status === 'declined' ? 'bg-red-500/10 text-red-700 border-red-500/20' : ''
+                                  guest.status === 'invited'   ? 'bg-blue-500/10 text-blue-700 border-blue-500/20' :
+                                  guest.status === 'declined'  ? 'bg-red-500/10 text-red-700 border-red-200' : ''
                                 }`}>
+                                  {guest.status === 'confirmed' && <CheckCircle2 className="h-3 w-3 mr-1 inline" />}
+                                  {guest.status === 'declined'  && <XCircle className="h-3 w-3 mr-1 inline" />}
+                                  {guest.status === 'invited'   && <Clock3 className="h-3 w-3 mr-1 inline" />}
                                   {guest.status}
                                 </Badge>
                               </td>
                               <td className="px-6 py-4 text-muted-foreground text-xs">
-                                {guest.invitedAt ? format(parseISO(guest.invitedAt), "MMM d, yyyy") : 'Just now'}
+                                {guest.invitedAt ? format(parseISO(guest.invitedAt), "MMM d, yyyy") : '—'}
                               </td>
                               <td className="px-6 py-4 text-right">
-                                <Button variant="ghost" size="sm">Edit</Button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-44">
+                                    {guest.status !== 'confirmed' && (
+                                      <DropdownMenuItem onClick={() => onUpdateStatus(guest.id, 'confirmed')}>
+                                        <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
+                                        Mark Confirmed
+                                      </DropdownMenuItem>
+                                    )}
+                                    {guest.status !== 'invited' && (
+                                      <DropdownMenuItem onClick={() => onUpdateStatus(guest.id, 'invited')}>
+                                        <Clock3 className="mr-2 h-4 w-4 text-blue-600" />
+                                        Mark Invited
+                                      </DropdownMenuItem>
+                                    )}
+                                    {guest.status !== 'declined' && (
+                                      <DropdownMenuItem onClick={() => onUpdateStatus(guest.id, 'declined')}>
+                                        <XCircle className="mr-2 h-4 w-4 text-muted-foreground" />
+                                        Mark Declined
+                                      </DropdownMenuItem>
+                                    )}
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      className="text-destructive focus:text-destructive"
+                                      onClick={() => setGuestToRemove({ id: guest.id, name: guest.name })}
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Remove Guest
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </td>
                             </tr>
                           ))}
@@ -501,6 +591,26 @@ export default function EventDetail() {
           </div>
         </div>
       </div>
+
+      <AlertDialog open={!!guestToRemove} onOpenChange={(open) => !open && setGuestToRemove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove guest?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{guestToRemove?.name}</strong> will be removed from this event's guest list. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={onRemoveGuest}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }
