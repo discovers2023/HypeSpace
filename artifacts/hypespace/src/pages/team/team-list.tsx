@@ -78,14 +78,34 @@ export default function TeamList() {
           name: data.name,
           email: data.email,
           role: data.role,
-        }
+        } as any
       },
       {
-        onSuccess: () => {
-          toast({ title: "Team member invited successfully" });
+        onSuccess: (result: any) => {
           queryClient.invalidateQueries({ queryKey: ["/api/organizations", 1, "team"] });
           setIsInviteOpen(false);
           form.reset();
+          if (result?.inviteLink) {
+            toast({
+              title: `Invitation sent to ${data.email}`,
+              description: (
+                <span className="text-xs">
+                  An invite email is on its way.{" "}
+                  <a
+                    href={result.inviteLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline font-medium"
+                  >
+                    Copy invite link
+                  </a>
+                </span>
+              ) as any,
+              duration: 8000,
+            });
+          } else {
+            toast({ title: "Team member invited successfully" });
+          }
         },
         onError: (err) => {
           toast({ 

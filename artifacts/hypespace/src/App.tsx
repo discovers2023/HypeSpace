@@ -16,6 +16,7 @@ import CampaignAi from "@/pages/campaigns/campaign-ai";
 import SocialList from "@/pages/social/social-list";
 import TeamList from "@/pages/team/team-list";
 import Settings from "@/pages/settings";
+import AcceptInvite from "@/pages/accept-invite";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +35,7 @@ function Router() {
       <Route path="/social" component={SocialList} />
       <Route path="/team" component={TeamList} />
       <Route path="/settings" component={Settings} />
+      <Route path="/accept-invite" component={AcceptInvite} />
       <Route component={NotFound} />
     </Switch>
   );
