@@ -128,6 +128,7 @@ export default function CampaignAi() {
     
     createCampaign.mutate(
       {
+        orgId: 1,
         data: {
           eventId: generatedResult.selectedEventId,
           name: `AI Generated: ${generatedResult.subject.substring(0, 30)}...`,
@@ -138,15 +139,24 @@ export default function CampaignAi() {
         }
       },
       {
-        onSuccess: () => {
-          toast({ title: "Campaign saved as draft" });
-          setLocation("/campaigns");
+        onSuccess: (created) => {
+          toast({
+            title: "Draft saved",
+            description: "Now refine the content before sending.",
+          });
+          // Land in the editor instead of the list — users almost always
+          // want to tweak subject/copy right after AI generation.
+          if (created?.id) {
+            setLocation(`/campaigns/${created.id}/edit`);
+          } else {
+            setLocation("/campaigns");
+          }
         },
         onError: (err) => {
-          toast({ 
-            title: "Failed to save draft", 
-            description: err.message, 
-            variant: "destructive" 
+          toast({
+            title: "Failed to save draft",
+            description: err.message,
+            variant: "destructive"
           });
         }
       }

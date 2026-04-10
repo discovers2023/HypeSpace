@@ -7,6 +7,7 @@
  */
 
 export type DashboardStatsGuestsByStatus = {
+  added: number;
   invited: number;
   confirmed: number;
   declined: number;

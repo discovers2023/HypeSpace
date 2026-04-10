@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useListCampaigns, useDeleteCampaign } from "@workspace/api-client-react";
 import { Mail, Plus, Search, MoreHorizontal, Trash2, Edit, Calendar, LayoutTemplate } from "lucide-react";
 import { format, parseISO } from "date-fns";
@@ -33,6 +33,7 @@ export default function CampaignList() {
   const deleteCampaign = useDeleteCampaign();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [campaignToDelete, setCampaignToDelete] = useState<number | null>(null);
 
@@ -141,9 +142,15 @@ export default function CampaignList() {
                 </thead>
                 <tbody className="divide-y">
                   {filteredCampaigns?.map((campaign) => (
-                    <tr key={campaign.id} className="hover:bg-muted/30 transition-colors group">
+                    <tr
+                      key={campaign.id}
+                      className="hover:bg-muted/30 transition-colors group cursor-pointer"
+                      onClick={() => setLocation(`/campaigns/${campaign.id}/edit`)}
+                    >
                       <td className="px-6 py-4">
-                        <div className="font-medium text-foreground mb-1">{campaign.name}</div>
+                        <div className="font-medium text-foreground mb-1 hover:text-primary transition-colors">
+                          {campaign.name}
+                        </div>
                         <div className="text-muted-foreground text-xs truncate max-w-xs">{campaign.subject}</div>
                       </td>
                       <td className="px-6 py-4">
@@ -181,7 +188,10 @@ export default function CampaignList() {
                            format(parseISO(campaign.createdAt), "MMM d, yyyy")}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td
+                        className="px-6 py-4 text-right"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -190,12 +200,14 @@ export default function CampaignList() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setLocation(`/campaigns/${campaign.id}/edit`)}
+                            >
                               <Edit className="mr-2 h-4 w-4" />
                               <span>Edit Campaign</span>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
                               onClick={() => setCampaignToDelete(campaign.id)}
                             >

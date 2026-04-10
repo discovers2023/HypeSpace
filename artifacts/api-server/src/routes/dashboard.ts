@@ -62,6 +62,7 @@ router.get("/organizations/:orgId/dashboard", async (req, res): Promise<void> =>
   const upcomingFormatted = await Promise.all(upcomingEvents.map(formatEvent));
 
   const guestsByStatus = {
+    added: eventGuests.filter(g => g.status === "added").length,
     invited: eventGuests.filter(g => g.status === "invited").length,
     confirmed: eventGuests.filter(g => g.status === "confirmed").length,
     declined: eventGuests.filter(g => g.status === "declined").length,

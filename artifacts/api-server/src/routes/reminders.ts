@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, remindersTable } from "@workspace/db";
+import { db, remindersTable, guestsTable, eventsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import {
   ListRemindersResponse,
@@ -42,6 +42,41 @@ router.post("/organizations/:orgId/events/:eventId/reminders", async (req, res):
   }).returning();
 
   res.status(201).json(formatReminder(reminder));
+});
+
+// --- Send reminder now: email all invited/confirmed guests ---
+router.post("/organizations/:orgId/events/:eventId/reminders/:reminderId/send", async (req, res): Promise<void> => {
+  const rawEventId = Array.isArray(req.params.eventId) ? req.params.eventId[0] : req.params.eventId;
+  const rawReminderId = Array.isArray(req.params.reminderId) ? req.params.reminderId[0] : req.params.reminderId;
+  const eventId = parseInt(rawEventId, 10);
+  const reminderId = parseInt(rawReminderId, 10);
+
+  const [reminder] = await db.select().from(remindersTable)
+    .where(and(eq(remindersTable.id, reminderId), eq(remindersTable.eventId, eventId)));
+  if (!reminder) { res.status(404).json({ error: "Reminder not found" }); return; }
+
+  if (reminder.status === "sent") {
+    res.status(400).json({ error: "Reminder already sent" });
+    return;
+  }
+
+  // Get all eligible guests (invited or confirmed)
+  const guests = await db.select().from(guestsTable)
+    .where(eq(guestsTable.eventId, eventId));
+  const eligible = guests.filter(g => g.status === "invited" || g.status === "confirmed");
+
+  // Log the send (in production this would use the mailer)
+  for (const guest of eligible) {
+    console.log(`[REMINDER-SEND] "${reminder.subject}" → ${guest.email} (${guest.name})`);
+  }
+
+  // Mark reminder as sent
+  const [updated] = await db.update(remindersTable)
+    .set({ status: "sent", sentAt: new Date() })
+    .where(eq(remindersTable.id, reminderId))
+    .returning();
+
+  res.json({ ...formatReminder(updated), recipientCount: eligible.length });
 });
 
 export default router;

@@ -1,6 +1,7 @@
 import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { sql } from "drizzle-orm";
 import { eventsTable } from "./events";
 
 export const guestsTable = pgTable("guests", {
@@ -10,7 +11,13 @@ export const guestsTable = pgTable("guests", {
   name: text("name").notNull(),
   phone: text("phone"),
   company: text("company"),
-  status: text("status").notNull().default("invited"),
+  // practiceName is the dental practice / org the contact works at —
+  // distinct from company which is the generic CRM field. CRMs sometimes
+  // expose both. Fallback to company when the CRM only has one concept.
+  practiceName: text("practice_name"),
+  specialty: text("specialty"),
+  tags: text("tags").array().notNull().default(sql`ARRAY[]::text[]`),
+  status: text("status").notNull().default("added"),
   notes: text("notes"),
   invitedAt: timestamp("invited_at", { withTimezone: true }),
   respondedAt: timestamp("responded_at", { withTimezone: true }),

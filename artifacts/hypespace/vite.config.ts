@@ -66,6 +66,15 @@ export default defineConfig({
       strict: true,
       deny: ["**/.*"],
     },
+    // Dev-only: forward API calls to the local api-server. In production
+    // both services live behind the same proxy so relative /api/* paths
+    // just work. Locally we run them on separate ports and need this.
+    proxy: {
+      "/api": {
+        target: process.env.API_PROXY_TARGET || "http://localhost:4000",
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     port,

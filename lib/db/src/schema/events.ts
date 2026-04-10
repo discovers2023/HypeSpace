@@ -1,6 +1,7 @@
-import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { sql } from "drizzle-orm";
 import { organizationsTable } from "./organizations";
 
 export const eventsTable = pgTable("events", {
@@ -18,6 +19,8 @@ export const eventsTable = pgTable("events", {
   onlineUrl: text("online_url"),
   capacity: integer("capacity"),
   coverImageUrl: text("cover_image_url"),
+  slug: text("slug").unique(),
+  publicId: uuid("public_id").notNull().default(sql`gen_random_uuid()`),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

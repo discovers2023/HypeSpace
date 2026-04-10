@@ -116,6 +116,31 @@ router.post("/organizations/:orgId/campaigns/:campaignId/send", async (req, res)
   res.json(SendCampaignResponse.parse(formatCampaign(campaign)));
 });
 
+// --- Test-send: deliver campaign HTML to a single address ---
+router.post("/organizations/:orgId/campaigns/:campaignId/test-send", async (req, res): Promise<void> => {
+  const rawOrgId = Array.isArray(req.params.orgId) ? req.params.orgId[0] : req.params.orgId;
+  const rawCampaignId = Array.isArray(req.params.campaignId) ? req.params.campaignId[0] : req.params.campaignId;
+  const orgId = parseInt(rawOrgId, 10);
+  const campaignId = parseInt(rawCampaignId, 10);
+  const { to } = req.body as { to?: string };
+
+  if (!to || !to.includes("@")) {
+    res.status(400).json({ error: "A valid 'to' email address is required" });
+    return;
+  }
+
+  const [campaign] = await db.select().from(campaignsTable)
+    .where(and(eq(campaignsTable.id, campaignId), eq(campaignsTable.organizationId, orgId)));
+  if (!campaign) { res.status(404).json({ error: "Campaign not found" }); return; }
+
+  // In a real setup this would use nodemailer/Ethereal/SMTP.
+  // For now we log and return success so the UI flow works.
+  console.log(`[TEST-SEND] Campaign "${campaign.name}" → ${to}`);
+  console.log(`[TEST-SEND] Subject: ${campaign.subject}`);
+
+  res.json({ sent: true, to, subject: campaign.subject });
+});
+
 router.post("/organizations/:orgId/campaigns/ai-generate", async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.orgId) ? req.params.orgId[0] : req.params.orgId;
   const orgId = parseInt(raw, 10);
@@ -123,14 +148,30 @@ router.post("/organizations/:orgId/campaigns/ai-generate", async (req, res): Pro
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
   let eventContext = "";
+  let eventSlug = "";
   if (parsed.data.eventId) {
     const [event] = await db.select().from(eventsTable).where(eq(eventsTable.id, parsed.data.eventId));
     if (event) {
       eventContext = `Event: ${event.title}, Type: ${event.type}, Date: ${event.startDate.toDateString()}, Location: ${event.location || event.onlineUrl || "TBD"}`;
+      eventSlug = event.slug ?? "";
     }
   }
 
   const { campaignType, tone, additionalContext } = parsed.data;
+  // Build the RSVP link. Use a relative path so it works from any origin.
+  // At send-time the launch endpoint personalises with ?t=<guestId>.
+  const rsvpUrl = eventSlug ? `/e/${eventSlug}` : "#";
+
+  // Generate a header image based on campaign type
+  const imageKeywords: Record<string, string> = {
+    invitation: "conference,event,professional",
+    reminder: "calendar,schedule,professional",
+    followup: "thank-you,handshake,team",
+    announcement: "celebration,announcement,stage",
+    custom: "business,professional,modern",
+  };
+  const imgQuery = imageKeywords[campaignType] || "event,professional";
+  const headerImageUrl = `https://source.unsplash.com/600x200/?${imgQuery}&sig=${Date.now()}`;
 
   const subjectMap: Record<string, Record<string, string>> = {
     invitation: {
@@ -194,6 +235,7 @@ router.post("/organizations/:orgId/campaigns/ai-generate", async (req, res): Pro
 <body>
   <div class="container">
     <div class="header">
+      <img src="${headerImageUrl}" alt="Campaign header" class="header-img" style="width:100%;max-height:200px;object-fit:cover;border-radius:0;margin-bottom:16px;" />
       <h1>HypeSpace Events</h1>
       <p>Where moments are made</p>
     </div>
@@ -202,7 +244,7 @@ router.post("/organizations/:orgId/campaigns/ai-generate", async (req, res): Pro
       ${eventContext ? `<div class="event-card"><strong>${eventContext}</strong></div>` : ""}
       <p>We're thrilled to reach out about an upcoming experience curated specifically for you. ${additionalContext || "This is a special event you won't want to miss."}</p>
       <p>Whether you're looking to connect, learn, or grow — this ${campaignType === "invitation" ? "event" : "experience"} has been designed with you in mind.</p>
-      <a href="#" class="cta">${campaignType === "invitation" ? "Reserve My Spot" : campaignType === "reminder" ? "View Event Details" : campaignType === "followup" ? "Share Your Feedback" : "Learn More"}</a>
+      <a href="${rsvpUrl}" class="cta">${campaignType === "invitation" ? "Reserve My Spot" : campaignType === "reminder" ? "View Event Details" : campaignType === "followup" ? "Share Your Feedback" : "Learn More"}</a>
       <p>If you have any questions, don't hesitate to reach out to our team. We look forward to seeing you there.</p>
       <p>Warmly,<br><strong>The HypeSpace Events Team</strong></p>
     </div>

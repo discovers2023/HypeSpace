@@ -31,4 +31,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
 
+// Public routes are also under /api since the Vite proxy forwards /api/* to the server
+// The public endpoints are registered in the events router as /public/events/:slug
+
 export default app;

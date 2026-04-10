@@ -47,7 +47,7 @@ router.post("/organizations/:orgId/events/:eventId/guests", async (req, res): Pr
   const [guest] = await db.insert(guestsTable).values({
     ...parsed.data,
     eventId,
-    invitedAt: new Date(),
+    status: "added",
   }).returning();
 
   const [event] = await db.select().from(eventsTable).where(eq(eventsTable.id, eventId));
@@ -72,7 +72,7 @@ router.post("/organizations/:orgId/events/:eventId/guests/bulk", async (req, res
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
   const inserted = await db.insert(guestsTable).values(
-    parsed.data.guests.map(g => ({ ...g, eventId, invitedAt: new Date() }))
+    parsed.data.guests.map(g => ({ ...g, eventId, status: "added" as const }))
   ).returning();
 
   res.status(201).json(inserted.map(formatGuest));
@@ -87,7 +87,12 @@ router.put("/organizations/:orgId/events/:eventId/guests/:guestId", async (req, 
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
   const updateData: Record<string, unknown> = { ...parsed.data };
-  if (parsed.data.status) updateData.respondedAt = new Date();
+  if (parsed.data.status === "invited") {
+    updateData.invitedAt = new Date();
+  }
+  if (parsed.data.status && ["confirmed", "declined"].includes(parsed.data.status)) {
+    updateData.respondedAt = new Date();
+  }
 
   const [guest] = await db.update(guestsTable).set(updateData)
     .where(and(eq(guestsTable.id, guestId), eq(guestsTable.eventId, eventId)))

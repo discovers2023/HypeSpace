@@ -164,6 +164,8 @@ export interface Event {
   onlineUrl?: string | null;
   capacity?: number | null;
   coverImageUrl?: string | null;
+  slug?: string | null;
+  publicId?: string;
   guestCount: number;
   confirmedCount: number;
   createdAt: string;
@@ -255,6 +257,7 @@ export interface UpdateEventBody {
 export type GuestStatus = (typeof GuestStatus)[keyof typeof GuestStatus];
 
 export const GuestStatus = {
+  added: "added",
   invited: "invited",
   confirmed: "confirmed",
   declined: "declined",
@@ -291,6 +294,7 @@ export type UpdateGuestBodyStatus =
   (typeof UpdateGuestBodyStatus)[keyof typeof UpdateGuestBodyStatus];
 
 export const UpdateGuestBodyStatus = {
+  added: "added",
   invited: "invited",
   confirmed: "confirmed",
   declined: "declined",
@@ -510,6 +514,7 @@ export interface CreateReminderBody {
 }
 
 export type DashboardStatsGuestsByStatus = {
+  added: number;
   invited: number;
   confirmed: number;
   declined: number;
@@ -588,6 +593,7 @@ export type ListGuestsStatus =
   (typeof ListGuestsStatus)[keyof typeof ListGuestsStatus];
 
 export const ListGuestsStatus = {
+  added: "added",
   invited: "invited",
   confirmed: "confirmed",
   declined: "declined",

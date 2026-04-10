@@ -1,15 +1,23 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
-import { useGetEvent, useListGuests, useAddGuest, useRemoveGuest, useUpdateGuest, useListCampaigns, useListSocialPosts, useListReminders } from "@workspace/api-client-react";
+import { useGetEvent, useListGuests, useAddGuest, useRemoveGuest, useUpdateGuest, useListCampaigns, useListSocialPosts, useListReminders, useCreateReminder } from "@workspace/api-client-react";
 import { useParams, Link } from "wouter";
 import { format, parseISO } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, Users, Mail, Share2, ArrowLeft, Plus, Clock, Video, Settings, Trash2, MoreHorizontal, CheckCircle2, XCircle, Clock3, Search, Activity } from "lucide-react";
+import { Calendar, MapPin, Users, Mail, Share2, ArrowLeft, Plus, Clock, Video, Settings, Trash2, MoreHorizontal, CheckCircle2, XCircle, Clock3, Search, Activity, Upload, FileSpreadsheet, Download, UserPlus, Copy, Rocket, Send, TestTube, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -28,6 +36,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
@@ -49,6 +58,8 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { GHLImportModal } from "@/components/ghl-import-modal";
+import { CSVImportModal } from "@/components/csv-import-modal";
 
 const addGuestSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -79,6 +90,21 @@ export default function EventDetail() {
   const [selectedGuests, setSelectedGuests] = useState<Set<number>>(new Set());
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [isCSVImportOpen, setIsCSVImportOpen] = useState(false);
+  const [isGHLImportOpen, setIsGHLImportOpen] = useState(false);
+  const [isLaunchOpen, setIsLaunchOpen] = useState(false);
+  const [isLaunching, setIsLaunching] = useState(false);
+  const [isTestEmailOpen, setIsTestEmailOpen] = useState(false);
+  const [testEmailTo, setTestEmailTo] = useState("");
+  const [isSendingTest, setIsSendingTest] = useState(false);
+  const [testEmailSent, setTestEmailSent] = useState(false);
+  const [sendingReminderId, setSendingReminderId] = useState<number | null>(null);
+  const [isNewReminderOpen, setIsNewReminderOpen] = useState(false);
+  const [newReminderType, setNewReminderType] = useState<"before_event" | "after_event" | "custom">("before_event");
+  const [newReminderOffset, setNewReminderOffset] = useState("24");
+  const [newReminderSubject, setNewReminderSubject] = useState("");
+  const [newReminderMessage, setNewReminderMessage] = useState("");
+  const createReminder = useCreateReminder();
 
   const guestForm = useForm<AddGuestFormValues>({
     resolver: zodResolver(addGuestSchema),
@@ -90,7 +116,20 @@ export default function EventDetail() {
   });
 
   const invalidateGuests = () => {
-    queryClient.invalidateQueries({ queryKey: ["/api/organizations", 1, "events", eventId, "guests"] });
+    // The generated client builds the guest-list query key as a single-element
+    // array containing the full URL path. An array of parts like
+    // ["/api/organizations", 1, "events", eventId, "guests"] never matches it,
+    // so previous invalidations were silent no-ops (deletes succeeded on the
+    // server but the UI kept its cached list). Use predicate matching so we
+    // invalidate every query whose key's first element is the guests URL,
+    // regardless of any extra query params the generated key may append.
+    const url = `/api/organizations/1/events/${eventId}/guests`;
+    queryClient.invalidateQueries({
+      predicate: (query) => {
+        const key = query.queryKey;
+        return Array.isArray(key) && key[0] === url;
+      },
+    });
     queryClient.invalidateQueries({ queryKey: ["/api/organizations", 1, "events", eventId] });
   };
 
@@ -166,7 +205,7 @@ export default function EventDetail() {
     );
   };
 
-  const onUpdateStatus = (guestId: number, status: "invited" | "confirmed" | "declined") => {
+  const onUpdateStatus = (guestId: number, status: "added" | "invited" | "confirmed" | "declined") => {
     updateGuest.mutate(
       { orgId: 1, eventId, guestId, data: { status } },
       {
@@ -179,6 +218,117 @@ export default function EventDetail() {
         },
       }
     );
+  };
+
+  const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+  const onLaunch = async () => {
+    setIsLaunching(true);
+    try {
+      const res = await fetch(`${BASE}/api/organizations/1/events/${eventId}/launch`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Launch failed");
+      toast({ title: "Event launched!", description: `${data.guestsInvited} guests invited` });
+      setIsLaunchOpen(false);
+      // Invalidate everything
+      invalidateGuests();
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/1/events/${eventId}`] });
+      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && typeof q.queryKey[0] === "string" && q.queryKey[0].includes("campaigns") });
+      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && typeof q.queryKey[0] === "string" && q.queryKey[0].includes("social") });
+    } catch (err) {
+      toast({ title: "Launch failed", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" });
+    } finally {
+      setIsLaunching(false);
+    }
+  };
+
+  const onTestEmail = async () => {
+    if (!testEmailTo.includes("@")) return;
+    const campaign = campaigns?.[0];
+    if (!campaign) return;
+    setIsSendingTest(true);
+    try {
+      const res = await fetch(`${BASE}/api/organizations/1/campaigns/${campaign.id}/test-send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: testEmailTo }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Send failed");
+      setTestEmailSent(true);
+      toast({ title: "Test email sent!", description: `Sent to ${testEmailTo}` });
+    } catch (err) {
+      toast({ title: "Failed to send test", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" });
+    } finally {
+      setIsSendingTest(false);
+    }
+  };
+
+  const onSendReminder = async (reminderId: number) => {
+    setSendingReminderId(reminderId);
+    try {
+      const res = await fetch(`${BASE}/api/organizations/1/events/${eventId}/reminders/${reminderId}/send`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Send failed");
+      toast({ title: "Reminder sent!", description: `Sent to ${data.recipientCount} guests` });
+      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && typeof q.queryKey[0] === "string" && q.queryKey[0].includes("reminders") });
+    } catch (err) {
+      toast({ title: "Failed to send reminder", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" });
+    } finally {
+      setSendingReminderId(null);
+    }
+  };
+
+  const onCreateReminder = () => {
+    const offsetHours = parseInt(newReminderOffset, 10);
+    if (!newReminderSubject.trim() || !newReminderMessage.trim() || isNaN(offsetHours)) return;
+
+    createReminder.mutate(
+      {
+        orgId: 1,
+        eventId,
+        data: {
+          type: newReminderType,
+          offsetHours,
+          subject: newReminderSubject.trim(),
+          message: newReminderMessage.trim(),
+        },
+      },
+      {
+        onSuccess: () => {
+          toast({ title: "Reminder created" });
+          setIsNewReminderOpen(false);
+          setNewReminderType("before_event");
+          setNewReminderOffset("24");
+          setNewReminderSubject("");
+          setNewReminderMessage("");
+          queryClient.invalidateQueries({
+            predicate: (q) => Array.isArray(q.queryKey) && typeof q.queryKey[0] === "string" && q.queryKey[0].includes("reminders"),
+          });
+        },
+        onError: (err) => {
+          toast({ title: "Failed to create reminder", description: err.message, variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  const copyEventLink = () => {
+    const link = event?.slug
+      ? `${window.location.origin}${BASE}/e/${event.slug}`
+      : `${window.location.origin}${BASE}/events/${eventId}`;
+    navigator.clipboard.writeText(link).then(() => {
+      toast({ title: "Link copied!", description: link });
+    });
+  };
+
+  // Workflow stepper state
+  const stepperData = {
+    eventCreated: true,
+    hasCampaign: (campaigns?.length ?? 0) > 0,
+    testSent: testEmailSent,
+    hasGuests: (guests?.length ?? 0) > 0,
+    launched: event?.status === "published",
   };
 
   if (isEventLoading) {
@@ -239,11 +389,11 @@ export default function EventDetail() {
             </div>
             
             <div className="flex gap-3 shrink-0">
+              <Button variant="outline" onClick={copyEventLink}>
+                <Copy className="mr-2 h-4 w-4" /> Copy Link
+              </Button>
               <Button variant="outline">
                 <Settings className="mr-2 h-4 w-4" /> Settings
-              </Button>
-              <Button className="bg-gradient-to-r from-primary to-accent border-0">
-                Publish Event
               </Button>
             </div>
           </div>
@@ -267,6 +417,57 @@ export default function EventDetail() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* ── Launch Checklist Stepper ── */}
+        {event.status !== "published" && (
+          <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-accent/5">
+            <CardContent className="py-5 px-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-sm text-foreground">Launch Checklist</h3>
+                <span className="text-xs text-muted-foreground">
+                  {[stepperData.eventCreated, stepperData.hasCampaign, stepperData.testSent, stepperData.hasGuests, stepperData.launched].filter(Boolean).length} of 5 complete
+                </span>
+              </div>
+              <div className="flex items-center gap-0">
+                {[
+                  { label: "Create Event", done: stepperData.eventCreated, action: null },
+                  { label: "Design Campaign", done: stepperData.hasCampaign, action: !stepperData.hasCampaign ? () => window.location.assign(`${BASE}/campaigns/ai`) : null, actionLabel: "Create Campaign" },
+                  { label: "Test Email", done: stepperData.testSent, action: stepperData.hasCampaign && !stepperData.testSent ? () => setIsTestEmailOpen(true) : null, actionLabel: "Send Test" },
+                  { label: "Add Guests", done: stepperData.hasGuests, action: null },
+                  { label: "Launch", done: stepperData.launched, action: stepperData.hasCampaign && stepperData.hasGuests && !stepperData.launched ? () => setIsLaunchOpen(true) : null, actionLabel: "Launch Event" },
+                ].map((step, i, arr) => (
+                  <div key={i} className="flex items-center flex-1">
+                    <div className="flex flex-col items-center gap-1.5 flex-1">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                        step.done
+                          ? "bg-green-500 text-white"
+                          : "bg-muted text-muted-foreground border-2 border-muted-foreground/20"
+                      }`}>
+                        {step.done ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
+                      </div>
+                      <span className={`text-[11px] font-medium text-center leading-tight ${step.done ? "text-green-600" : "text-muted-foreground"}`}>
+                        {step.label}
+                      </span>
+                      {step.action && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-[10px] px-2 mt-0.5"
+                          onClick={step.action}
+                        >
+                          {step.actionLabel}
+                        </Button>
+                      )}
+                    </div>
+                    {i < arr.length - 1 && (
+                      <div className={`h-0.5 flex-1 mx-1 rounded-full ${step.done ? "bg-green-500" : "bg-muted"}`} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -299,7 +500,23 @@ export default function EventDetail() {
                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                   </div>
                   <div className="flex gap-2 w-full sm:w-auto">
-                    <Button variant="outline" className="w-full sm:w-auto">Import CSV</Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="w-full sm:w-auto">
+                          <Download className="mr-2 h-4 w-4" /> Import
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-52">
+                        <DropdownMenuItem onClick={() => setIsCSVImportOpen(true)}>
+                          <FileSpreadsheet className="mr-2 h-4 w-4 text-green-600" />
+                          Import from CSV
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setIsGHLImportOpen(true)}>
+                          <Upload className="mr-2 h-4 w-4 text-orange-500" />
+                          Import from GoHighLevel
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <Dialog open={isAddGuestOpen} onOpenChange={setIsAddGuestOpen}>
                       <DialogTrigger asChild>
                         <Button className="w-full sm:w-auto">
@@ -432,7 +649,7 @@ export default function EventDetail() {
                             <th className="px-4 py-4 font-medium text-muted-foreground">Guest</th>
                             <th className="px-6 py-4 font-medium text-muted-foreground">Company</th>
                             <th className="px-6 py-4 font-medium text-muted-foreground">Status</th>
-                            <th className="px-6 py-4 font-medium text-muted-foreground">Added</th>
+                            <th className="px-6 py-4 font-medium text-muted-foreground">Invited At</th>
                             <th className="px-6 py-4 font-medium text-muted-foreground text-right">Actions</th>
                           </tr>
                         </thead>
@@ -453,10 +670,12 @@ export default function EventDetail() {
                               <td className="px-6 py-4 text-muted-foreground text-sm">{guest.company || '—'}</td>
                               <td className="px-6 py-4">
                                 <Badge variant="outline" className={`capitalize text-xs ${
+                                  guest.status === 'added'     ? 'bg-slate-500/10 text-slate-600 border-slate-500/20' :
                                   guest.status === 'confirmed' ? 'bg-green-500/10 text-green-700 border-green-500/20' :
                                   guest.status === 'invited'   ? 'bg-blue-500/10 text-blue-700 border-blue-500/20' :
                                   guest.status === 'declined'  ? 'bg-red-500/10 text-red-700 border-red-200' : ''
                                 }`}>
+                                  {guest.status === 'added'     && <UserPlus className="h-3 w-3 mr-1 inline" />}
                                   {guest.status === 'confirmed' && <CheckCircle2 className="h-3 w-3 mr-1 inline" />}
                                   {guest.status === 'declined'  && <XCircle className="h-3 w-3 mr-1 inline" />}
                                   {guest.status === 'invited'   && <Clock3 className="h-3 w-3 mr-1 inline" />}
@@ -464,7 +683,11 @@ export default function EventDetail() {
                                 </Badge>
                               </td>
                               <td className="px-6 py-4 text-muted-foreground text-xs">
-                                {guest.invitedAt ? format(parseISO(guest.invitedAt), "MMM d, yyyy") : '—'}
+                                {guest.status === 'added'
+                                  ? '—'
+                                  : guest.invitedAt
+                                    ? format(parseISO(guest.invitedAt), "MMM d, yyyy")
+                                    : '—'}
                               </td>
                               <td className="px-6 py-4 text-right">
                                 <DropdownMenu>
@@ -598,9 +821,102 @@ export default function EventDetail() {
                     <div className="flex items-center justify-between">
                       <div>
                         <CardTitle>Automated Reminders</CardTitle>
-                        <CardDescription>Keep your guests informed</CardDescription>
+                        <CardDescription>Schedule emails to keep your guests informed before and after the event</CardDescription>
                       </div>
-                      <Button size="sm"><Plus className="h-4 w-4 mr-2" /> New Reminder</Button>
+                      <Dialog open={isNewReminderOpen} onOpenChange={setIsNewReminderOpen}>
+                        <DialogTrigger asChild>
+                          <Button size="sm"><Plus className="h-4 w-4 mr-2" /> New Reminder</Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-lg">
+                          <DialogHeader>
+                            <DialogTitle>Create Reminder</DialogTitle>
+                            <DialogDescription>Set up an automated email to send to your guests.</DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4 py-2">
+                            {/* Timing: when to send */}
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-1.5">
+                                <label className="text-sm font-medium">When to send</label>
+                                <Select value={newReminderType} onValueChange={(v) => setNewReminderType(v as typeof newReminderType)}>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="before_event">Before event</SelectItem>
+                                    <SelectItem value="after_event">After event</SelectItem>
+                                    <SelectItem value="custom">Custom time</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-sm font-medium">Hours offset</label>
+                                <Select value={newReminderOffset} onValueChange={setNewReminderOffset}>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="1">1 hour</SelectItem>
+                                    <SelectItem value="2">2 hours</SelectItem>
+                                    <SelectItem value="4">4 hours</SelectItem>
+                                    <SelectItem value="12">12 hours</SelectItem>
+                                    <SelectItem value="24">1 day (24h)</SelectItem>
+                                    <SelectItem value="48">2 days (48h)</SelectItem>
+                                    <SelectItem value="72">3 days (72h)</SelectItem>
+                                    <SelectItem value="168">1 week (168h)</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+
+                            <div className="bg-muted/50 rounded-lg px-3 py-2 text-xs text-muted-foreground">
+                              {newReminderType === "before_event"
+                                ? `This reminder will be sent ${newReminderOffset === "24" ? "1 day" : newReminderOffset === "48" ? "2 days" : newReminderOffset === "72" ? "3 days" : newReminderOffset === "168" ? "1 week" : `${newReminderOffset} hours`} before the event starts.`
+                                : newReminderType === "after_event"
+                                  ? `This reminder will be sent ${newReminderOffset === "24" ? "1 day" : newReminderOffset === "48" ? "2 days" : `${newReminderOffset} hours`} after the event ends.`
+                                  : `This reminder will be sent ${newReminderOffset} hours from when you manually trigger it.`
+                              }
+                            </div>
+
+                            {/* Email content */}
+                            <div className="space-y-1.5">
+                              <label className="text-sm font-medium">Email subject</label>
+                              <Input
+                                placeholder="e.g. Reminder: Don't forget about the event tomorrow!"
+                                value={newReminderSubject}
+                                onChange={(e) => setNewReminderSubject(e.target.value)}
+                              />
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <label className="text-sm font-medium">Email body</label>
+                              <Textarea
+                                placeholder="Write the message your guests will receive..."
+                                value={newReminderMessage}
+                                onChange={(e) => setNewReminderMessage(e.target.value)}
+                                rows={6}
+                                className="resize-none"
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                This will be sent to all invited and confirmed guests.
+                              </p>
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-2">
+                              <Button variant="outline" onClick={() => setIsNewReminderOpen(false)}>Cancel</Button>
+                              <Button
+                                onClick={onCreateReminder}
+                                disabled={createReminder.isPending || !newReminderSubject.trim() || !newReminderMessage.trim()}
+                              >
+                                {createReminder.isPending ? (
+                                  <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Creating...</>
+                                ) : (
+                                  "Create Reminder"
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -608,21 +924,52 @@ export default function EventDetail() {
                       <Skeleton className="h-20 w-full" />
                     ) : reminders?.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">
-                        <p>No automated reminders set up.</p>
+                        <Clock className="h-10 w-10 mx-auto mb-4 opacity-20" />
+                        <p className="text-lg font-medium text-foreground mb-1">No reminders yet</p>
+                        <p>Set up automated emails to keep your guests in the loop.</p>
                       </div>
                     ) : (
-                      <div className="space-y-4">
+                      <div className="space-y-3">
                         {reminders?.map(reminder => (
-                          <div key={reminder.id} className="flex items-center justify-between p-4 border rounded-lg">
-                            <div>
-                              <div className="font-medium">{reminder.subject}</div>
-                              <div className="text-sm text-muted-foreground mt-1">
-                                Sends {reminder.offsetHours} hours {reminder.type.replace('_', ' ')}
+                          <div key={reminder.id} className="p-4 border rounded-lg hover:bg-muted/30 transition-colors">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium">{reminder.subject}</div>
+                                <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{reminder.message}</p>
+                                <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    {reminder.offsetHours >= 24
+                                      ? `${Math.floor(reminder.offsetHours / 24)} day${Math.floor(reminder.offsetHours / 24) !== 1 ? "s" : ""}`
+                                      : `${reminder.offsetHours} hour${reminder.offsetHours !== 1 ? "s" : ""}`
+                                    } {reminder.type.replace("_", " ")}
+                                  </span>
+                                  {reminder.sentAt && (
+                                    <span>Sent {format(parseISO(reminder.sentAt), "MMM d, yyyy h:mm a")}</span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <Badge variant={reminder.status === 'sent' ? 'default' : 'outline'} className="capitalize">
+                                  {reminder.status}
+                                </Badge>
+                                {reminder.status !== 'sent' && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs"
+                                    disabled={sendingReminderId === reminder.id}
+                                    onClick={() => onSendReminder(reminder.id)}
+                                  >
+                                    {sendingReminderId === reminder.id ? (
+                                      <><Loader2 className="h-3 w-3 animate-spin mr-1" /> Sending...</>
+                                    ) : (
+                                      <><Send className="h-3 w-3 mr-1" /> Send Now</>
+                                    )}
+                                  </Button>
+                                )}
                               </div>
                             </div>
-                            <Badge variant={reminder.status === 'sent' ? 'default' : 'outline'} className="capitalize">
-                              {reminder.status}
-                            </Badge>
                           </div>
                         ))}
                       </div>
@@ -710,6 +1057,100 @@ export default function EventDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <CSVImportModal
+        orgId={1}
+        eventId={eventId}
+        open={isCSVImportOpen}
+        onClose={() => setIsCSVImportOpen(false)}
+      />
+
+      <GHLImportModal
+        orgId={1}
+        open={isGHLImportOpen}
+        onClose={() => setIsGHLImportOpen(false)}
+        initialEventId={eventId}
+      />
+
+      {/* Launch Confirmation Dialog */}
+      <AlertDialog open={isLaunchOpen} onOpenChange={setIsLaunchOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Rocket className="h-5 w-5 text-primary" />
+              Launch Event
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm">
+                <p>This will:</p>
+                <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                  <li>Send the campaign email to all <strong>{guests?.length ?? 0}</strong> guests</li>
+                  <li>Auto-create a LinkedIn announcement post</li>
+                  <li>Mark the event as <strong>published</strong></li>
+                  <li>Update all guest statuses to <strong>invited</strong></li>
+                </ul>
+                <p className="text-muted-foreground">This action cannot be undone.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={onLaunch}
+              disabled={isLaunching}
+              className="bg-gradient-to-r from-primary to-accent border-0 text-white"
+            >
+              {isLaunching ? (
+                <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Launching...</>
+              ) : (
+                <><Rocket className="h-4 w-4 mr-2" /> Launch Event</>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Test Email Dialog */}
+      <Dialog open={isTestEmailOpen} onOpenChange={(o) => { if (!o) { setIsTestEmailOpen(false); setTestEmailTo(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <TestTube className="h-5 w-5 text-primary" />
+              Send Test Email
+            </DialogTitle>
+            <DialogDescription>
+              Send the campaign email to yourself to preview it before launching.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Send to</label>
+              <Input
+                type="email"
+                placeholder="your@email.com"
+                value={testEmailTo}
+                onChange={(e) => setTestEmailTo(e.target.value)}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => { setIsTestEmailOpen(false); setTestEmailTo(""); }}>
+                Cancel
+              </Button>
+              <Button
+                onClick={onTestEmail}
+                disabled={isSendingTest || !testEmailTo.includes("@")}
+                className="bg-gradient-to-r from-primary to-accent border-0 text-white"
+              >
+                {isSendingTest ? (
+                  <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Sending...</>
+                ) : (
+                  <><Send className="h-4 w-4 mr-2" /> Send Test</>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

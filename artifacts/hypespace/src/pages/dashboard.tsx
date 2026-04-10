@@ -40,12 +40,13 @@ function truncate(str: string, max: number) {
   return str.length > max ? str.slice(0, max - 1) + "…" : str;
 }
 
-function RsvpDonut({ guestsByStatus }: { guestsByStatus: { confirmed: number; declined: number; maybe: number; invited: number; attended: number } }) {
+function RsvpDonut({ guestsByStatus }: { guestsByStatus: { added?: number; confirmed: number; declined: number; maybe: number; invited: number; attended: number } }) {
   const data = [
     { name: "Yes", value: guestsByStatus.confirmed + guestsByStatus.attended, color: RSVP_COLORS.yes },
     { name: "Maybe", value: guestsByStatus.maybe, color: RSVP_COLORS.maybe },
     { name: "No", value: guestsByStatus.declined, color: RSVP_COLORS.no },
     { name: "Invited", value: guestsByStatus.invited, color: RSVP_COLORS.invited },
+    { name: "Added", value: guestsByStatus.added ?? 0, color: "#94a3b8" },
   ].filter(d => d.value > 0);
 
   const total = data.reduce((s, d) => s + d.value, 0);
@@ -289,7 +290,7 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <>
-                  <RsvpDonut guestsByStatus={stats?.guestsByStatus ?? { confirmed: 0, declined: 0, maybe: 0, invited: 0, attended: 0 }} />
+                  <RsvpDonut guestsByStatus={stats?.guestsByStatus ?? { added: 0, confirmed: 0, declined: 0, maybe: 0, invited: 0, attended: 0 }} />
                   <div className="grid grid-cols-2 gap-2 mt-4">
                     <RsvpStatRow
                       icon={<CheckCircle className="h-4 w-4" />}

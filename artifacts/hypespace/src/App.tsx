@@ -13,10 +13,13 @@ import EventNew from "@/pages/events/event-new";
 import EventDetail from "@/pages/events/event-detail";
 import CampaignList from "@/pages/campaigns/campaign-list";
 import CampaignAi from "@/pages/campaigns/campaign-ai";
+import CampaignEdit from "@/pages/campaigns/campaign-edit";
 import SocialList from "@/pages/social/social-list";
 import TeamList from "@/pages/team/team-list";
 import Settings from "@/pages/settings";
 import AcceptInvite from "@/pages/accept-invite";
+import CalendarPage from "@/pages/calendar";
+import PublicEvent from "@/pages/public-event";
 
 const queryClient = new QueryClient();
 
@@ -27,15 +30,18 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/calendar" component={CalendarPage} />
       <Route path="/events" component={EventList} />
       <Route path="/events/new" component={EventNew} />
       <Route path="/events/:id" component={EventDetail} />
       <Route path="/campaigns" component={CampaignList} />
       <Route path="/campaigns/ai" component={CampaignAi} />
+      <Route path="/campaigns/:id/edit" component={CampaignEdit} />
       <Route path="/social" component={SocialList} />
       <Route path="/team" component={TeamList} />
       <Route path="/settings" component={Settings} />
       <Route path="/accept-invite" component={AcceptInvite} />
+      <Route path="/e/:slug" component={PublicEvent} />
       <Route component={NotFound} />
     </Switch>
   );

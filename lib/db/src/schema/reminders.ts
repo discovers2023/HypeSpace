@@ -10,6 +10,7 @@ export const remindersTable = pgTable("reminders", {
   offsetHours: integer("offset_hours").notNull().default(24),
   subject: text("subject").notNull(),
   message: text("message").notNull(),
+  channel: text("channel").notNull().default("email"),
   status: text("status").notNull().default("pending"),
   scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
   sentAt: timestamp("sent_at", { withTimezone: true }),

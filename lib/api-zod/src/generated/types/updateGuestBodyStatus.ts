@@ -10,6 +10,7 @@ export type UpdateGuestBodyStatus =
   (typeof UpdateGuestBodyStatus)[keyof typeof UpdateGuestBodyStatus];
 
 export const UpdateGuestBodyStatus = {
+  added: "added",
   invited: "invited",
   confirmed: "confirmed",
   declined: "declined",

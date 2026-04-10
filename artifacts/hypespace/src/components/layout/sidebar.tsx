@@ -1,10 +1,11 @@
 import { Link, useLocation } from "wouter";
-import { 
-  LayoutDashboard, 
-  Calendar, 
-  Mail, 
-  Share2, 
-  Users, 
+import {
+  LayoutDashboard,
+  Calendar,
+  CalendarDays,
+  Mail,
+  Share2,
+  Users,
   Settings,
   LogOut,
   Menu
@@ -17,6 +18,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/events", label: "Events", icon: Calendar },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/campaigns", label: "Campaigns", icon: Mail },
   { href: "/social", label: "Social Posts", icon: Share2 },
   { href: "/team", label: "Team", icon: Users },

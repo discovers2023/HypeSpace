@@ -9,6 +9,7 @@
 export type GuestStatus = (typeof GuestStatus)[keyof typeof GuestStatus];
 
 export const GuestStatus = {
+  added: "added",
   invited: "invited",
   confirmed: "confirmed",
   declined: "declined",

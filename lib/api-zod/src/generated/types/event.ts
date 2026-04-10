@@ -24,6 +24,8 @@ export interface Event {
   onlineUrl?: string | null;
   capacity?: number | null;
   coverImageUrl?: string | null;
+  slug?: string | null;
+  publicId?: string;
   guestCount: number;
   confirmedCount: number;
   createdAt: string;

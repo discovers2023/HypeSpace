@@ -367,7 +367,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [invited, confirmed, declined, waitlisted, attended]
+            enum: [added, invited, confirmed, declined, waitlisted, attended]
       responses:
         "200":
           description: List of guests
@@ -1064,6 +1064,11 @@ components:
         coverImageUrl:
           type: string
           nullable: true
+        slug:
+          type: string
+          nullable: true
+        publicId:
+          type: string
         guestCount:
           type: integer
         confirmedCount:
@@ -1179,7 +1184,7 @@ components:
           nullable: true
         status:
           type: string
-          enum: [invited, confirmed, declined, waitlisted, attended]
+          enum: [added, invited, confirmed, declined, waitlisted, attended]
         notes:
           type: string
           nullable: true
@@ -1231,7 +1236,7 @@ components:
       properties:
         status:
           type: string
-          enum: [invited, confirmed, declined, waitlisted, attended]
+          enum: [added, invited, confirmed, declined, waitlisted, attended]
         notes:
           type: string
           nullable: true
@@ -1517,6 +1522,8 @@ components:
         guestsByStatus:
           type: object
           properties:
+            added:
+              type: integer
             invited:
               type: integer
             confirmed:
@@ -1526,6 +1533,7 @@ components:
             attended:
               type: integer
           required:
+            - added
             - invited
             - confirmed
             - declined
