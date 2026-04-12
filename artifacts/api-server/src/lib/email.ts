@@ -136,3 +136,54 @@ export async function sendInviteEmail(opts: {
 
   return info;
 }
+
+/**
+ * Generic email sender — used by campaigns, reminders, and test-send.
+ * Supports SMTP (Google Workspace, Postmark, etc.) or falls back to Ethereal.
+ *
+ * To use Google Workspace:
+ *   SMTP_HOST=smtp.gmail.com  SMTP_PORT=587
+ *   SMTP_USER=you@yourdomain.com  SMTP_PASS=<app-password>
+ *
+ * To use GHL SMTP (if available):
+ *   SMTP_HOST=<ghl-smtp-host>  SMTP_PORT=587
+ *   SMTP_USER=<ghl-smtp-user>  SMTP_PASS=<ghl-smtp-pass>
+ */
+/**
+ * Generic email sender — used by campaigns, reminders, and test-send.
+ *
+ * If `fromOverride` is provided (from a verified sending domain), it
+ * overrides the default "from" address so emails arrive from the
+ * customer's own domain (e.g. events@anodyneendo.com).
+ */
+export async function sendEmail(opts: {
+  to: string;
+  toName?: string;
+  subject: string;
+  html: string;
+  text?: string;
+  fromOverride?: { name: string; email: string };
+}): Promise<{ messageId: string; previewUrl?: string | false }> {
+  const { transporter, from, preview } = await getTransporter();
+  const actualFrom = opts.fromOverride
+    ? `"${opts.fromOverride.name}" <${opts.fromOverride.email}>`
+    : from;
+
+  const info = await transporter.sendMail({
+    from: actualFrom,
+    to: opts.toName ? `"${opts.toName}" <${opts.to}>` : opts.to,
+    subject: opts.subject,
+    html: opts.html,
+    text: opts.text,
+  });
+
+  const previewUrl = preview ? nodemailer.getTestMessageUrl(info) : false;
+
+  if (preview && previewUrl) {
+    console.log(`\n📧  Email sent (Ethereal preview):\n    To: ${opts.to}\n    Subject: ${opts.subject}\n    Preview: ${previewUrl}\n`);
+  } else {
+    console.log(`📧  Email sent to ${opts.to} (messageId: ${info.messageId})`);
+  }
+
+  return { messageId: info.messageId, previewUrl };
+}

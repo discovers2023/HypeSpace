@@ -197,66 +197,74 @@ export default function Dashboard() {
 
         {/* Top metric cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="hover-elevate transition-all border-l-4 border-l-primary">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Events</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {isStatsLoading ? <Skeleton className="h-8 w-20" /> : (
-                <>
-                  <div className="text-3xl font-bold">{stats?.totalEvents || 0}</div>
-                  <p className="text-xs text-muted-foreground mt-1">{stats?.activeEvents || 0} active right now</p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-          <Card className="hover-elevate transition-all border-l-4 border-l-accent">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Guests</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {isStatsLoading ? <Skeleton className="h-8 w-20" /> : (
-                <>
-                  <div className="text-3xl font-bold">{stats?.totalGuests || 0}</div>
-                  <p className="text-xs text-muted-foreground mt-1">{stats?.confirmedGuests || 0} confirmed</p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-          <Card className="hover-elevate transition-all border-l-4 border-l-secondary">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Campaigns Sent</CardTitle>
-              <Mail className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {isStatsLoading ? <Skeleton className="h-8 w-20" /> : (
-                <>
-                  <div className="text-3xl font-bold">{stats?.campaignsSent || 0}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {stats?.avgOpenRate ? `${(stats.avgOpenRate * 100).toFixed(1)}% avg open rate` : "No data yet"}
-                  </p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-          <Card className="hover-elevate transition-all border-l-4 border-l-muted-foreground">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Engagement</CardTitle>
-              <BarChart className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {isStatsLoading ? <Skeleton className="h-8 w-20" /> : (
-                <>
-                  <div className="text-3xl font-bold">
-                    {stats?.totalGuests ? Math.round((stats.confirmedGuests / stats.totalGuests) * 100) : 0}%
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">RSVP conversion rate</p>
-                </>
-              )}
-            </CardContent>
-          </Card>
+          <Link href="/events">
+            <Card className="hover-elevate transition-all border-l-4 border-l-primary cursor-pointer hover:shadow-md">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Total Events</CardTitle>
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                {isStatsLoading ? <Skeleton className="h-8 w-20" /> : (
+                  <>
+                    <div className="text-3xl font-bold">{stats?.totalEvents || 0}</div>
+                    <p className="text-xs text-muted-foreground mt-1">{stats?.activeEvents || 0} active right now</p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/events">
+            <Card className="hover-elevate transition-all border-l-4 border-l-accent cursor-pointer hover:shadow-md">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Total Guests</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                {isStatsLoading ? <Skeleton className="h-8 w-20" /> : (
+                  <>
+                    <div className="text-3xl font-bold">{stats?.totalGuests || 0}</div>
+                    <p className="text-xs text-muted-foreground mt-1">{stats?.confirmedGuests || 0} confirmed</p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/campaigns">
+            <Card className="hover-elevate transition-all border-l-4 border-l-secondary cursor-pointer hover:shadow-md">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Campaigns Sent</CardTitle>
+                <Mail className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                {isStatsLoading ? <Skeleton className="h-8 w-20" /> : (
+                  <>
+                    <div className="text-3xl font-bold">{stats?.campaignsSent || 0}</div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {stats?.avgOpenRate ? `${(stats.avgOpenRate * 100).toFixed(1)}% avg open rate` : "No data yet"}
+                    </p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/social">
+            <Card className="hover-elevate transition-all border-l-4 border-l-muted-foreground cursor-pointer hover:shadow-md">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Engagement</CardTitle>
+                <BarChart className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                {isStatsLoading ? <Skeleton className="h-8 w-20" /> : (
+                  <>
+                    <div className="text-3xl font-bold">
+                      {stats?.totalGuests ? Math.round((stats.confirmedGuests / stats.totalGuests) * 100) : 0}%
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">RSVP conversion rate</p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </Link>
         </div>
 
         {/* RSVP Stats Section */}

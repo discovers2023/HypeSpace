@@ -3,7 +3,7 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { useListSocialPosts, useDeleteSocialPost, useListEvents, useCreateSocialPost } from "@workspace/api-client-react";
-import { Share2, Plus, Search, MoreHorizontal, Trash2, Edit, Calendar as CalendarIcon, UploadCloud, Twitter, Linkedin, Facebook, Instagram } from "lucide-react";
+import { Share2, Plus, Search, MoreHorizontal, Trash2, Edit, Calendar as CalendarIcon, UploadCloud, Twitter, Linkedin, Facebook, Instagram, AtSign, Music } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -54,7 +54,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 const postSchema = z.object({
   eventId: z.string().optional(),
-  platform: z.enum(["twitter", "linkedin", "facebook", "instagram"]),
+  platform: z.enum(["twitter", "linkedin", "facebook", "instagram", "threads", "tiktok"]),
   content: z.string().min(1, "Post content is required").max(280, "Post is too long"),
   scheduledAt: z.date().optional(),
   imageUrl: z.string().optional(),
@@ -112,6 +112,7 @@ export default function SocialList() {
   const onSubmit = (data: PostFormValues) => {
     createPost.mutate(
       {
+        orgId: 1,
         data: {
           eventId: data.eventId ? parseInt(data.eventId, 10) : undefined,
           platform: data.platform,
@@ -144,8 +145,19 @@ export default function SocialList() {
       case 'linkedin': return <Linkedin className="h-4 w-4 text-[#0A66C2]" />;
       case 'facebook': return <Facebook className="h-4 w-4 text-[#1877F2]" />;
       case 'instagram': return <Instagram className="h-4 w-4 text-[#E4405F]" />;
+      case 'threads': return <AtSign className="h-4 w-4 text-[#000000]" />;
+      case 'tiktok': return <Music className="h-4 w-4 text-[#010101]" />;
       default: return <Share2 className="h-4 w-4 text-muted-foreground" />;
     }
+  };
+
+  const platformLabels: Record<string, string> = {
+    twitter: "X (Twitter)",
+    linkedin: "LinkedIn",
+    facebook: "Facebook",
+    instagram: "Instagram",
+    threads: "Threads",
+    tiktok: "TikTok",
   };
 
   return (
@@ -185,11 +197,11 @@ export default function SocialList() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {(["twitter", "linkedin", "facebook", "instagram"] as const).map((platform) => (
-                                <SelectItem key={platform} value={platform} className="capitalize">
+                              {(["twitter", "linkedin", "facebook", "instagram", "threads", "tiktok"] as const).map((platform) => (
+                                <SelectItem key={platform} value={platform}>
                                   <div className="flex items-center">
                                     {getPlatformIcon(platform)}
-                                    <span className="ml-2">{platform}</span>
+                                    <span className="ml-2">{platformLabels[platform] ?? platform}</span>
                                   </div>
                                 </SelectItem>
                               ))}
@@ -354,7 +366,7 @@ export default function SocialList() {
                       <div className="p-1.5 rounded-md bg-muted/50">
                         {getPlatformIcon(post.platform)}
                       </div>
-                      <span className="font-medium text-sm capitalize">{post.platform}</span>
+                      <span className="font-medium text-sm">{platformLabels[post.platform] ?? post.platform}</span>
                     </div>
                     <Badge variant="outline" className={`capitalize text-[10px] ${
                       post.status === 'published' ? 'bg-green-500/10 text-green-700 border-green-500/20' : 

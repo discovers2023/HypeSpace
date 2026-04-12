@@ -14,4 +14,6 @@ export const SocialPostPlatform = {
   linkedin: "linkedin",
   facebook: "facebook",
   instagram: "instagram",
+  threads: "threads",
+  tiktok: "tiktok",
 } as const;

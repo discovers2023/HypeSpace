@@ -164,6 +164,8 @@ export interface Event {
   onlineUrl?: string | null;
   capacity?: number | null;
   coverImageUrl?: string | null;
+  recurrence?: string;
+  recurrenceEndDate?: string | null;
   slug?: string | null;
   publicId?: string;
   guestCount: number;
@@ -418,6 +420,8 @@ export const SocialPostPlatform = {
   linkedin: "linkedin",
   facebook: "facebook",
   instagram: "instagram",
+  threads: "threads",
+  tiktok: "tiktok",
 } as const;
 
 export type SocialPostStatus =
@@ -451,6 +455,8 @@ export const CreateSocialPostBodyPlatform = {
   linkedin: "linkedin",
   facebook: "facebook",
   instagram: "instagram",
+  threads: "threads",
+  tiktok: "tiktok",
 } as const;
 
 export interface CreateSocialPostBody {

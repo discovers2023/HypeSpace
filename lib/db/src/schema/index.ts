@@ -8,3 +8,4 @@ export * from "./social_posts";
 export * from "./reminders";
 export * from "./activity";
 export * from "./integrations";
+export * from "./sending_domains";

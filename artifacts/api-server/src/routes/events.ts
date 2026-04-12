@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
-import { db, eventsTable, guestsTable, activityTable, campaignsTable, socialPostsTable } from "@workspace/db";
+import { db, eventsTable, guestsTable, activityTable, campaignsTable, socialPostsTable, sendingDomainsTable } from "@workspace/db";
 import { eq, and, count } from "drizzle-orm";
 import { syncRsvpToGHL } from "./integrations";
+import { sendEmail } from "../lib/email";
 import {
   ListEventsResponse,
   CreateEventBody,
@@ -49,6 +50,8 @@ async function formatEvent(event: typeof eventsTable.$inferSelect) {
     onlineUrl: event.onlineUrl ?? null,
     capacity: event.capacity ?? null,
     coverImageUrl: event.coverImageUrl ?? null,
+    recurrence: event.recurrence ?? "one_time",
+    recurrenceEndDate: event.recurrenceEndDate?.toISOString() ?? null,
     slug: event.slug ?? null,
     publicId: event.publicId,
     guestCount: gc.c,
@@ -161,6 +164,13 @@ router.post("/organizations/:orgId/events/:eventId/launch", async (req, res): Pr
   // Determine the base URL for RSVP links in campaign emails
   const appBaseUrl = process.env.APP_BASE_URL || "http://localhost:5173";
 
+  // Look up verified sending domain for this org (so emails come from their domain)
+  const [sendingDomain] = await db.select().from(sendingDomainsTable)
+    .where(and(eq(sendingDomainsTable.organizationId, orgId), eq(sendingDomainsTable.status, "verified")));
+  const fromOverride = sendingDomain
+    ? { name: sendingDomain.fromName, email: sendingDomain.fromEmail }
+    : undefined;
+
   // Mark campaign as sent and send personalized emails to each guest
   if (campaign) {
     for (const guest of guests) {
@@ -171,9 +181,14 @@ router.post("/organizations/:orgId/events/:eventId/launch", async (req, res): Pr
         .replace(new RegExp(`href="${genericLink}"`, "g"), `href="${personalLink}"`)
         .replace(new RegExp(`href="${genericLink}\\?`, "g"), `href="${personalLink}&`);
 
-      // In production this would call the mailer. For now, log it.
-      console.log(`[LAUNCH] Email → ${guest.email} | Subject: ${campaign.subject}`);
-      console.log(`[LAUNCH] RSVP link: ${appBaseUrl}${personalLink}`);
+      await sendEmail({
+        to: guest.email,
+        toName: guest.name,
+        subject: campaign.subject,
+        html: personalizedHtml,
+        text: campaign.textContent ?? undefined,
+        fromOverride,
+      });
     }
 
     await db.update(campaignsTable).set({

@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db, campaignsTable, activityTable, eventsTable } from "@workspace/db";
 import { eq, and, avg } from "drizzle-orm";
+import { sendEmail } from "../lib/email";
 import {
   ListCampaignsResponse,
   CreateCampaignBody,
@@ -133,12 +134,14 @@ router.post("/organizations/:orgId/campaigns/:campaignId/test-send", async (req,
     .where(and(eq(campaignsTable.id, campaignId), eq(campaignsTable.organizationId, orgId)));
   if (!campaign) { res.status(404).json({ error: "Campaign not found" }); return; }
 
-  // In a real setup this would use nodemailer/Ethereal/SMTP.
-  // For now we log and return success so the UI flow works.
-  console.log(`[TEST-SEND] Campaign "${campaign.name}" → ${to}`);
-  console.log(`[TEST-SEND] Subject: ${campaign.subject}`);
+  const result = await sendEmail({
+    to,
+    subject: `[TEST] ${campaign.subject}`,
+    html: campaign.htmlContent ?? `<p>${campaign.textContent ?? ""}</p>`,
+    text: campaign.textContent ?? undefined,
+  });
 
-  res.json({ sent: true, to, subject: campaign.subject });
+  res.json({ sent: true, to, subject: campaign.subject, previewUrl: result.previewUrl || undefined });
 });
 
 router.post("/organizations/:orgId/campaigns/ai-generate", async (req, res): Promise<void> => {

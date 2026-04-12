@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db, remindersTable, guestsTable, eventsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
+import { sendEmail } from "../lib/email";
 import {
   ListRemindersResponse,
   CreateReminderBody,
@@ -65,9 +66,17 @@ router.post("/organizations/:orgId/events/:eventId/reminders/:reminderId/send", 
     .where(eq(guestsTable.eventId, eventId));
   const eligible = guests.filter(g => g.status === "invited" || g.status === "confirmed");
 
-  // Log the send (in production this would use the mailer)
   for (const guest of eligible) {
-    console.log(`[REMINDER-SEND] "${reminder.subject}" → ${guest.email} (${guest.name})`);
+    await sendEmail({
+      to: guest.email,
+      toName: guest.name,
+      subject: reminder.subject,
+      html: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+        <h2 style="color:#1a0533;">${reminder.subject}</h2>
+        <p style="color:#4a4a6a;line-height:1.7;white-space:pre-wrap;">${reminder.message}</p>
+      </div>`,
+      text: reminder.message,
+    });
   }
 
   // Mark reminder as sent

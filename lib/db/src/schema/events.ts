@@ -19,6 +19,9 @@ export const eventsTable = pgTable("events", {
   onlineUrl: text("online_url"),
   capacity: integer("capacity"),
   coverImageUrl: text("cover_image_url"),
+  // Recurrence: "one_time" | "weekly" | "biweekly" | "monthly" | "custom"
+  recurrence: text("recurrence").notNull().default("one_time"),
+  recurrenceEndDate: timestamp("recurrence_end_date", { withTimezone: true }),
   slug: text("slug").unique(),
   publicId: uuid("public_id").notNull().default(sql`gen_random_uuid()`),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

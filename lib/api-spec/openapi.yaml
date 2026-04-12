@@ -1387,7 +1387,7 @@ components:
           nullable: true
         platform:
           type: string
-          enum: [twitter, linkedin, facebook, instagram]
+          enum: [twitter, linkedin, facebook, instagram, threads, tiktok]
         content:
           type: string
         imageUrl:
@@ -1420,7 +1420,7 @@ components:
           nullable: true
         platform:
           type: string
-          enum: [twitter, linkedin, facebook, instagram]
+          enum: [twitter, linkedin, facebook, instagram, threads, tiktok]
         content:
           type: string
         imageUrl:

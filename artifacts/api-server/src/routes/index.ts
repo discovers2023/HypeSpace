@@ -10,6 +10,7 @@ import socialRouter from "./social";
 import dashboardRouter from "./dashboard";
 import remindersRouter from "./reminders";
 import integrationsRouter from "./integrations";
+import sendingDomainsRouter from "./sending-domains";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(socialRouter);
 router.use(dashboardRouter);
 router.use(remindersRouter);
 router.use(integrationsRouter);
+router.use(sendingDomainsRouter);
 
 export default router;

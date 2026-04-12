@@ -42,6 +42,7 @@ import {
   Mail,
   Upload,
   RefreshCw,
+  XCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -54,7 +55,7 @@ const orgSchema = z.object({
 });
 type OrgFormValues = z.infer<typeof orgSchema>;
 
-type TabId = "general" | "branding" | "integrations" | "billing";
+type TabId = "general" | "branding" | "email" | "integrations" | "billing";
 
 // --- Platform field definitions ---
 type FieldDef = {
@@ -927,6 +928,233 @@ const brandingSchema = z.object({
 });
 type BrandingFormValues = z.infer<typeof brandingSchema>;
 
+// --- Email Sending Tab ---
+type SendingDomain = {
+  id: number;
+  domain: string;
+  fromEmail: string;
+  fromName: string;
+  dnsRecords: Array<{ type: string; name: string; value: string }>;
+  status: string;
+  verifiedAt: string | null;
+};
+
+function EmailSendingTab({ orgId }: { orgId: number }) {
+  const { toast } = useToast();
+  const [addDomain, setAddDomain] = useState("");
+  const [addFromEmail, setAddFromEmail] = useState("");
+  const [addFromName, setAddFromName] = useState("");
+  const [isAdding, setIsAdding] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [verifyingId, setVerifyingId] = useState<number | null>(null);
+  const [verifyResults, setVerifyResults] = useState<Record<number, Array<{ record: string; status: string; detail: string }>>>({});
+
+  const { data: domains, isLoading, refetch } = useQuery<SendingDomain[]>({
+    queryKey: ["sending-domains", orgId],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/organizations/${orgId}/sending-domains`);
+      return res.json();
+    },
+  });
+
+  const onAdd = async () => {
+    if (!addDomain || !addFromEmail || !addFromName) return;
+    setIsAdding(true);
+    try {
+      const res = await fetch(`${BASE}/api/organizations/${orgId}/sending-domains`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain: addDomain, fromEmail: addFromEmail, fromName: addFromName }),
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
+      toast({ title: "Domain added", description: "Add the DNS records below to verify." });
+      setAddDomain(""); setAddFromEmail(""); setAddFromName("");
+      setShowAddForm(false);
+      refetch();
+    } catch (err: any) {
+      toast({ title: "Failed to add domain", description: err.message, variant: "destructive" });
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  const onVerify = async (domainId: number) => {
+    setVerifyingId(domainId);
+    try {
+      const res = await fetch(`${BASE}/api/organizations/${orgId}/sending-domains/${domainId}/verify`, { method: "POST" });
+      const data = await res.json();
+      setVerifyResults(prev => ({ ...prev, [domainId]: data.checks }));
+      if (data.status === "verified") {
+        toast({ title: "Domain verified!", description: "Emails will now send from your domain." });
+      } else {
+        toast({ title: "Verification incomplete", description: "Some DNS records are missing. See details below.", variant: "destructive" });
+      }
+      refetch();
+    } catch {
+      toast({ title: "Verification failed", variant: "destructive" });
+    } finally {
+      setVerifyingId(null);
+    }
+  };
+
+  const onDelete = async (domainId: number) => {
+    await fetch(`${BASE}/api/organizations/${orgId}/sending-domains/${domainId}`, { method: "DELETE" });
+    toast({ title: "Domain removed" });
+    refetch();
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Sending Domain</CardTitle>
+              <CardDescription>Send emails from your own domain (e.g. events@yourdomain.com)</CardDescription>
+            </div>
+            {!showAddForm && (
+              <Button size="sm" onClick={() => setShowAddForm(true)}>
+                Add Domain
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Add domain form */}
+          {showAddForm && (
+            <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Domain</label>
+                  <Input placeholder="yourdomain.com" value={addDomain} onChange={e => setAddDomain(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">From Name</label>
+                  <Input placeholder="Your Practice" value={addFromName} onChange={e => setAddFromName(e.target.value)} />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">From Email</label>
+                <Input placeholder="events@yourdomain.com" value={addFromEmail} onChange={e => setAddFromEmail(e.target.value)} />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" size="sm" onClick={() => setShowAddForm(false)}>Cancel</Button>
+                <Button size="sm" onClick={onAdd} disabled={isAdding || !addDomain || !addFromEmail || !addFromName}>
+                  {isAdding ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> Adding...</> : "Add Domain"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Domain list */}
+          {isLoading ? (
+            <Skeleton className="h-20 w-full" />
+          ) : domains?.length === 0 && !showAddForm ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Mail className="h-10 w-10 mx-auto mb-3 opacity-20" />
+              <p className="font-medium text-foreground mb-1">No sending domain configured</p>
+              <p className="text-sm">Emails currently send from the default HypeSpace domain. Add your own domain for professional branding.</p>
+            </div>
+          ) : (
+            domains?.map(d => (
+              <div key={d.id} className="border rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium flex items-center gap-2">
+                      {d.fromName} &lt;{d.fromEmail}&gt;
+                      <Badge variant="outline" className={
+                        d.status === "verified"
+                          ? "bg-green-500/10 text-green-700 border-green-500/20"
+                          : d.status === "failed"
+                            ? "bg-red-500/10 text-red-700 border-red-200"
+                            : "bg-amber-500/10 text-amber-700 border-amber-500/20"
+                      }>
+                        {d.status === "verified" && <CheckCircle2 className="h-3 w-3 mr-1 inline" />}
+                        {d.status}
+                      </Badge>
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-0.5">{d.domain}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      disabled={verifyingId === d.id}
+                      onClick={() => onVerify(d.id)}
+                    >
+                      {verifyingId === d.id ? <><Loader2 className="h-3 w-3 animate-spin mr-1" /> Checking...</> :
+                        <><RefreshCw className="h-3 w-3 mr-1" /> Verify DNS</>}
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={() => onDelete(d.id)}>
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+
+                {/* DNS Records to add */}
+                {d.status !== "verified" && d.dnsRecords && d.dnsRecords.length > 0 && (
+                  <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                    <p className="text-xs font-medium text-foreground">Add these DNS records with your domain registrar:</p>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left py-1 pr-3 font-medium text-muted-foreground">Type</th>
+                            <th className="text-left py-1 pr-3 font-medium text-muted-foreground">Name</th>
+                            <th className="text-left py-1 font-medium text-muted-foreground">Value</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {d.dnsRecords.map((r, i) => (
+                            <tr key={i} className="border-b last:border-0">
+                              <td className="py-1.5 pr-3 font-mono">{r.type}</td>
+                              <td className="py-1.5 pr-3 font-mono text-muted-foreground break-all">{r.name}</td>
+                              <td className="py-1.5 font-mono text-muted-foreground break-all">{r.value}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">DNS changes can take up to 48 hours to propagate. Click "Verify DNS" to check.</p>
+                  </div>
+                )}
+
+                {/* Verification results */}
+                {verifyResults[d.id] && (
+                  <div className="space-y-1.5">
+                    {verifyResults[d.id].map((check, i) => (
+                      <div key={i} className={`flex items-center gap-2 text-xs rounded px-2 py-1 ${
+                        check.status === "pass" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
+                      }`}>
+                        {check.status === "pass" ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                        <span className="font-medium">{check.record}</span>
+                        <span className="text-muted-foreground">— {check.detail}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">How it works</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground space-y-2">
+          <p><strong className="text-foreground">1.</strong> Enter your domain and the email address you want to send from.</p>
+          <p><strong className="text-foreground">2.</strong> Add the DNS records shown to your domain registrar (GoDaddy, Namecheap, Cloudflare, etc.).</p>
+          <p><strong className="text-foreground">3.</strong> Click "Verify DNS" — once verified, all campaign and reminder emails will be sent from your domain.</p>
+          <p><strong className="text-foreground">4.</strong> Until verified, emails send from the default HypeSpace domain.</p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // --- Branding Tab ---
 function BrandingTab({ orgId }: { orgId: number }) {
   const { data: org, isLoading } = useGetOrganization(orgId);
@@ -1250,6 +1478,7 @@ export default function Settings() {
   const tabs: { id: TabId; label: string; icon: React.ElementType }[] = [
     { id: "general", label: "General", icon: Building },
     { id: "branding", label: "Branding", icon: Palette },
+    { id: "email", label: "Email Sending", icon: Mail },
     { id: "integrations", label: "Integrations", icon: LinkIcon },
     { id: "billing", label: "Billing & Plan", icon: CreditCard },
   ];
@@ -1368,6 +1597,10 @@ export default function Settings() {
 
             {activeTab === "branding" && (
               <BrandingTab orgId={orgId} />
+            )}
+
+            {activeTab === "email" && (
+              <EmailSendingTab orgId={orgId} />
             )}
 
             {activeTab === "integrations" && (
