@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db, teamMembersTable, usersTable, organizationsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, count } from "drizzle-orm";
+import { getPlan, assertWithinLimit, PlanLimitError } from "../lib/plans";
 import crypto from "node:crypto";
 import {
   ListTeamMembersResponse,
@@ -51,6 +52,19 @@ router.post("/organizations/:orgId/team", async (req, res): Promise<void> => {
   // Get the organization name for the invite email
   const [org] = await db.select().from(organizationsTable).where(eq(organizationsTable.id, orgId));
   if (!org) { res.status(404).json({ error: "Organization not found" }); return; }
+
+  // Enforce plan user-count limit
+  const plan = getPlan(org.plan);
+  const [memberCountRow] = await db.select({ c: count() }).from(teamMembersTable).where(eq(teamMembersTable.organizationId, orgId));
+  try {
+    assertWithinLimit(plan.key, "users", (memberCountRow?.c ?? 0) + 1, plan.users, "team members");
+  } catch (e) {
+    if (e instanceof PlanLimitError) {
+      res.status(402).json({ error: e.code, message: "You've reached your plan's team member limit.", limit: e.limit, plan: e.plan, current: e.current, max: e.max, suggestedPlan: e.suggestedPlan });
+      return;
+    }
+    throw e;
+  }
 
   // Find or create the invited user
   let [user] = await db.select().from(usersTable).where(eq(usersTable.email, parsed.data.email));

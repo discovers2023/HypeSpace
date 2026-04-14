@@ -204,9 +204,16 @@ export default function CampaignEdit() {
       const footerP = doc.querySelector(".footer p");
       setEditFooterNote(footerP?.textContent ?? "");
 
-      // Check for header image
+      // Check for header image — migrate dead source.unsplash.com URLs (shut
+      // down in 2024) to picsum so the thumbnail shows up in the editor.
       const img = doc.querySelector(".header img, .header-img");
-      if (img) setHeaderImageUrl(img.getAttribute("src") ?? "");
+      if (img) {
+        let src = img.getAttribute("src") ?? "";
+        if (/source\.unsplash\.com/i.test(src)) {
+          src = `https://picsum.photos/seed/${campaign.id}-${Date.now()}/600/200`;
+        }
+        setHeaderImageUrl(src);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaign?.id]);
@@ -525,7 +532,18 @@ export default function CampaignEdit() {
                         <label className="text-sm font-medium">Header Image</label>
                         {headerImageUrl ? (
                           <div className="relative rounded-lg overflow-hidden border">
-                            <img src={headerImageUrl} alt="Header" className="w-full h-32 object-cover" />
+                            <img
+                              src={headerImageUrl}
+                              alt="Header"
+                              className="w-full h-32 object-cover"
+                              onError={(e) => {
+                                const fallback = `https://picsum.photos/seed/campaign-${Date.now()}/600/200`;
+                                if ((e.target as HTMLImageElement).src !== fallback) {
+                                  (e.target as HTMLImageElement).src = fallback;
+                                  setHeaderImageUrl(fallback);
+                                }
+                              }}
+                            />
                             <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                               <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setIsImageDialogOpen(true)}>
                                 <ImagePlus className="h-3 w-3 mr-1" /> Change

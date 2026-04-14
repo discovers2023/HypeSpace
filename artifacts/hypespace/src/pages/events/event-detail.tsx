@@ -586,20 +586,30 @@ export default function EventDetail() {
   ].filter(Boolean).length;
 
   const stepperItems = [
-    { label: "Create Event", done: true, action: null, actionLabel: "" },
+    {
+      label: "Create Event",
+      done: true,
+      action: event?.status !== "published" ? () => window.location.assign(`${BASE}/events/${eventId}/edit`) : null,
+      actionLabel: "Edit",
+    },
     {
       label: "Design Campaign",
       done: hasCampaign,
-      action: !hasCampaign ? () => window.location.assign(`${BASE}/events/${eventId}/setup`) : null,
-      actionLabel: "Create Campaign",
+      action: event?.status !== "published" ? () => window.location.assign(`${BASE}/events/${eventId}/setup?step=campaign`) : null,
+      actionLabel: hasCampaign ? "Edit Campaign" : "Create Campaign",
     },
     {
       label: "Test Email",
       done: testEmailSent,
-      action: hasCampaign && !testEmailSent ? () => setIsTestEmailOpen(true) : null,
+      action: hasCampaign ? () => setIsTestEmailOpen(true) : null,
       actionLabel: "Send Test",
     },
-    { label: "Add Guests", done: hasGuests, action: null, actionLabel: "" },
+    {
+      label: "Add Guests",
+      done: hasGuests,
+      action: event?.status !== "published" ? () => window.location.assign(`${BASE}/events/${eventId}/setup?step=guests`) : null,
+      actionLabel: hasGuests ? "Manage Guests" : "Add Guests",
+    },
     {
       label: "Review",
       done: readyToLaunch,
@@ -608,6 +618,7 @@ export default function EventDetail() {
     },
     { label: "Launch", done: event?.status === "published", action: null, actionLabel: "" },
   ];
+
 
   // ── Capacity progress ──────────────────────────────────────────────────
   const capacityPercent = event?.capacity
@@ -929,45 +940,86 @@ export default function EventDetail() {
                 </div>
               </div>
               <div className="flex items-center gap-0">
-                {stepperItems.map((step, i, arr) => (
-                  <div key={i} className="flex items-center flex-1">
-                    <div className="flex flex-col items-center gap-1.5 flex-1">
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                          step.done
-                            ? "bg-green-500 text-white"
-                            : "bg-muted text-muted-foreground border-2 border-muted-foreground/20"
-                        }`}
-                      >
-                        {step.done ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
-                      </div>
-                      <span
-                        className={`text-[11px] font-medium text-center leading-tight ${
-                          step.done ? "text-green-600" : "text-muted-foreground"
-                        }`}
-                      >
-                        {step.label}
-                      </span>
-                      {step.action && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-6 text-[10px] px-2 mt-0.5"
-                          onClick={step.action}
+                {stepperItems.map((step, i, arr) => {
+                  const clickable = !!step.action;
+                  return (
+                    <div key={i} className="flex items-center flex-1">
+                      <div className="flex flex-col items-center gap-1.5 flex-1">
+                        <button
+                          type="button"
+                          onClick={clickable ? step.action! : undefined}
+                          disabled={!clickable}
+                          title={clickable ? step.actionLabel : step.label}
+                          className={`flex flex-col items-center gap-1.5 rounded-lg p-1 -m-1 transition-colors ${
+                            clickable ? "cursor-pointer hover:bg-muted" : "cursor-default"
+                          }`}
                         >
-                          {step.actionLabel}
-                        </Button>
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                              step.done
+                                ? "bg-green-500 text-white"
+                                : "bg-muted text-muted-foreground border-2 border-muted-foreground/20"
+                            }`}
+                          >
+                            {step.done ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
+                          </div>
+                          <span
+                            className={`text-[11px] font-medium text-center leading-tight ${
+                              step.done ? "text-green-600" : "text-muted-foreground"
+                            }`}
+                          >
+                            {step.label}
+                          </span>
+                        </button>
+                      </div>
+                      {i < arr.length - 1 && (
+                        <div
+                          className={`h-0.5 flex-1 mx-1 rounded-full ${
+                            step.done ? "bg-green-500" : "bg-muted"
+                          }`}
+                        />
                       )}
                     </div>
-                    {i < arr.length - 1 && (
-                      <div
-                        className={`h-0.5 flex-1 mx-1 rounded-full ${
-                          step.done ? "bg-green-500" : "bg-muted"
-                        }`}
-                      />
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
+              </div>
+
+              {/* Inline back / preview / next row */}
+              <div className="flex items-center justify-between mt-4 gap-2">
+                {(() => {
+                  const actionable = stepperItems.filter((s) => s.action);
+                  const firstIdx = stepperItems.findIndex((s) => !s.done && s.action);
+                  const activeIdx = firstIdx === -1 ? stepperItems.findIndex((s) => s.action) : firstIdx;
+                  const active = stepperItems[activeIdx];
+                  const inActionable = actionable.findIndex((s) => s === active);
+                  const prev = inActionable > 0 ? actionable[inActionable - 1] : null;
+                  const next = inActionable >= 0 && inActionable < actionable.length - 1 ? actionable[inActionable + 1] : null;
+                  return (
+                    <>
+                      <Button size="sm" variant="outline" onClick={prev?.action ?? undefined} disabled={!prev} className="gap-1.5">
+                        <ArrowLeft className="h-3.5 w-3.5" />
+                        {prev ? prev.label : "Back"}
+                      </Button>
+                      <div className="flex items-center gap-2">
+                        {hasCampaign && campaigns?.[0] && (
+                          <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => setIsLaunchOpen(true)}>
+                            <Mail className="h-3.5 w-3.5" />
+                            Preview campaign
+                          </Button>
+                        )}
+                        {active?.action && (
+                          <Button size="sm" variant="default" onClick={active.action} className="gap-1.5">
+                            {active.actionLabel}
+                          </Button>
+                        )}
+                      </div>
+                      <Button size="sm" variant="outline" onClick={next?.action ?? undefined} disabled={!next} className="gap-1.5">
+                        {next ? next.label : "Next"}
+                        <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
+                      </Button>
+                    </>
+                  );
+                })()}
               </div>
             </CardContent>
           </Card>

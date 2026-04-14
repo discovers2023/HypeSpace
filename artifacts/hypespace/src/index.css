@@ -81,22 +81,22 @@
   --sidebar: 210 40% 98%;
   --sidebar-foreground: 240 60% 13%;
   --sidebar-border: 214.3 31.8% 91.4%;
-  --sidebar-primary: 330 81% 60%;
+  --sidebar-primary: 24 95% 53%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 330 81% 97%;
+  --sidebar-accent: 24 100% 97%;
   --sidebar-accent-foreground: 240 60% 13%;
-  --sidebar-ring: 330 81% 60%;
+  --sidebar-ring: 24 95% 53%;
 
   --popover: 0 0% 100%;
   --popover-foreground: 240 60% 13%;
   --popover-border: 214.3 31.8% 91.4%;
 
-  /* Hot Pink #EC4899 */
-  --primary: 330 81% 60%;
+  /* Logo Orange #F97316 */
+  --primary: 24 95% 53%;
   --primary-foreground: 0 0% 100%;
 
   /* Soft warm secondary */
-  --secondary: 330 30% 96%;
+  --secondary: 24 40% 96%;
   --secondary-foreground: 240 40% 20%;
 
   /* Soft muted */
@@ -111,7 +111,7 @@
   --destructive-foreground: 0 0% 100%;
 
   --input: 214.3 31.8% 91.4%;
-  --ring: 330 81% 60%;
+  --ring: 24 95% 53%;
 
   --app-font-sans: 'Inter', system-ui, sans-serif;
   --app-font-heading: 'Inter', system-ui, sans-serif;
@@ -148,17 +148,17 @@
   --sidebar: 240 60% 6%;
   --sidebar-foreground: 210 40% 98%;
   --sidebar-border: 240 20% 18%;
-  --sidebar-primary: 330 81% 60%;
+  --sidebar-primary: 24 95% 53%;
   --sidebar-primary-foreground: 0 0% 100%;
   --sidebar-accent: 240 20% 18%;
   --sidebar-accent-foreground: 210 40% 98%;
-  --sidebar-ring: 330 81% 60%;
+  --sidebar-ring: 24 95% 53%;
 
   --popover: 240 50% 8%;
   --popover-foreground: 210 40% 98%;
   --popover-border: 240 20% 18%;
 
-  --primary: 330 81% 60%;
+  --primary: 24 95% 53%;
   --primary-foreground: 0 0% 100%;
 
   --secondary: 240 20% 18%;
@@ -174,7 +174,7 @@
   --destructive-foreground: 210 40% 98%;
 
   --input: 240 20% 18%;
-  --ring: 330 81% 60%;
+  --ring: 24 95% 53%;
 }
 
 @layer base {
@@ -191,11 +191,11 @@
 
 /* ─── Brand Gradient ──────────────────────────────────── */
 .brand-gradient {
-  background: linear-gradient(135deg, #F97316, #EC4899, #C026D3);
+  background: linear-gradient(135deg, #F97316, #7C3AED);
 }
 
 .brand-gradient-text {
-  background: linear-gradient(135deg, #F97316, #EC4899, #C026D3);
+  background: linear-gradient(135deg, #F97316, #7C3AED);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -220,7 +220,7 @@
 
 /* ─── Gradient text utility ───────────────────────────── */
 .gradient-text {
-  background: linear-gradient(135deg, #F97316, #EC4899, #C026D3);
+  background: linear-gradient(135deg, #F97316, #7C3AED);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -280,7 +280,7 @@
   inset: 0;
   border-radius: inherit;
   padding: 1.5px;
-  background: linear-gradient(135deg, #F97316, #EC4899, #C026D3);
+  background: linear-gradient(135deg, #F97316, #7C3AED);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
@@ -339,9 +339,9 @@
 .shimmer-text {
   background: linear-gradient(90deg,
     #F97316 0%,
-    #EC4899 25%,
-    #C026D3 50%,
-    #EC4899 75%,
+    #D946EF 35%,
+    #7C3AED 50%,
+    #D946EF 65%,
     #F97316 100%
   );
   background-size: 200% auto;
@@ -353,7 +353,7 @@
 
 /* ─── Gradient button ─────────────────────────────────── */
 .btn-gradient {
-  background: linear-gradient(135deg, #F97316, #EC4899, #C026D3);
+  background: linear-gradient(135deg, #F97316, #7C3AED);
   color: white;
   font-weight: 600;
   border: none;
@@ -364,7 +364,7 @@
 }
 
 .btn-gradient:hover {
-  box-shadow: 0 8px 30px rgba(236, 72, 153, 0.3);
+  box-shadow: 0 8px 30px rgba(124, 58, 237, 0.3);
   transform: translateY(-1px);
 }
 
@@ -372,7 +372,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, #EC4899, #C026D3, #8B5CF6);
+  background: linear-gradient(135deg, #FB923C, #7C3AED, #4F46E5);
   opacity: 0;
   transition: opacity 0.3s ease;
 }

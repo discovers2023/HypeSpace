@@ -118,11 +118,11 @@ function HeroSection() {
           delay={0}
         />
         <WarmOrb
-          className="bottom-[-10%] right-[-5%] w-[500px] h-[500px] bg-pink-200/30"
+          className="bottom-[-10%] right-[-5%] w-[500px] h-[500px] bg-violet-200/30"
           delay={0.3}
         />
         <WarmOrb
-          className="top-[20%] right-[5%] w-[350px] h-[350px] bg-fuchsia-200/20"
+          className="top-[20%] right-[5%] w-[350px] h-[350px] bg-indigo-200/20"
           delay={0.6}
         />
         <WarmOrb
@@ -144,14 +144,14 @@ function HeroSection() {
       <div className="relative z-10 max-w-4xl mx-auto px-6 text-center pt-28 pb-20">
         {/* Badge */}
         <motion.div
-          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-pink-200/60 bg-gradient-to-r from-orange-50 to-pink-50 mb-10"
+          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-violet-200/60 bg-gradient-to-r from-orange-50 to-violet-50 mb-10"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
           <span className="relative flex h-1.5 w-1.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-pink-500" />
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-violet-500" />
           </span>
           <span className="text-[12px] text-slate-600 font-medium">
             Built for small businesses
@@ -213,7 +213,7 @@ function HeroSection() {
           transition={{ delay: 0.8 }}
         >
           <div className="flex -space-x-2">
-            {["#F97316", "#EC4899", "#C026D3", "#8B5CF6"].map((bg, i) => (
+            {["#F97316", "#FB923C", "#8B5CF6", "#7C3AED"].map((bg, i) => (
               <div
                 key={i}
                 className="h-8 w-8 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-semibold text-white shadow-sm"
@@ -265,17 +265,17 @@ const features = [
     icon: Users,
     title: "Guest List Management",
     desc: "Track RSVPs, manage check-ins, and organize VIP tiers. One dashboard for every guest across all your events.",
-    gradient: "from-pink-500 to-pink-600",
-    bgLight: "bg-pink-50",
-    iconColor: "text-pink-500",
+    gradient: "from-violet-500 to-violet-600",
+    bgLight: "bg-violet-50",
+    iconColor: "text-violet-500",
   },
   {
     icon: Megaphone,
     title: "Campaign Builder",
     desc: "Build email and social media campaigns that drive registrations. Use templates or let AI generate copy that converts.",
-    gradient: "from-fuchsia-500 to-fuchsia-600",
-    bgLight: "bg-fuchsia-50",
-    iconColor: "text-fuchsia-500",
+    gradient: "from-indigo-500 to-indigo-600",
+    bgLight: "bg-indigo-50",
+    iconColor: "text-indigo-500",
   },
   {
     icon: Share2,
@@ -297,9 +297,9 @@ const features = [
     icon: Layers,
     title: "CRM Integrations",
     desc: "Sync your event data with HubSpot, Salesforce, or Notion in one click. Keep your contacts and your events connected.",
-    gradient: "from-rose-500 to-rose-600",
-    bgLight: "bg-rose-50",
-    iconColor: "text-rose-500",
+    gradient: "from-amber-500 to-amber-600",
+    bgLight: "bg-amber-50",
+    iconColor: "text-amber-500",
   },
 ];
 
@@ -328,7 +328,7 @@ function FeaturesSection() {
           {features.map((f, i) => (
             <motion.div
               key={i}
-              className="group relative p-7 rounded-2xl bg-white border border-gray-100 hover:border-gray-200 hover:shadow-lg hover:shadow-pink-500/[0.04] transition-all duration-500 cursor-pointer"
+              className="group relative p-7 rounded-2xl bg-white border border-gray-100 hover:border-gray-200 hover:shadow-lg hover:shadow-violet-500/[0.04] transition-all duration-500 cursor-pointer"
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-50px" }}
@@ -414,18 +414,18 @@ function HowItWorks() {
       icon: Megaphone,
       title: "Promote it",
       desc: "Launch email campaigns, share on social media, and activate referral links to fill every seat.",
-      color: "text-pink-500",
-      bg: "bg-pink-50",
-      border: "border-pink-200",
+      color: "text-violet-500",
+      bg: "bg-violet-50",
+      border: "border-violet-200",
     },
     {
       num: "03",
       icon: BarChart3,
       title: "Track results",
       desc: "Monitor RSVPs, check-ins, and campaign performance in real time. Follow up automatically.",
-      color: "text-fuchsia-500",
-      bg: "bg-fuchsia-50",
-      border: "border-fuchsia-200",
+      color: "text-indigo-500",
+      bg: "bg-indigo-50",
+      border: "border-indigo-200",
     },
   ];
 
@@ -451,12 +451,12 @@ function HowItWorks() {
 
         <div className="grid md:grid-cols-3 gap-6 relative">
           {/* Connection line */}
-          <div className="hidden md:block absolute top-14 left-[16%] right-[16%] h-px bg-gradient-to-r from-orange-200 via-pink-200 to-fuchsia-200" />
+          <div className="hidden md:block absolute top-14 left-[16%] right-[16%] h-px bg-gradient-to-r from-orange-200 via-violet-200 to-indigo-200" />
 
           {steps.map((step, i) => (
             <motion.div
               key={i}
-              className="relative text-center p-8 rounded-2xl bg-white border border-gray-100 hover:shadow-lg hover:shadow-pink-500/[0.04] transition-all duration-500"
+              className="relative text-center p-8 rounded-2xl bg-white border border-gray-100 hover:shadow-lg hover:shadow-violet-500/[0.04] transition-all duration-500"
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -500,15 +500,15 @@ function UseCasesSection() {
       title: "Networking Mixers",
       desc: "Real estate groups, startup meetups, chamber of commerce events — manage RSVPs and follow up automatically.",
       icon: Users,
-      color: "text-pink-500",
-      bg: "bg-pink-50",
+      color: "text-violet-500",
+      bg: "bg-violet-50",
     },
     {
       title: "Product Launches",
       desc: "Retail stores, restaurants, salons — build buzz with campaigns, track attendance, and measure ROI.",
       icon: Zap,
-      color: "text-fuchsia-500",
-      bg: "bg-fuchsia-50",
+      color: "text-indigo-500",
+      bg: "bg-indigo-50",
     },
     {
       title: "Community Events",
@@ -543,7 +543,7 @@ function UseCasesSection() {
           {useCases.map((uc, i) => (
             <motion.div
               key={i}
-              className="group p-7 rounded-2xl bg-[#FAFAFA] border border-gray-100 hover:bg-white hover:border-gray-200 hover:shadow-lg hover:shadow-pink-500/[0.04] transition-all duration-500 cursor-pointer"
+              className="group p-7 rounded-2xl bg-[#FAFAFA] border border-gray-100 hover:bg-white hover:border-gray-200 hover:shadow-lg hover:shadow-violet-500/[0.04] transition-all duration-500 cursor-pointer"
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -615,7 +615,7 @@ function ComparisonSection() {
           {rows.map((row, i) => (
             <div
               key={i}
-              className="grid grid-cols-3 border-b border-gray-100 last:border-0 hover:bg-pink-50/30 transition-colors"
+              className="grid grid-cols-3 border-b border-gray-100 last:border-0 hover:bg-violet-50/30 transition-colors"
             >
               <div className="p-5 text-[14px] text-slate-600 font-medium">
                 {row.feature}
@@ -707,7 +707,7 @@ function PricingSection() {
               key={i}
               className={`relative p-7 rounded-2xl flex flex-col transition-all duration-300 ${
                 plan.popular
-                  ? "bg-white border-2 border-pink-300 shadow-xl shadow-pink-500/[0.08]"
+                  ? "bg-white border-2 border-violet-300 shadow-xl shadow-violet-500/[0.08]"
                   : "bg-white border border-gray-200 hover:border-gray-300 hover:shadow-lg"
               }`}
               initial={{ opacity: 0, y: 20 }}
@@ -743,7 +743,7 @@ function PricingSection() {
                     key={j}
                     className="flex items-center gap-2.5 text-[14px] text-slate-600"
                   >
-                    <CheckCircle2 className="h-4 w-4 text-pink-400 shrink-0" />
+                    <CheckCircle2 className="h-4 w-4 text-violet-400 shrink-0" />
                     {feature}
                   </li>
                 ))}
@@ -754,7 +754,7 @@ function PricingSection() {
                   className={`w-full h-11 rounded-xl text-[14px] font-semibold transition-all cursor-pointer ${
                     plan.popular
                       ? "btn-gradient"
-                      : "border border-gray-200 text-slate-700 hover:text-[#1E1B4B] hover:border-pink-200 hover:bg-pink-50/50"
+                      : "border border-gray-200 text-slate-700 hover:text-[#1E1B4B] hover:border-violet-200 hover:bg-violet-50/50"
                   }`}
                 >
                   <span className="relative z-10">Get started</span>
@@ -777,7 +777,7 @@ function LeadMagnetCTA() {
   return (
     <section className="py-28 bg-[#FAFAFA] relative overflow-hidden">
       {/* Decorative gradient blob */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-gradient-to-r from-orange-200/30 via-pink-200/30 to-fuchsia-200/30 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-gradient-to-r from-orange-200/30 via-violet-200/30 to-indigo-200/30 rounded-full blur-3xl pointer-events-none" />
 
       <motion.div
         className="max-w-3xl mx-auto px-6 text-center relative z-10"
@@ -804,7 +804,7 @@ function LeadMagnetCTA() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@yourcompany.com"
-            className="flex-1 h-13 px-5 rounded-xl bg-white border border-gray-200 text-[#1E1B4B] placeholder:text-slate-300 text-[15px] focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-pink-300 transition-all shadow-sm"
+            className="flex-1 h-13 px-5 rounded-xl bg-white border border-gray-200 text-[#1E1B4B] placeholder:text-slate-300 text-[15px] focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-300 transition-all shadow-sm"
           />
           <button
             type="submit"

@@ -101,23 +101,41 @@ function applyBranding(
 }
 
 // ─── Step indicator ─────────────────────────────────────────────────
-function StepIndicator({ currentIndex }: { currentIndex: number }) {
+function StepIndicator({
+  currentIndex,
+  onJump,
+  disabled = false,
+}: {
+  currentIndex: number;
+  onJump?: (index: number) => void;
+  disabled?: boolean;
+}) {
   return (
     <div className="flex items-center gap-0 w-full mb-8">
       {STEPS.map((step, i) => {
         const done = i < currentIndex;
         const active = i === currentIndex;
         const Icon = step.icon;
+        const clickable = !disabled && onJump && i !== currentIndex;
         return (
           <div key={step.key} className="flex items-center flex-1">
-            <div className="flex flex-col items-center gap-1.5 flex-1">
+            <button
+              type="button"
+              onClick={clickable ? () => onJump(i) : undefined}
+              disabled={!clickable}
+              className={`flex flex-col items-center gap-1.5 flex-1 rounded-lg p-1 -m-1 transition-colors ${
+                clickable ? "cursor-pointer hover:bg-muted/50" : "cursor-default"
+              }`}
+              aria-current={active ? "step" : undefined}
+              title={clickable ? `Jump to: ${step.label}` : undefined}
+            >
               <div
                 className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
                   done
-                    ? "bg-green-500 text-white shadow-md shadow-green-500/20"
+                    ? "bg-green-500 text-white shadow-md shadow-green-500/20 ring-2 ring-transparent hover:ring-green-200"
                     : active
                       ? "bg-primary text-white shadow-md shadow-primary/20"
-                      : "bg-muted text-muted-foreground border-2 border-muted-foreground/20"
+                      : "bg-muted text-muted-foreground border-2 border-muted-foreground/20 hover:border-primary/40"
                 }`}
               >
                 {done ? <CheckCircle2 className="h-5 w-5" /> : <Icon className="h-4 w-4" />}
@@ -129,7 +147,7 @@ function StepIndicator({ currentIndex }: { currentIndex: number }) {
               >
                 {step.label}
               </span>
-            </div>
+            </button>
             {i < STEPS.length - 1 && (
               <div className={`h-0.5 flex-1 mx-2 rounded-full transition-colors ${done ? "bg-green-500" : "bg-muted"}`} />
             )}
@@ -164,16 +182,22 @@ export default function EventSetup() {
   const hasCampaign = (campaigns?.length ?? 0) > 0;
   const hasGuests = (guests?.length ?? 0) > 0;
 
-  // On first load, resume from the earliest incomplete step so users returning
-  // to a draft event pick up where they left off.
+  // On first load, honour ?step=xxx if provided, else resume from the
+  // earliest incomplete step so users returning to a draft event pick up
+  // where they left off.
   useEffect(() => {
     if (hasResumed) return;
     if (!event || !campaigns || !guests) return;
-    let resumeStep: StepKey = "campaign";
-    if (!hasCampaign) resumeStep = "campaign";
-    else if (!hasGuests) resumeStep = "guests";
-    else resumeStep = "review";
-    setCurrentStep(resumeStep);
+    const qsStep = new URLSearchParams(window.location.search).get("step") as StepKey | null;
+    if (qsStep && STEPS.some((s) => s.key === qsStep)) {
+      setCurrentStep(qsStep);
+    } else {
+      let resumeStep: StepKey = "campaign";
+      if (!hasCampaign) resumeStep = "campaign";
+      else if (!hasGuests) resumeStep = "guests";
+      else resumeStep = "review";
+      setCurrentStep(resumeStep);
+    }
     setHasResumed(true);
   }, [event, campaigns, guests, hasCampaign, hasGuests, hasResumed]);
 
@@ -259,7 +283,11 @@ export default function EventSetup() {
         </Card>
 
         {/* Stepper */}
-        <StepIndicator currentIndex={currentIndex} />
+        <StepIndicator
+          currentIndex={currentIndex}
+          disabled={event.status === "published"}
+          onJump={(i) => setCurrentStep(STEPS[i].key)}
+        />
 
         {/* Step Content */}
         {currentStep === "campaign" && (

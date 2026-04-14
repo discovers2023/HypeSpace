@@ -1510,6 +1510,154 @@ function BrandingTab({ orgId }: { orgId: number }) {
   );
 }
 
+// --- Billing Tab ---
+interface PlanLimits {
+  key: "free" | "starter" | "growth" | "agency";
+  name: string;
+  priceMonthly: number;
+  events: number | null;
+  attendeesPerEvent: number | null;
+  users: number | null;
+}
+interface OrgUsage {
+  plan: PlanLimits;
+  usage: { events: number; users: number; largestEventAttendees: number };
+}
+function formatLimit(n: number | null): string { return n === null ? "Unlimited" : String(n); }
+function usagePercent(current: number, max: number | null): number {
+  if (max === null) return 0;
+  if (max === 0) return 0;
+  return Math.min(100, Math.round((current / max) * 100));
+}
+function BillingTab({ orgId }: { orgId: number }) {
+  const [plansList, setPlansList] = useState<PlanLimits[]>([]);
+  const [usage, setUsage] = useState<OrgUsage | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [p, u] = await Promise.all([
+          fetch("/api/plans").then((r) => r.json()),
+          fetch(`/api/organizations/${orgId}/usage`).then((r) => r.json()),
+        ]);
+        if (cancelled) return;
+        setPlansList(p.plans ?? []);
+        setUsage(u);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [orgId]);
+
+  if (loading) return <Skeleton className="h-64 w-full" />;
+
+  const current = usage?.plan;
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Current Plan</CardTitle>
+          <CardDescription>Your subscription and real-time usage against its limits.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {current && usage && (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg bg-muted/30">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-semibold text-lg">{current.name}</span>
+                  <Badge variant="secondary" className="bg-primary/20 text-primary border-primary/30">
+                    {current.priceMonthly === 0 ? "Free" : `$${current.priceMonthly}/mo`}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {current.key === "free" && "Run 1 event with up to 20 attendees. Try it out — upgrade when you grow."}
+                  {current.key === "starter" && "For small teams running a handful of events."}
+                  {current.key === "growth" && "Scale up — 15 events, 500 attendees each, 10 users."}
+                  {current.key === "agency" && "Unlimited events and users for agencies."}
+                </p>
+              </div>
+              <Button variant="outline" className="mt-4 sm:mt-0">Manage Plan</Button>
+            </div>
+          )}
+
+          {current && usage && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <UsageCard label="Events" current={usage.usage.events} max={current.events} />
+              <UsageCard label="Team members" current={usage.usage.users} max={current.users} />
+              <UsageCard label="Largest event attendees" current={usage.usage.largestEventAttendees} max={current.attendeesPerEvent} />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Available Plans</CardTitle>
+          <CardDescription>Upgrade to unlock more events, attendees, and team seats.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-4">
+            {plansList.map((p) => {
+              const isCurrent = current?.key === p.key;
+              const highlight = p.key === "growth";
+              return (
+                <div key={p.key} className={`p-4 rounded-lg border relative flex flex-col ${highlight ? "border-primary bg-primary/5 ring-1 ring-primary/20" : ""}`}>
+                  {highlight && <Badge className="bg-primary text-white text-xs absolute -top-2 right-3">Popular</Badge>}
+                  <div className="flex justify-between items-start mb-1">
+                    <span className="font-semibold">{p.name}</span>
+                  </div>
+                  <div className="text-2xl font-bold mb-1">
+                    {p.priceMonthly === 0 ? "Free" : `$${p.priceMonthly}`}
+                    {p.priceMonthly > 0 && <span className="text-sm font-normal text-muted-foreground">/mo</span>}
+                  </div>
+                  <ul className="text-xs text-muted-foreground space-y-1 mt-3 mb-4 flex-1">
+                    <li>✓ {formatLimit(p.events)} event{p.events === 1 ? "" : "s"}</li>
+                    <li>✓ {formatLimit(p.attendeesPerEvent)} attendees per event</li>
+                    <li>✓ {formatLimit(p.users)} user{p.users === 1 ? "" : "s"}</li>
+                    <li>✓ AI campaigns, social scheduling</li>
+                  </ul>
+                  <Button
+                    size="sm"
+                    variant={isCurrent ? "outline" : highlight ? "default" : "outline"}
+                    className={`w-full ${!isCurrent && highlight ? "bg-primary hover:bg-primary/90 text-white border-0" : ""}`}
+                    disabled={isCurrent}
+                  >
+                    {isCurrent ? "Current plan" : p.priceMonthly === 0 ? "Downgrade" : "Upgrade"}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+function UsageCard({ label, current, max }: { label: string; current: number; max: number | null }) {
+  const pct = usagePercent(current, max);
+  const at = max !== null && current >= max;
+  const near = max !== null && current / max >= 0.8;
+  return (
+    <div className="p-4 border rounded-lg">
+      <div className="text-sm text-muted-foreground mb-1">{label}</div>
+      <div className="text-2xl font-bold">
+        {current} <span className="text-sm font-normal text-muted-foreground">/ {formatLimit(max)}</span>
+      </div>
+      {max !== null && (
+        <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+          <div
+            className={`h-full transition-all ${at ? "bg-destructive" : near ? "bg-amber-500" : "bg-primary"}`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      )}
+      {at && <p className="text-xs text-destructive mt-1.5">Limit reached — upgrade to add more.</p>}
+    </div>
+  );
+}
+
 // --- Settings Page ---
 export default function Settings() {
   const { activeOrgId } = useAuth();
@@ -1712,81 +1860,7 @@ export default function Settings() {
               </Card>
             )}
 
-            {activeTab === "billing" && (
-              <>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Current Plan</CardTitle>
-                    <CardDescription>Manage your subscription and limits.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {isLoading ? (
-                      <Skeleton className="h-20 w-full" />
-                    ) : (
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg bg-muted/30">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-semibold text-lg capitalize">{org?.plan} Plan</span>
-                            <Badge variant="secondary" className="bg-primary/20 text-primary border-primary/30">Active</Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {org?.plan === "free" ? "Basic features for exploration." :
-                             org?.plan === "starter" ? "Perfect for growing communities." :
-                             org?.plan === "professional" ? "Advanced tools for serious organizers." : "Enterprise grade features."}
-                          </p>
-                        </div>
-                        <Button variant="outline" className="mt-4 sm:mt-0">Manage Plan</Button>
-                      </div>
-                    )}
-                    {!isLoading && org && (
-                      <div className="mt-6 grid grid-cols-2 gap-4">
-                        <div className="p-4 border rounded-lg">
-                          <div className="text-sm text-muted-foreground mb-1">Active Events</div>
-                          <div className="text-2xl font-bold">{org.eventCount} <span className="text-sm font-normal text-muted-foreground">/ {org.plan === "free" ? 1 : org.plan === "starter" ? 5 : "∞"}</span></div>
-                        </div>
-                        <div className="p-4 border rounded-lg">
-                          <div className="text-sm text-muted-foreground mb-1">Team Members</div>
-                          <div className="text-2xl font-bold">{org.memberCount} <span className="text-sm font-normal text-muted-foreground">/ {org.plan === "professional" || org.plan === "enterprise" ? "∞" : 1}</span></div>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Available Plans</CardTitle>
-                    <CardDescription>Upgrade to unlock more events, team members, and advanced features.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid gap-4 md:grid-cols-3">
-                      {[
-                        { name: "Starter", price: "$29", events: "5 events", members: "3 members", highlight: false },
-                        { name: "Professional", price: "$79", events: "Unlimited events", members: "10 members", highlight: true },
-                        { name: "Enterprise", price: "Custom", events: "Unlimited", members: "Unlimited", highlight: false },
-                      ].map((plan) => (
-                        <div key={plan.name} className={`p-4 rounded-lg border ${plan.highlight ? "border-primary bg-primary/5 ring-1 ring-primary/20" : ""}`}>
-                          <div className="flex justify-between items-start mb-2">
-                            <span className="font-semibold">{plan.name}</span>
-                            {plan.highlight && <Badge className="bg-primary text-white text-xs">Popular</Badge>}
-                          </div>
-                          <div className="text-2xl font-bold mb-1">{plan.price}<span className="text-sm font-normal text-muted-foreground">{plan.price !== "Custom" ? "/mo" : ""}</span></div>
-                          <ul className="text-xs text-muted-foreground space-y-1 mt-3 mb-4">
-                            <li>✓ {plan.events}</li>
-                            <li>✓ {plan.members}</li>
-                            <li>✓ AI campaign generator</li>
-                            <li>✓ Social media scheduling</li>
-                          </ul>
-                          <Button size="sm" variant={plan.highlight ? "default" : "outline"} className={`w-full ${plan.highlight ? "bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0" : ""}`}>
-                            {plan.name === "Enterprise" ? "Contact Sales" : "Upgrade"}
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </>
-            )}
+            {activeTab === "billing" && <BillingTab orgId={orgId} />}
           </div>
         </div>
       </div>

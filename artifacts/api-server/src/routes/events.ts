@@ -1,8 +1,9 @@
 import { Router, type IRouter } from "express";
-import { db, eventsTable, guestsTable, activityTable, campaignsTable, socialPostsTable, sendingDomainsTable } from "@workspace/db";
+import { db, eventsTable, guestsTable, activityTable, campaignsTable, socialPostsTable, sendingDomainsTable, organizationsTable } from "@workspace/db";
 import { eq, and, count } from "drizzle-orm";
 import { syncRsvpToGHL } from "./integrations";
 import { sendEmail } from "../lib/email";
+import { getPlan, assertWithinLimit, PlanLimitError } from "../lib/plans";
 import {
   ListEventsResponse,
   CreateEventBody,
@@ -74,6 +75,21 @@ router.post("/organizations/:orgId/events", async (req, res): Promise<void> => {
   const orgId = parseInt(raw, 10);
   const parsed = CreateEventBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  // Enforce plan event-count limit
+  const [org] = await db.select().from(organizationsTable).where(eq(organizationsTable.id, orgId));
+  if (!org) { res.status(404).json({ error: "Organization not found" }); return; }
+  const plan = getPlan(org.plan);
+  const [eventCountRow] = await db.select({ c: count() }).from(eventsTable).where(eq(eventsTable.organizationId, orgId));
+  try {
+    assertWithinLimit(plan.key, "events", (eventCountRow?.c ?? 0) + 1, plan.events, "events");
+  } catch (e) {
+    if (e instanceof PlanLimitError) {
+      res.status(402).json({ error: e.code, message: e.message, limit: e.limit, plan: e.plan, current: e.current, max: e.max, suggestedPlan: e.suggestedPlan });
+      return;
+    }
+    throw e;
+  }
 
   const [event] = await db.insert(eventsTable).values({
     ...parsed.data,
@@ -455,6 +471,22 @@ router.post("/public/events/:slug/rsvp", async (req, res): Promise<void> => {
   const emailLc = email.toLowerCase();
   const [existing] = await db.select().from(guestsTable)
     .where(and(eq(guestsTable.eventId, event.id), eq(guestsTable.email, emailLc)));
+
+  // Enforce plan attendee-per-event limit when creating a new guest
+  if (!existing) {
+    const [planOrg] = await db.select().from(organizationsTable).where(eq(organizationsTable.id, event.organizationId));
+    const plan = getPlan(planOrg?.plan);
+    const [gc] = await db.select({ c: count() }).from(guestsTable).where(eq(guestsTable.eventId, event.id));
+    try {
+      assertWithinLimit(plan.key, "attendeesPerEvent", (gc?.c ?? 0) + 1, plan.attendeesPerEvent, "attendees per event");
+    } catch (e) {
+      if (e instanceof PlanLimitError) {
+        res.status(402).json({ error: e.code, message: "This event has reached its attendee limit.", limit: e.limit, plan: e.plan, current: e.current, max: e.max, suggestedPlan: e.suggestedPlan });
+        return;
+      }
+      throw e;
+    }
+  }
 
   let guest: typeof guestsTable.$inferSelect;
   if (existing) {

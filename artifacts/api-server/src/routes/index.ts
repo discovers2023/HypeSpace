@@ -11,6 +11,7 @@ import dashboardRouter from "./dashboard";
 import remindersRouter from "./reminders";
 import integrationsRouter from "./integrations";
 import sendingDomainsRouter from "./sending-domains";
+import plansRouter from "./plans";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(dashboardRouter);
 router.use(remindersRouter);
 router.use(integrationsRouter);
 router.use(sendingDomainsRouter);
+router.use(plansRouter);
 
 export default router;

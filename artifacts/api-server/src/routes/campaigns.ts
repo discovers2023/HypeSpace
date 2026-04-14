@@ -226,14 +226,14 @@ router.post("/organizations/:orgId/campaigns/ai-generate", async (req, res): Pro
   <style>
     body { font-family: 'Inter', Arial, sans-serif; margin: 0; padding: 0; background-color: #f8f4ff; }
     .container { max-width: 600px; margin: 0 auto; background: white; }
-    .header { background: linear-gradient(135deg, #FF8C00, #FF1493); padding: 40px; text-align: center; }
+    .header { background: linear-gradient(135deg, #F97316, #7C3AED); padding: 40px; text-align: center; }
     .header h1 { color: white; margin: 0; font-size: 28px; font-weight: 700; }
     .header p { color: rgba(255,255,255,0.9); margin: 8px 0 0; }
     .body { padding: 40px; }
     .body h2 { color: #1a0533; font-size: 22px; }
     .body p { color: #4a4a6a; line-height: 1.7; }
-    .cta { display: inline-block; background: linear-gradient(135deg, #FF8C00, #FF1493); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 20px 0; }
-    .event-card { background: #f8f4ff; border-left: 4px solid #FF1493; padding: 16px; border-radius: 4px; margin: 20px 0; }
+    .cta { display: inline-block; background: linear-gradient(135deg, #F97316, #7C3AED); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 20px 0; }
+    .event-card { background: #f8f4ff; border-left: 4px solid #7C3AED; padding: 16px; border-radius: 4px; margin: 20px 0; }
     .footer { background: #1a0533; color: rgba(255,255,255,0.6); padding: 24px; text-align: center; font-size: 12px; }
   </style>
 </head>

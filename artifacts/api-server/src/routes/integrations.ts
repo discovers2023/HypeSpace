@@ -1,7 +1,8 @@
 import { Router } from "express";
-import { db, guestsTable, eventsTable } from "@workspace/db";
+import { db, guestsTable, eventsTable, organizationsTable } from "@workspace/db";
 import { integrationsTable } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, count } from "drizzle-orm";
+import { getPlan, assertWithinLimit, PlanLimitError } from "../lib/plans";
 
 const router = Router();
 
@@ -204,8 +205,32 @@ router.post("/organizations/:orgId/integrations/gohighlevel/import", async (req,
       .where(eq(guestsTable.eventId, parseInt(eventId, 10)));
     const existingEmails = new Set(existing.map((g) => g.email.toLowerCase()));
 
-    const toInsert = contacts.filter((c) => !existingEmails.has(c.email.toLowerCase()));
+    let toInsert = contacts.filter((c) => !existingEmails.has(c.email.toLowerCase()));
     const tagNote = tags.length > 0 ? `tags: ${tags.join(", ")}` : "all contacts";
+
+    // Enforce plan attendee-per-event limit; cap the import size so we
+    // import as much as allowed rather than rejecting the whole batch.
+    const [org] = await db.select().from(organizationsTable).where(eq(organizationsTable.id, orgId));
+    const plan = getPlan(org?.plan);
+    let planCapped = 0;
+    if (plan.attendeesPerEvent !== null) {
+      const remaining = Math.max(0, plan.attendeesPerEvent - existing.length);
+      if (toInsert.length > remaining) {
+        planCapped = toInsert.length - remaining;
+        toInsert = toInsert.slice(0, remaining);
+      }
+      if (remaining === 0 && toInsert.length === 0) {
+        res.status(402).json({
+          error: "PLAN_LIMIT_EXCEEDED",
+          message: "This event has reached its attendee limit — upgrade to import more.",
+          limit: "attendees per event",
+          plan: plan.key,
+          current: existing.length,
+          max: plan.attendeesPerEvent,
+        });
+        return;
+      }
+    }
 
     let imported = 0;
     if (toInsert.length > 0) {
@@ -226,7 +251,7 @@ router.post("/organizations/:orgId/integrations/gohighlevel/import", async (req,
       imported = toInsert.length;
     }
 
-    res.json({ imported, skipped: contacts.length - imported, total: contacts.length });
+    res.json({ imported, skipped: contacts.length - imported, total: contacts.length, planCapped });
   } catch (err: any) {
     req.log.error(err);
     res.status(502).json({ error: err.message ?? "Failed to import GHL contacts" });
