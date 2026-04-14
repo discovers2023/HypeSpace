@@ -102,6 +102,7 @@ router.post("/organizations/:orgId/team", async (req, res): Promise<void> => {
     orgName: org.name,
     role: parsed.data.role,
     inviteLink,
+    orgId,
   }).catch((err) => console.error("Failed to send invite email:", err));
 
   res.status(201).json({ ...formatMember(member, user), inviteLink });

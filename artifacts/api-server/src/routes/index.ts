@@ -12,6 +12,7 @@ import remindersRouter from "./reminders";
 import integrationsRouter from "./integrations";
 import sendingDomainsRouter from "./sending-domains";
 import plansRouter from "./plans";
+import emailProviderRouter from "./email-provider";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(remindersRouter);
 router.use(integrationsRouter);
 router.use(sendingDomainsRouter);
 router.use(plansRouter);
+router.use(emailProviderRouter);
 
 export default router;

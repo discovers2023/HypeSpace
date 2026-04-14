@@ -1,8 +1,66 @@
 import nodemailer from "nodemailer";
+import { db, integrationsTable } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
 
 let testAccountPromise: Promise<nodemailer.SentMessageInfo> | null = null;
 
-async function getTransporter() {
+type SmtpConfig = {
+  host: string;
+  port: number;
+  user: string;
+  pass: string;
+  fromEmail: string;
+  fromName: string;
+};
+
+async function getOrgSmtpConfig(orgId: number): Promise<SmtpConfig | null> {
+  try {
+    const [row] = await db
+      .select()
+      .from(integrationsTable)
+      .where(
+        and(
+          eq(integrationsTable.organizationId, orgId),
+          eq(integrationsTable.platform, "smtp_provider"),
+          eq(integrationsTable.status, "connected"),
+        ),
+      )
+      .limit(1);
+    if (!row?.metadata) return null;
+    const m = row.metadata as Record<string, unknown>;
+    if (!m.host || !m.user || !m.pass) return null;
+    return {
+      host: String(m.host),
+      port: Number(m.port ?? 587),
+      user: String(m.user),
+      pass: String(m.pass),
+      fromEmail: String(m.fromEmail ?? m.user),
+      fromName: String(m.fromName ?? "HypeSpace"),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function getTransporter(orgId?: number) {
+  // 1. Check org-specific SMTP config
+  if (orgId) {
+    const orgSmtp = await getOrgSmtpConfig(orgId);
+    if (orgSmtp) {
+      return {
+        transporter: nodemailer.createTransport({
+          host: orgSmtp.host,
+          port: orgSmtp.port,
+          secure: orgSmtp.port === 465,
+          auth: { user: orgSmtp.user, pass: orgSmtp.pass },
+        }),
+        from: `"${orgSmtp.fromName}" <${orgSmtp.fromEmail}>`,
+        preview: false,
+      };
+    }
+  }
+
+  // 2. Fall back to environment-level SMTP
   const host = process.env.SMTP_HOST;
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
@@ -18,7 +76,7 @@ async function getTransporter() {
     };
   }
 
-  // Ethereal test account fallback
+  // 3. Ethereal test account fallback
   if (!testAccountPromise) {
     testAccountPromise = nodemailer.createTestAccount();
   }
@@ -42,8 +100,9 @@ export async function sendInviteEmail(opts: {
   orgName: string;
   role: string;
   inviteLink: string;
+  orgId?: number;
 }) {
-  const { transporter, from, preview } = await getTransporter();
+  const { transporter, from, preview } = await getTransporter(opts.orgId);
 
   const roleLabel = opts.role === "admin" ? "Admin" : opts.role === "manager" ? "Manager" : "Member";
 
@@ -137,25 +196,6 @@ export async function sendInviteEmail(opts: {
   return info;
 }
 
-/**
- * Generic email sender — used by campaigns, reminders, and test-send.
- * Supports SMTP (Google Workspace, Postmark, etc.) or falls back to Ethereal.
- *
- * To use Google Workspace:
- *   SMTP_HOST=smtp.gmail.com  SMTP_PORT=587
- *   SMTP_USER=you@yourdomain.com  SMTP_PASS=<app-password>
- *
- * To use GHL SMTP (if available):
- *   SMTP_HOST=<ghl-smtp-host>  SMTP_PORT=587
- *   SMTP_USER=<ghl-smtp-user>  SMTP_PASS=<ghl-smtp-pass>
- */
-/**
- * Generic email sender — used by campaigns, reminders, and test-send.
- *
- * If `fromOverride` is provided (from a verified sending domain), it
- * overrides the default "from" address so emails arrive from the
- * customer's own domain (e.g. events@anodyneendo.com).
- */
 export async function sendEmail(opts: {
   to: string;
   toName?: string;
@@ -163,8 +203,9 @@ export async function sendEmail(opts: {
   html: string;
   text?: string;
   fromOverride?: { name: string; email: string };
+  orgId?: number;
 }): Promise<{ messageId: string; previewUrl?: string | false }> {
-  const { transporter, from, preview } = await getTransporter();
+  const { transporter, from, preview } = await getTransporter(opts.orgId);
   const actualFrom = opts.fromOverride
     ? `"${opts.fromOverride.name}" <${opts.fromOverride.email}>`
     : from;

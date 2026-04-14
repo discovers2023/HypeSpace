@@ -139,6 +139,7 @@ router.post("/organizations/:orgId/campaigns/:campaignId/test-send", async (req,
     subject: `[TEST] ${campaign.subject}`,
     html: campaign.htmlContent ?? `<p>${campaign.textContent ?? ""}</p>`,
     text: campaign.textContent ?? undefined,
+    orgId,
   });
 
   res.json({ sent: true, to, subject: campaign.subject, previewUrl: result.previewUrl || undefined });

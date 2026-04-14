@@ -44,7 +44,17 @@ import {
   Upload,
   RefreshCw,
   XCircle,
+  Server,
+  Send,
+  Trash2,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useEffect, useRef, useState } from "react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -997,6 +1007,269 @@ const brandingSchema = z.object({
 });
 type BrandingFormValues = z.infer<typeof brandingSchema>;
 
+// --- Email Provider types & component ---
+const EMAIL_PROVIDERS = [
+  { value: "gmail",     label: "Gmail",                 host: "smtp.gmail.com",         port: 587, userLabel: "Gmail address",          passLabel: "App password",      hint: "Create an App Password at myaccount.google.com → Security → 2-Step Verification → App passwords" },
+  { value: "outlook",   label: "Outlook / Office 365",  host: "smtp.office365.com",     port: 587, userLabel: "Microsoft email",         passLabel: "Password",          hint: "Use your Microsoft 365 email address and password. You may need to enable SMTP AUTH in admin settings." },
+  { value: "resend",    label: "Resend",                host: "smtp.resend.com",         port: 587, userLabel: "Username (always 'resend')", passLabel: "API key",         hint: "Get your API key at resend.com → API Keys. The username is always the word 'resend'." },
+  { value: "sendgrid",  label: "SendGrid",              host: "smtp.sendgrid.net",       port: 587, userLabel: "Username (always 'apikey')", passLabel: "API key",        hint: "Get your API key at app.sendgrid.com → Settings → API Keys. The username is always the word 'apikey'." },
+  { value: "mailgun",   label: "Mailgun",               host: "smtp.mailgun.org",        port: 587, userLabel: "SMTP login",             passLabel: "SMTP password",     hint: "Find these in your Mailgun dashboard → Sending → Domain Settings → SMTP credentials." },
+  { value: "postmark",  label: "Postmark",              host: "smtp.postmarkapp.com",    port: 587, userLabel: "Server API token",       passLabel: "Server API token",  hint: "Use your Server API token as both username and password. Find it in Postmark → Servers → Your Server → API Tokens." },
+  { value: "zoho",      label: "Zoho Mail",             host: "smtp.zoho.com",           port: 587, userLabel: "Zoho email address",     passLabel: "Password",          hint: "Use your Zoho email and password. Make sure IMAP/SMTP access is enabled in Zoho Mail settings." },
+  { value: "custom",    label: "Custom SMTP",           host: "",                        port: 587, userLabel: "Username",               passLabel: "Password",          hint: "Enter the SMTP host and credentials provided by your email service." },
+] as const;
+
+type ProviderValue = typeof EMAIL_PROVIDERS[number]["value"];
+
+type EmailProviderConfig = {
+  id: number;
+  provider: string;
+  host: string;
+  port: number;
+  user: string;
+  passSet: boolean;
+  fromEmail: string;
+  fromName: string;
+  status: string;
+} | null;
+
+function EmailProviderCard({ orgId }: { orgId: number }) {
+  const { toast } = useToast();
+  const [provider, setProvider] = useState<ProviderValue>("gmail");
+  const [host, setHost] = useState("");
+  const [port, setPort] = useState("587");
+  const [user, setUser] = useState("");
+  const [pass, setPass] = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const [fromEmail, setFromEmail] = useState("");
+  const [fromName, setFromName] = useState("HypeSpace");
+  const [testTo, setTestTo] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
+
+  const { data: config, isLoading, refetch } = useQuery<EmailProviderConfig>({
+    queryKey: ["email-provider", orgId],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/organizations/${orgId}/email-provider`);
+      return res.json();
+    },
+  });
+
+  useEffect(() => {
+    if (config) {
+      setProvider((config.provider as ProviderValue) ?? "gmail");
+      setHost(config.host ?? "");
+      setPort(String(config.port ?? 587));
+      setUser(config.user ?? "");
+      setFromEmail(config.fromEmail ?? "");
+      setFromName(config.fromName ?? "HypeSpace");
+    }
+  }, [config]);
+
+  const providerMeta = EMAIL_PROVIDERS.find(p => p.value === provider) ?? EMAIL_PROVIDERS[0];
+
+  const onSave = async () => {
+    if (!user || !pass) {
+      toast({ title: "Username and password are required", variant: "destructive" });
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const body: Record<string, unknown> = { provider, user, pass, fromEmail: fromEmail || user, fromName };
+      if (provider === "custom") { body.host = host; body.port = parseInt(port, 10); }
+      const res = await fetch(`${BASE}/api/organizations/${orgId}/email-provider`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
+      toast({ title: "Email provider saved", description: "All emails will now be sent through this provider." });
+      setPass("");
+      refetch();
+    } catch (err: any) {
+      toast({ title: "Failed to save", description: err.message, variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const onTest = async () => {
+    if (!testTo || !testTo.includes("@")) {
+      toast({ title: "Enter a valid email to send the test to", variant: "destructive" });
+      return;
+    }
+    setIsTesting(true);
+    try {
+      const res = await fetch(`${BASE}/api/organizations/${orgId}/email-provider/test`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: testTo }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast({ title: "Test email sent!", description: `Check ${testTo} for the test message.` });
+    } catch (err: any) {
+      toast({ title: "Test failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  const onRemove = async () => {
+    setIsRemoving(true);
+    try {
+      await fetch(`${BASE}/api/organizations/${orgId}/email-provider`, { method: "DELETE" });
+      toast({ title: "Email provider removed" });
+      setUser(""); setPass(""); setFromEmail(""); setFromName("HypeSpace");
+      refetch();
+    } catch {
+      toast({ title: "Failed to remove", variant: "destructive" });
+    } finally {
+      setIsRemoving(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Server className="h-4 w-4" /> Email Provider
+            </CardTitle>
+            <CardDescription>Connect your own SMTP provider so emails land in real inboxes</CardDescription>
+          </div>
+          {config && (
+            <Badge className="bg-green-500/10 text-green-700 border-green-500/20 border">
+              <CheckCircle2 className="h-3 w-3 mr-1" /> Connected
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {isLoading ? (
+          <Skeleton className="h-32 w-full" />
+        ) : (
+          <>
+            {!config && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                No provider configured — emails are currently captured in a test mode and not delivered to real inboxes.
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Provider</label>
+              <Select value={provider} onValueChange={v => setProvider(v as ProviderValue)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a provider" />
+                </SelectTrigger>
+                <SelectContent>
+                  {EMAIL_PROVIDERS.map(p => (
+                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {providerMeta.hint && (
+                <p className="text-xs text-muted-foreground">{providerMeta.hint}</p>
+              )}
+            </div>
+
+            {provider === "custom" && (
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2 space-y-1.5">
+                  <label className="text-sm font-medium">SMTP Host</label>
+                  <Input placeholder="smtp.yourdomain.com" value={host} onChange={e => setHost(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Port</label>
+                  <Input placeholder="587" value={port} onChange={e => setPort(e.target.value)} />
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">{providerMeta.userLabel}</label>
+                <Input
+                  placeholder={provider === "resend" ? "resend" : provider === "sendgrid" ? "apikey" : "you@example.com"}
+                  value={user}
+                  onChange={e => setUser(e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">
+                  {providerMeta.passLabel}
+                  {config?.passSet && <span className="text-xs text-muted-foreground font-normal ml-1">(saved — leave blank to keep)</span>}
+                </label>
+                <div className="relative">
+                  <Input
+                    type={showPass ? "text" : "password"}
+                    placeholder={config?.passSet ? "••••••••" : "Enter password or API key"}
+                    value={pass}
+                    onChange={e => setPass(e.target.value)}
+                    autoComplete="new-password"
+                    className="pr-9"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowPass(v => !v)}
+                  >
+                    {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">From Name</label>
+                <Input placeholder="HypeSpace" value={fromName} onChange={e => setFromName(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">From Email</label>
+                <Input placeholder="noreply@yourdomain.com" value={fromEmail} onChange={e => setFromEmail(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <Button onClick={onSave} disabled={isSaving} size="sm">
+                {isSaving ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Saving...</> : "Save Provider"}
+              </Button>
+              {config && (
+                <Button variant="ghost" size="sm" className="text-destructive" onClick={onRemove} disabled={isRemoving}>
+                  {isRemoving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5 mr-1.5" />}
+                  Remove
+                </Button>
+              )}
+            </div>
+
+            {config && (
+              <div className="border-t pt-4 space-y-2">
+                <p className="text-sm font-medium">Send a test email</p>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="recipient@example.com"
+                    value={testTo}
+                    onChange={e => setTestTo(e.target.value)}
+                    className="max-w-xs"
+                  />
+                  <Button variant="outline" size="sm" onClick={onTest} disabled={isTesting}>
+                    {isTesting ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Sending...</> : <><Send className="h-3.5 w-3.5 mr-1.5" /> Send Test</>}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">Sends a real email to verify your provider is working correctly.</p>
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // --- Email Sending Tab ---
 type SendingDomain = {
   id: number;
@@ -1074,6 +1347,8 @@ function EmailSendingTab({ orgId }: { orgId: number }) {
 
   return (
     <div className="space-y-6">
+      <EmailProviderCard orgId={orgId} />
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">

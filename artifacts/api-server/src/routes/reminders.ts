@@ -47,8 +47,10 @@ router.post("/organizations/:orgId/events/:eventId/reminders", async (req, res):
 
 // --- Send reminder now: email all invited/confirmed guests ---
 router.post("/organizations/:orgId/events/:eventId/reminders/:reminderId/send", async (req, res): Promise<void> => {
+  const rawOrgId = Array.isArray(req.params.orgId) ? req.params.orgId[0] : req.params.orgId;
   const rawEventId = Array.isArray(req.params.eventId) ? req.params.eventId[0] : req.params.eventId;
   const rawReminderId = Array.isArray(req.params.reminderId) ? req.params.reminderId[0] : req.params.reminderId;
+  const orgId = parseInt(rawOrgId, 10);
   const eventId = parseInt(rawEventId, 10);
   const reminderId = parseInt(rawReminderId, 10);
 
@@ -76,6 +78,7 @@ router.post("/organizations/:orgId/events/:eventId/reminders/:reminderId/send", 
         <p style="color:#4a4a6a;line-height:1.7;white-space:pre-wrap;">${reminder.message}</p>
       </div>`,
       text: reminder.message,
+      orgId,
     });
   }
 
