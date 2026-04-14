@@ -73,7 +73,7 @@ export default function EventList() {
 
   const handleDelete = () => {
     if (!eventToDelete) return;
-    deleteEvent.mutate({ eventId: eventToDelete }, {
+    deleteEvent.mutate({ orgId: ORG_ID, eventId: eventToDelete }, {
       onSuccess: () => {
         toast({ title: "Event deleted" });
         queryClient.invalidateQueries({ queryKey: ["/api/organizations", ORG_ID, "events"] });
@@ -108,7 +108,7 @@ export default function EventList() {
             </p>
           </div>
           <Link href="/events/new">
-            <Button className="bg-gradient-to-r from-primary to-accent border-0 text-white">
+            <Button className="bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0">
               <Plus className="mr-2 h-4 w-4" />
               Create Event
             </Button>
@@ -203,7 +203,7 @@ export default function EventList() {
                     </div>
                   </div>
                 ) : (
-                  <div className="h-2 w-full bg-gradient-to-r from-primary to-accent" />
+                  <div className="h-2 w-full bg-primary" />
                 )}
 
                 <div className="p-5 flex-1 flex flex-col gap-3">
@@ -224,6 +224,10 @@ export default function EventList() {
                           <DropdownMenuItem onClick={() => setLocation(`/events/${event.id}`)}>
                             <Edit className="mr-2 h-4 w-4" />
                             View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setLocation(`/events/${event.id}/edit`)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit Event
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem

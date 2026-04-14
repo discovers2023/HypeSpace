@@ -2,7 +2,7 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, Users, Mail, BarChart, ArrowUpRight, Activity, CheckCircle, XCircle, HelpCircle, Clock } from "lucide-react";
+import { Calendar, Users, Mail, BarChart, ArrowUpRight, Activity, CheckCircle, XCircle, HelpCircle, Clock, Plus, TrendingUp } from "lucide-react";
 import { useGetDashboardStats, useGetRecentActivity } from "@workspace/api-client-react";
 import { format, parseISO } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,9 +20,9 @@ import {
 } from "recharts";
 
 const RSVP_COLORS = {
-  yes: "#22c55e",
-  maybe: "#f59e0b",
-  no: "#ef4444",
+  yes: "#7C3AED",
+  maybe: "#EA580C",
+  no: "#DC2626",
   invited: "#94a3b8",
 };
 
@@ -37,7 +37,7 @@ type PerEventRsvp = {
 };
 
 function truncate(str: string, max: number) {
-  return str.length > max ? str.slice(0, max - 1) + "…" : str;
+  return str.length > max ? str.slice(0, max - 1) + "..." : str;
 }
 
 function RsvpDonut({ guestsByStatus }: { guestsByStatus: { added?: number; confirmed: number; declined: number; maybe: number; invited: number; attended: number } }) {
@@ -81,7 +81,7 @@ function RsvpDonut({ guestsByStatus }: { guestsByStatus: { added?: number; confi
             </Pie>
             <Tooltip
               formatter={(value: number, name: string) => [`${value} guests`, name]}
-              contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))", fontSize: "12px" }}
+              contentStyle={{ borderRadius: "12px", border: "1px solid hsl(var(--border))", fontSize: "12px" }}
             />
           </PieChart>
         </ResponsiveContainer>
@@ -112,7 +112,7 @@ function PerEventRsvpChart({ data }: { data: PerEventRsvp[] }) {
         <Calendar className="h-10 w-10 mb-3 opacity-20" />
         <p className="text-sm">No events with guests yet</p>
         <Link href="/events/new">
-          <Button variant="link" size="sm" className="mt-2">Create your first event</Button>
+          <Button variant="link" size="sm" className="mt-2 text-primary">Create your first event</Button>
         </Link>
       </div>
     );
@@ -132,7 +132,7 @@ function PerEventRsvpChart({ data }: { data: PerEventRsvp[] }) {
         <RechartsBarChart data={chartData} margin={{ top: 0, right: 4, left: -20, bottom: 0 }}>
           <XAxis
             dataKey="name"
-            stroke="#888"
+            stroke="hsl(var(--muted-foreground))"
             fontSize={11}
             tickLine={false}
             axisLine={false}
@@ -141,9 +141,9 @@ function PerEventRsvpChart({ data }: { data: PerEventRsvp[] }) {
             textAnchor={chartData.length > 4 ? "end" : "middle"}
             height={chartData.length > 4 ? 50 : 30}
           />
-          <YAxis stroke="#888" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+          <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
           <Tooltip
-            contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))", fontSize: "12px" }}
+            contentStyle={{ borderRadius: "12px", border: "1px solid hsl(var(--border))", fontSize: "12px" }}
             cursor={{ fill: "hsl(var(--muted))", opacity: 0.5 }}
           />
           <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} />
@@ -159,13 +159,39 @@ function PerEventRsvpChart({ data }: { data: PerEventRsvp[] }) {
 
 function RsvpStatRow({ icon, label, count, color, bgColor }: { icon: React.ReactNode; label: string; count: number; color: string; bgColor: string }) {
   return (
-    <div className="flex items-center gap-3 p-3 rounded-lg" style={{ background: bgColor }}>
+    <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: bgColor }}>
       <div className="shrink-0" style={{ color }}>{icon}</div>
       <div className="flex-1 min-w-0">
         <p className="text-xs text-muted-foreground">{label}</p>
         <p className="text-lg font-bold" style={{ color }}>{count}</p>
       </div>
     </div>
+  );
+}
+
+function StatCard({ href, icon: Icon, title, value, subtitle, accentColor }: {
+  href: string;
+  icon: typeof Calendar;
+  title: string;
+  value: React.ReactNode;
+  subtitle: string;
+  accentColor: string;
+}) {
+  return (
+    <Link href={href}>
+      <Card className="hover-elevate transition-all cursor-pointer group border-border/60 hover:border-primary/20">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+          <div className={`h-9 w-9 rounded-xl flex items-center justify-center ${accentColor}`}>
+            <Icon className="h-4 w-4" />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="text-3xl font-bold">{value}</div>
+          <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }
 
@@ -188,8 +214,8 @@ export default function Dashboard() {
             <p className="text-muted-foreground mt-1">Welcome back. Here's what's happening across your events.</p>
           </div>
           <Link href="/events/new">
-            <Button className="bg-gradient-to-r from-primary to-accent border-0 text-white">
-              <Calendar className="mr-2 h-4 w-4" />
+            <Button className="bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0">
+              <Plus className="mr-2 h-4 w-4" />
               Create Event
             </Button>
           </Link>
@@ -197,80 +223,54 @@ export default function Dashboard() {
 
         {/* Top metric cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Link href="/events">
-            <Card className="hover-elevate transition-all border-l-4 border-l-primary cursor-pointer hover:shadow-md">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Total Events</CardTitle>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                {isStatsLoading ? <Skeleton className="h-8 w-20" /> : (
-                  <>
-                    <div className="text-3xl font-bold">{stats?.totalEvents || 0}</div>
-                    <p className="text-xs text-muted-foreground mt-1">{stats?.activeEvents || 0} active right now</p>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </Link>
-          <Link href="/events">
-            <Card className="hover-elevate transition-all border-l-4 border-l-accent cursor-pointer hover:shadow-md">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Total Guests</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                {isStatsLoading ? <Skeleton className="h-8 w-20" /> : (
-                  <>
-                    <div className="text-3xl font-bold">{stats?.totalGuests || 0}</div>
-                    <p className="text-xs text-muted-foreground mt-1">{stats?.confirmedGuests || 0} confirmed</p>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </Link>
-          <Link href="/campaigns">
-            <Card className="hover-elevate transition-all border-l-4 border-l-secondary cursor-pointer hover:shadow-md">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Campaigns Sent</CardTitle>
-                <Mail className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                {isStatsLoading ? <Skeleton className="h-8 w-20" /> : (
-                  <>
-                    <div className="text-3xl font-bold">{stats?.campaignsSent || 0}</div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {stats?.avgOpenRate ? `${(stats.avgOpenRate * 100).toFixed(1)}% avg open rate` : "No data yet"}
-                    </p>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </Link>
-          <Link href="/social">
-            <Card className="hover-elevate transition-all border-l-4 border-l-muted-foreground cursor-pointer hover:shadow-md">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Engagement</CardTitle>
-                <BarChart className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                {isStatsLoading ? <Skeleton className="h-8 w-20" /> : (
-                  <>
-                    <div className="text-3xl font-bold">
-                      {stats?.totalGuests ? Math.round((stats.confirmedGuests / stats.totalGuests) * 100) : 0}%
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">RSVP conversion rate</p>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </Link>
+          {isStatsLoading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i} className="border-border/60">
+                <CardHeader className="pb-2"><Skeleton className="h-4 w-24" /></CardHeader>
+                <CardContent><Skeleton className="h-8 w-20" /><Skeleton className="h-3 w-32 mt-2" /></CardContent>
+              </Card>
+            ))
+          ) : (
+            <>
+              <StatCard
+                href="/events"
+                icon={Calendar}
+                title="Total Events"
+                value={stats?.totalEvents || 0}
+                subtitle={`${stats?.activeEvents || 0} active right now`}
+                accentColor="bg-primary/10 text-primary"
+              />
+              <StatCard
+                href="/events"
+                icon={Users}
+                title="Total Guests"
+                value={stats?.totalGuests || 0}
+                subtitle={`${stats?.confirmedGuests || 0} confirmed`}
+                accentColor="bg-accent/10 text-accent"
+              />
+              <StatCard
+                href="/campaigns"
+                icon={Mail}
+                title="Campaigns Sent"
+                value={stats?.campaignsSent || 0}
+                subtitle={stats?.avgOpenRate ? `${(stats.avgOpenRate * 100).toFixed(1)}% avg open rate` : "No data yet"}
+                accentColor="bg-secondary/20 text-primary"
+              />
+              <StatCard
+                href="/social"
+                icon={TrendingUp}
+                title="Engagement"
+                value={`${stats?.totalGuests ? Math.round((stats.confirmedGuests / stats.totalGuests) * 100) : 0}%`}
+                subtitle="RSVP conversion rate"
+                accentColor="bg-green-500/10 text-green-600"
+              />
+            </>
+          )}
         </div>
 
         {/* RSVP Stats Section */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-          {/* Per-event RSVP bar chart */}
-          <Card className="col-span-4">
+          <Card className="col-span-4 border-border/60">
             <CardHeader>
               <CardTitle>RSVP by Event</CardTitle>
               <CardDescription>Guest responses across all your events</CardDescription>
@@ -284,8 +284,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* RSVP donut + stat pills */}
-          <Card className="col-span-3">
+          <Card className="col-span-3 border-border/60">
             <CardHeader>
               <CardTitle>Overall RSVP Breakdown</CardTitle>
               <CardDescription>Response distribution across all events</CardDescription>
@@ -304,15 +303,15 @@ export default function Dashboard() {
                       icon={<CheckCircle className="h-4 w-4" />}
                       label="Attending (Yes)"
                       count={(stats?.guestsByStatus.confirmed ?? 0) + (stats?.guestsByStatus.attended ?? 0)}
-                      color="#16a34a"
-                      bgColor="#f0fdf4"
+                      color="#7C3AED"
+                      bgColor="rgba(124, 58, 237, 0.06)"
                     />
                     <RsvpStatRow
                       icon={<HelpCircle className="h-4 w-4" />}
                       label="Maybe"
                       count={stats?.guestsByStatus.maybe ?? 0}
-                      color="#d97706"
-                      bgColor="#fffbeb"
+                      color="#EA580C"
+                      bgColor="rgba(234, 88, 12, 0.06)"
                     />
                     <RsvpStatRow
                       icon={<XCircle className="h-4 w-4" />}
@@ -337,7 +336,7 @@ export default function Dashboard() {
 
         {/* Upcoming Events + Recent Activity */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-          <Card className="col-span-4">
+          <Card className="col-span-4 border-border/60">
             <CardHeader>
               <CardTitle>Upcoming Events</CardTitle>
               <CardDescription>Your next scheduled events</CardDescription>
@@ -353,25 +352,25 @@ export default function Dashboard() {
                   <p>No upcoming events.</p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {stats?.upcomingEvents?.slice(0, 4).map(event => (
-                    <div key={event.id} className="flex items-center justify-between p-4 rounded-xl border bg-card hover:bg-muted/50 transition-colors">
+                    <div key={event.id} className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-card hover:bg-muted/30 transition-colors">
                       <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-lg bg-primary/10 flex flex-col items-center justify-center text-primary shrink-0">
-                          <span className="text-xs font-semibold uppercase">{format(parseISO(event.startDate), "MMM")}</span>
+                        <div className="h-12 w-12 rounded-xl bg-primary/10 flex flex-col items-center justify-center text-primary shrink-0">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide">{format(parseISO(event.startDate), "MMM")}</span>
                           <span className="text-lg font-bold leading-none">{format(parseISO(event.startDate), "d")}</span>
                         </div>
                         <div>
-                          <h4 className="font-semibold">{event.title}</h4>
-                          <p className="text-sm text-muted-foreground flex items-center gap-1">
+                          <h4 className="font-semibold text-sm">{event.title}</h4>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
                             <span className="capitalize">{event.type}</span>
-                            <span>•</span>
+                            <span className="text-border">|</span>
                             <span>{event.confirmedCount} confirmed</span>
                           </p>
                         </div>
                       </div>
                       <Link href={`/events/${event.id}`}>
-                        <Button variant="ghost" size="icon" className="shrink-0">
+                        <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8 hover:bg-primary/10 hover:text-primary">
                           <ArrowUpRight className="h-4 w-4" />
                         </Button>
                       </Link>
@@ -382,7 +381,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="col-span-3 flex flex-col">
+          <Card className="col-span-3 flex flex-col border-border/60">
             <CardHeader>
               <CardTitle>Recent Activity</CardTitle>
               <CardDescription>Latest actions across your workspace</CardDescription>
@@ -402,7 +401,7 @@ export default function Dashboard() {
                   {activity?.map((item, index) => (
                     <div key={item.id} className="flex gap-4 relative">
                       {index !== (activity?.length ?? 0) - 1 && (
-                        <div className="absolute top-8 bottom-[-24px] left-[11px] w-[2px] bg-border" />
+                        <div className="absolute top-8 bottom-[-24px] left-[11px] w-[2px] bg-border/50" />
                       )}
                       <div className="mt-1">
                         <div className="h-[24px] w-[24px] rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 z-10 relative">
@@ -426,7 +425,7 @@ export default function Dashboard() {
 
         {/* Events by Type */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-          <Card className="col-span-4">
+          <Card className="col-span-4 border-border/60">
             <CardHeader>
               <CardTitle>Events by Type</CardTitle>
             </CardHeader>
@@ -437,10 +436,10 @@ export default function Dashboard() {
                 <div className="h-[300px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <RechartsBarChart data={chartData}>
-                      <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                      <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}`} />
-                      <Tooltip cursor={{ fill: "transparent" }} contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))" }} />
-                      <Bar dataKey="total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}`} />
+                      <Tooltip cursor={{ fill: "transparent" }} contentStyle={{ borderRadius: "12px", border: "1px solid hsl(var(--border))" }} />
+                      <Bar dataKey="total" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
                     </RechartsBarChart>
                   </ResponsiveContainer>
                 </div>

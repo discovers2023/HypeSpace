@@ -553,7 +553,7 @@ export default function EventDetail() {
     {
       label: "Design Campaign",
       done: hasCampaign,
-      action: !hasCampaign ? () => window.location.assign(`${BASE}/campaigns/ai`) : null,
+      action: !hasCampaign ? () => window.location.assign(`${BASE}/events/${eventId}/setup`) : null,
       actionLabel: "Create Campaign",
     },
     {
@@ -650,7 +650,7 @@ export default function EventDetail() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
                 <DropdownMenuItem
-                  onClick={() => toast({ title: "Edit coming soon" })}
+                  onClick={() => setLocation(`/events/${eventId}/edit`)}
                 >
                   <Settings className="mr-2 h-4 w-4" />
                   Edit Event
@@ -1682,7 +1682,7 @@ export default function EventDetail() {
               <Button
                 onClick={onLaunch}
                 disabled={isLaunching}
-                className="bg-gradient-to-r from-primary to-accent border-0 text-white"
+                className="bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0"
               >
                 {isLaunching ? (
                   <>
@@ -1744,7 +1744,7 @@ export default function EventDetail() {
               <Button
                 onClick={onTestEmail}
                 disabled={isSendingTest || !testEmailTo.includes("@")}
-                className="bg-gradient-to-r from-primary to-accent border-0 text-white"
+                className="bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0"
               >
                 {isSendingTest ? (
                   <>
@@ -1778,7 +1778,7 @@ export default function EventDetail() {
             <AlertDialogAction
               onClick={() => {
                 deleteEvent.mutate(
-                  { eventId },
+                  { orgId: ORG_ID, eventId },
                   {
                     onSuccess: () => {
                       toast({ title: "Event deleted" });

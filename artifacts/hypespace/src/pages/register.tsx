@@ -14,7 +14,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { AlertCircle, Eye, EyeOff, CheckCircle2 } from "lucide-react";
+import { AlertCircle, Eye, EyeOff, CheckCircle2, Calendar, Users, Mail, Share2 } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -68,7 +68,6 @@ export default function Register() {
     defaultValues: { name: "", company: "", email: "", password: "" },
   });
 
-  // Pre-fill email if coming from login page redirect
   useEffect(() => {
     const params = new URLSearchParams(search);
     const emailParam = params.get("email");
@@ -133,14 +132,14 @@ export default function Register() {
           </div>
 
           {globalError === "email_taken" && (
-            <div className="mb-5 flex items-start gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200">
+            <div className="mb-5 flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200">
               <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
               <div className="text-sm">
                 <p className="font-medium text-amber-800">Email already in use</p>
                 <p className="text-amber-700 mt-0.5">
                   An account with this email already exists.{" "}
                   <Link href="/login" className="font-semibold underline underline-offset-2 hover:text-amber-900">
-                    Log in instead →
+                    Log in instead &rarr;
                   </Link>
                 </p>
               </div>
@@ -148,7 +147,7 @@ export default function Register() {
           )}
 
           {globalError && globalError !== "email_taken" && (
-            <div className="mb-5 flex items-center gap-3 p-4 rounded-lg bg-destructive/10 border border-destructive/20">
+            <div className="mb-5 flex items-center gap-3 p-4 rounded-xl bg-destructive/10 border border-destructive/20">
               <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
               <p className="text-sm text-destructive">{globalError}</p>
             </div>
@@ -164,7 +163,7 @@ export default function Register() {
                     <FormItem>
                       <FormLabel>Full Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="Jane Doe" autoComplete="name" {...field} />
+                        <Input placeholder="Jane Doe" autoComplete="name" className="h-11" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -177,7 +176,7 @@ export default function Register() {
                     <FormItem>
                       <FormLabel>Company</FormLabel>
                       <FormControl>
-                        <Input placeholder="Acme Inc" autoComplete="organization" {...field} />
+                        <Input placeholder="Acme Inc" autoComplete="organization" className="h-11" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -194,6 +193,7 @@ export default function Register() {
                       <Input
                         placeholder="you@company.com"
                         autoComplete="email"
+                        className="h-11"
                         {...field}
                         onChange={(e) => {
                           field.onChange(e);
@@ -217,11 +217,12 @@ export default function Register() {
                           type={showPassword ? "text" : "password"}
                           placeholder="Min. 8 characters"
                           autoComplete="new-password"
+                          className="h-11 pr-10"
                           {...field}
                         />
                         <button
                           type="button"
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                           onClick={() => setShowPassword(s => !s)}
                           tabIndex={-1}
                         >
@@ -236,10 +237,10 @@ export default function Register() {
               />
               <Button
                 type="submit"
-                className="w-full mt-2 bg-gradient-to-r from-primary to-accent border-0 text-white"
+                className="w-full h-11 mt-2 bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15"
                 disabled={isLoading}
               >
-                {isLoading ? "Creating account…" : "Get started"}
+                {isLoading ? "Creating account..." : "Get started"}
               </Button>
             </form>
           </Form>
@@ -253,29 +254,28 @@ export default function Register() {
         </div>
       </div>
 
-      <div className="hidden lg:block relative bg-muted overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-background to-accent/20" />
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=2070')] bg-cover bg-center mix-blend-overlay opacity-30" />
+      <div className="hidden lg:flex relative overflow-hidden items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5">
+        {/* Background orbs */}
+        <div className="absolute -top-20 -right-20 w-[400px] h-[400px] rounded-full bg-primary/8 blur-3xl" />
+        <div className="absolute -bottom-20 -left-20 w-[300px] h-[300px] rounded-full bg-accent/8 blur-3xl" />
 
-        <div className="absolute inset-0 flex items-center justify-center p-12">
-          <div className="max-w-lg">
-            <h2 className="text-4xl font-bold text-foreground mb-6">Everything you need to hype your space.</h2>
-            <ul className="space-y-4">
-              {[
-                "Beautiful event landing pages",
-                "Seamless guest list management",
-                "AI-powered email campaigns",
-                "Automated social scheduling",
-              ].map((item, i) => (
-                <li key={i} className="flex items-center text-lg text-foreground/90">
-                  <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center mr-3 shrink-0">
-                    <div className="h-2 w-2 rounded-full bg-primary" />
-                  </div>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
+        <div className="relative max-w-lg mx-12">
+          <h2 className="text-4xl font-bold text-foreground mb-8">Everything you need to hype your space.</h2>
+          <ul className="space-y-5">
+            {[
+              { icon: Calendar, text: "Beautiful event landing pages" },
+              { icon: Users, text: "Seamless guest list management" },
+              { icon: Mail, text: "AI-powered email campaigns" },
+              { icon: Share2, text: "Automated social scheduling" },
+            ].map((item, i) => (
+              <li key={i} className="flex items-center text-lg text-foreground/90 gap-4">
+                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <item.icon className="h-5 w-5 text-primary" />
+                </div>
+                {item.text}
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </div>

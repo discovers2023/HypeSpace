@@ -99,13 +99,13 @@ export default function AcceptInvite() {
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           {/* Header bar */}
-          <div className="h-1.5 w-full bg-gradient-to-r from-[#FF8C00] to-[#FF1493]" />
+          <div className="h-1.5 w-full bg-gradient-to-r from-primary to-accent" />
 
           <div className="p-8">
             {/* Loading */}
             {status === "loading" && (
               <div className="flex flex-col items-center py-8 gap-3 text-muted-foreground">
-                <Loader2 className="h-8 w-8 animate-spin text-[#FF8C00]" />
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <p className="text-sm">Validating your invitation…</p>
               </div>
             )}
@@ -117,7 +117,7 @@ export default function AcceptInvite() {
                   <AlertTriangle className="h-7 w-7 text-red-500" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-[#1a0533] mb-1">Invite Link Problem</h2>
+                  <h2 className="text-lg font-semibold text-foreground mb-1">Invite Link Problem</h2>
                   <p className="text-sm text-muted-foreground">{errorMsg}</p>
                 </div>
                 <Button
@@ -137,13 +137,13 @@ export default function AcceptInvite() {
                   <CheckCircle2 className="h-7 w-7 text-green-500" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-[#1a0533] mb-1">You're in!</h2>
+                  <h2 className="text-lg font-semibold text-foreground mb-1">You're in!</h2>
                   <p className="text-sm text-muted-foreground">
                     Your account is set up. You can now log in to <strong>{inviteInfo?.orgName}</strong>.
                   </p>
                 </div>
                 <Button
-                  className="mt-2 bg-gradient-to-r from-[#FF8C00] to-[#FF1493] text-white border-0 hover:opacity-90"
+                  className="mt-2 bg-gradient-to-r from-primary to-accent text-white border-0 hover:opacity-90"
                   onClick={() => navigate(`/login?email=${encodeURIComponent(inviteInfo?.email ?? "")}`)}
                 >
                   Log in now →
@@ -155,19 +155,19 @@ export default function AcceptInvite() {
             {status === "ready" && inviteInfo && (
               <>
                 <div className="mb-6">
-                  <h2 className="text-xl font-bold text-[#1a0533] mb-1">Accept your invitation</h2>
+                  <h2 className="text-xl font-bold text-foreground mb-1">Accept your invitation</h2>
                   <p className="text-sm text-muted-foreground">
-                    You've been invited to join <strong className="text-[#1a0533]">{inviteInfo.orgName}</strong> as a <strong className="text-[#FF8C00]">{roleLabel}</strong>.
+                    You've been invited to join <strong className="text-foreground">{inviteInfo.orgName}</strong> as a <strong className="text-primary">{roleLabel}</strong>.
                   </p>
                 </div>
 
                 {/* Invite summary card */}
                 <div className="bg-purple-50 rounded-lg border border-purple-100 p-4 mb-6 flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#FF8C00] to-[#FF1493] flex items-center justify-center text-white font-semibold text-sm shrink-0">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-semibold text-sm shrink-0">
                     {inviteInfo.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">
-                    <p className="font-medium text-[#1a0533] text-sm truncate">{inviteInfo.name}</p>
+                    <p className="font-medium text-foreground text-sm truncate">{inviteInfo.name}</p>
                     <p className="text-xs text-muted-foreground truncate">{inviteInfo.email}</p>
                   </div>
                   <div className="ml-auto shrink-0">
@@ -259,7 +259,7 @@ export default function AcceptInvite() {
 
                     <Button
                       type="submit"
-                      className="w-full bg-gradient-to-r from-[#FF8C00] to-[#FF1493] text-white border-0 hover:opacity-90 h-11"
+                      className="w-full bg-gradient-to-r from-primary to-accent text-white border-0 hover:opacity-90 h-11"
                       disabled={form.formState.isSubmitting}
                     >
                       {form.formState.isSubmitting ? (
@@ -277,7 +277,7 @@ export default function AcceptInvite() {
 
         <p className="text-center text-xs text-muted-foreground mt-6">
           Already have an account?{" "}
-          <a href="/login" className="text-[#FF8C00] hover:underline font-medium">Log in</a>
+          <a href="/login" className="text-primary hover:underline font-medium">Log in</a>
         </p>
       </div>
     </div>

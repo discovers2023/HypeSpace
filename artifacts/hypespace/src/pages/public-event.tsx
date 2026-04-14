@@ -177,7 +177,7 @@ export default function PublicEvent() {
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
         </div>
       ) : (
-        <div className="h-48 md:h-64 bg-gradient-to-r from-[#F97316] to-[#FF1493] relative">
+        <div className="h-48 md:h-64 bg-gradient-to-r from-primary to-accent relative">
           <div className="absolute inset-0 flex items-center justify-center">
             <Sparkles className="h-16 w-16 text-white/30" />
           </div>
@@ -358,7 +358,7 @@ export default function PublicEvent() {
                         </div>
                         <Button
                           type="submit"
-                          className="w-full bg-gradient-to-r from-[#F97316] to-[#FF1493] hover:opacity-90 text-white border-0"
+                          className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white border-0"
                           disabled={
                             rsvpMutation.isPending ||
                             !firstName.trim() ||
@@ -394,7 +394,7 @@ export default function PublicEvent() {
       <footer className="py-6 text-center">
         <p className="text-xs text-muted-foreground">
           Powered by{" "}
-          <span className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-[#F97316] to-[#FF1493]">
+          <span className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">
             HypeSpace
           </span>
         </p>

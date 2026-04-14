@@ -416,7 +416,7 @@ export function CSVImportModal({
                 Back
               </Button>
               <Button
-                className="bg-gradient-to-r from-primary to-accent border-0 text-white hover:opacity-90"
+                className="bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0 hover:opacity-90"
                 onClick={handleImport}
                 disabled={bulkAdd.isPending || contacts.length === 0}
               >
@@ -463,7 +463,7 @@ export function CSVImportModal({
             <DialogFooter>
               <Button variant="outline" onClick={reset}>Import more</Button>
               <Button
-                className="bg-gradient-to-r from-primary to-accent border-0 text-white"
+                className="bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0"
                 onClick={handleClose}
               >
                 Done

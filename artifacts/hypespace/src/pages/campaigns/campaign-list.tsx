@@ -82,7 +82,7 @@ export default function CampaignList() {
           </div>
           <div className="flex gap-3">
             <Link href="/campaigns/ai">
-              <Button className="bg-gradient-to-r from-primary to-accent border-0 text-white shadow-md hover:shadow-lg transition-shadow">
+              <Button className="bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0 shadow-md hover:shadow-lg transition-shadow">
                 <Plus className="mr-2 h-4 w-4" />
                 New AI Campaign
               </Button>

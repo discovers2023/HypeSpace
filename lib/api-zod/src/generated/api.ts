@@ -383,6 +383,7 @@ export const ListGuestsResponseItem = zod.object({
   phone: zod.string().nullish(),
   company: zod.string().nullish(),
   status: zod.enum([
+    "added",
     "invited",
     "confirmed",
     "declined",
@@ -455,6 +456,7 @@ export const UpdateGuestResponse = zod.object({
   phone: zod.string().nullish(),
   company: zod.string().nullish(),
   status: zod.enum([
+    "added",
     "invited",
     "confirmed",
     "declined",

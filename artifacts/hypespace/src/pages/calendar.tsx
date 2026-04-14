@@ -36,7 +36,7 @@ const STATUS_STYLES: Record<EventStatus, string> = {
   draft:
     "bg-slate-500/15 text-slate-400 hover:bg-slate-500/25 border border-slate-500/20",
   published:
-    "bg-gradient-to-r from-[#F97316]/20 to-[#FF1493]/20 text-orange-300 hover:from-[#F97316]/30 hover:to-[#FF1493]/30 border border-orange-500/20",
+    "bg-primary/20 text-primary hover:bg-primary/30 border border-primary/20",
   completed:
     "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/20",
   cancelled:
@@ -45,7 +45,7 @@ const STATUS_STYLES: Record<EventStatus, string> = {
 
 const STATUS_DOT: Record<EventStatus, string> = {
   draft: "bg-slate-400",
-  published: "bg-gradient-to-r from-[#F97316] to-[#FF1493]",
+  published: "bg-primary",
   completed: "bg-emerald-400",
   cancelled: "bg-red-400",
 };
@@ -97,7 +97,7 @@ export default function CalendarPage() {
             </p>
           </div>
           <Link href="/events/new">
-            <Button className="bg-gradient-to-r from-primary to-accent border-0 text-white">
+            <Button className="bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0">
               <CalendarIcon className="mr-2 h-4 w-4" />
               Create Event
             </Button>

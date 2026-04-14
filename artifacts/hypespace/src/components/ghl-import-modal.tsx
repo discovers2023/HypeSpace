@@ -203,8 +203,8 @@ export function GHLImportModal({
                 onClick={() => setFilterMode("all")}
                 className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition-all text-left ${
                   filterMode === "all"
-                    ? "border-[#FF8C00] bg-orange-50 text-[#FF8C00]"
-                    : "border-border bg-background text-muted-foreground hover:border-[#FF8C00]/50"
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-border bg-background text-muted-foreground hover:border-primary/50"
                 }`}
               >
                 <div className="font-semibold">All contacts</div>
@@ -215,8 +215,8 @@ export function GHLImportModal({
                 onClick={() => setFilterMode("tags")}
                 className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition-all text-left ${
                   filterMode === "tags"
-                    ? "border-[#FF8C00] bg-orange-50 text-[#FF8C00]"
-                    : "border-border bg-background text-muted-foreground hover:border-[#FF8C00]/50"
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-border bg-background text-muted-foreground hover:border-primary/50"
                 }`}
               >
                 <div className="font-semibold">Filter by tag</div>
@@ -267,7 +267,7 @@ export function GHLImportModal({
                 Cancel
               </Button>
               <Button
-                className="bg-gradient-to-r from-[#F97316] to-[#FF1493] text-white border-0 hover:opacity-90"
+                className="bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0"
                 onClick={handlePreview}
                 disabled={loading}
               >
@@ -394,7 +394,7 @@ export function GHLImportModal({
                 ← Back
               </Button>
               <Button
-                className="bg-gradient-to-r from-[#F97316] to-[#FF1493] text-white border-0 hover:opacity-90"
+                className="bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0"
                 onClick={handleImport}
                 disabled={loading || contacts.length === 0}
               >
@@ -447,7 +447,7 @@ export function GHLImportModal({
                 Import more
               </Button>
               <Button
-                className="bg-gradient-to-r from-[#F97316] to-[#FF1493] text-white border-0"
+                className="bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0"
                 onClick={handleClose}
               >
                 Done

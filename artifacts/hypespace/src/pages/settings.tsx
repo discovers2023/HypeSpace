@@ -248,7 +248,7 @@ const CRM_PLATFORMS: Platform[] = [
   { id: "activecampaign", name: "ActiveCampaign", type: "crm", color: "#356AE6", textColor: "#fff", description: "Automate email sequences and manage contacts.", icon: "⚡" },
   { id: "zoho", name: "Zoho CRM", type: "crm", color: "#E42527", textColor: "#fff", description: "Manage leads and contacts from your events.", icon: "📊" },
   { id: "klaviyo", name: "Klaviyo", type: "crm", color: "#1A1A1A", textColor: "#fff", description: "Power data-driven email and SMS campaigns for events.", icon: "📧" },
-  { id: "gohighlevel", name: "Go HighLevel", type: "crm", color: "#F97316", textColor: "#fff", description: "Import contacts with a tag (e.g. studyclub) directly into your event guest lists.", icon: "🚀" },
+  { id: "gohighlevel", name: "Go HighLevel", type: "crm", color: "#7C3AED", textColor: "#fff", description: "Import contacts with a tag (e.g. studyclub) directly into your event guest lists.", icon: "🚀" },
 ];
 
 const ALL_PLATFORMS = [...SOCIAL_PLATFORMS, ...CRM_PLATFORMS];
@@ -365,7 +365,7 @@ function ConnectModal({
                 href={cred.helpUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-[#FF8C00] hover:underline inline-flex items-center gap-0.5"
+                className="text-xs text-primary hover:underline inline-flex items-center gap-0.5"
               >
                 Where to find my credentials <ExternalLink className="h-2.5 w-2.5" />
               </a>
@@ -527,8 +527,8 @@ function GHLImportModal({ orgId, open, onClose }: { orgId: number; open: boolean
                 onClick={() => setFilterMode("all")}
                 className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition-all text-left ${
                   filterMode === "all"
-                    ? "border-[#FF8C00] bg-orange-50 text-[#FF8C00]"
-                    : "border-border bg-background text-muted-foreground hover:border-[#FF8C00]/50"
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-border bg-background text-muted-foreground hover:border-primary/50"
                 }`}
               >
                 <div className="font-semibold">All contacts</div>
@@ -539,8 +539,8 @@ function GHLImportModal({ orgId, open, onClose }: { orgId: number; open: boolean
                 onClick={() => setFilterMode("tags")}
                 className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition-all text-left ${
                   filterMode === "tags"
-                    ? "border-[#FF8C00] bg-orange-50 text-[#FF8C00]"
-                    : "border-border bg-background text-muted-foreground hover:border-[#FF8C00]/50"
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-border bg-background text-muted-foreground hover:border-primary/50"
                 }`}
               >
                 <div className="font-semibold">Filter by tag</div>
@@ -575,7 +575,7 @@ function GHLImportModal({ orgId, open, onClose }: { orgId: number; open: boolean
             <DialogFooter>
               <Button variant="outline" onClick={handleClose}>Cancel</Button>
               <Button
-                className="bg-gradient-to-r from-[#F97316] to-[#FF1493] text-white border-0 hover:opacity-90"
+                className="bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0"
                 onClick={handlePreview}
                 disabled={loading}
               >
@@ -635,7 +635,7 @@ function GHLImportModal({ orgId, open, onClose }: { orgId: number; open: boolean
             <DialogFooter>
               <Button variant="outline" onClick={() => { setStep("configure"); setErrorMsg(""); }}>← Back</Button>
               <Button
-                className="bg-gradient-to-r from-[#F97316] to-[#FF1493] text-white border-0 hover:opacity-90"
+                className="bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0"
                 onClick={handleImport}
                 disabled={loading || contacts.length === 0}
               >
@@ -674,7 +674,7 @@ function GHLImportModal({ orgId, open, onClose }: { orgId: number; open: boolean
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={reset}>Import more</Button>
-              <Button className="bg-gradient-to-r from-[#F97316] to-[#FF1493] text-white border-0" onClick={handleClose}>Done</Button>
+              <Button className="bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0" onClick={handleClose}>Done</Button>
             </DialogFooter>
           </div>
         )}
@@ -742,7 +742,7 @@ function PlatformCard({ platform, connected, onConnect, onDisconnect, onImport, 
               {onImport && (
                 <Button
                   size="sm"
-                  className="flex-1 text-xs bg-gradient-to-r from-[#F97316] to-[#FF1493] border-0 text-white hover:opacity-90"
+                  className="flex-1 text-xs bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0"
                   onClick={() => onImport(platform)}
                   disabled={isLoading}
                 >
@@ -763,7 +763,7 @@ function PlatformCard({ platform, connected, onConnect, onDisconnect, onImport, 
           ) : (
             <Button
               size="sm"
-              className="flex-1 text-xs bg-gradient-to-r from-primary to-accent border-0 text-white"
+              className="flex-1 text-xs bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0"
               onClick={() => onConnect(platform)}
               disabled={isLoading}
             >
@@ -1166,8 +1166,8 @@ function BrandingTab({ orgId }: { orgId: number }) {
     resolver: zodResolver(brandingSchema),
     defaultValues: {
       logoUrl: "",
-      primaryColor: "#FF8C00",
-      accentColor: "#FF1493",
+      primaryColor: "#7C3AED",
+      accentColor: "#EA580C",
       fromEmail: "",
       replyToEmail: "",
       emailFooterText: "",
@@ -1178,8 +1178,8 @@ function BrandingTab({ orgId }: { orgId: number }) {
     if (org) {
       form.reset({
         logoUrl: org.logoUrl || "",
-        primaryColor: org.primaryColor || "#FF8C00",
-        accentColor: org.accentColor || "#FF1493",
+        primaryColor: org.primaryColor || "#7C3AED",
+        accentColor: org.accentColor || "#EA580C",
         fromEmail: org.fromEmail || "",
         replyToEmail: org.replyToEmail || "",
         emailFooterText: org.emailFooterText || "",
@@ -1212,7 +1212,7 @@ function BrandingTab({ orgId }: { orgId: number }) {
     );
   }
 
-  const previewGradient = `linear-gradient(135deg, ${watched.primaryColor || "#FF8C00"}, ${watched.accentColor || "#FF1493"})`;
+  const previewGradient = `linear-gradient(135deg, ${watched.primaryColor || "#7C3AED"}, ${watched.accentColor || "#EA580C"})`;
   const orgName = org?.name || "Your Organization";
   const footerText = watched.emailFooterText || `You're receiving this because you're on our guest list. © ${orgName}`;
 
@@ -1275,7 +1275,7 @@ function BrandingTab({ orgId }: { orgId: number }) {
                         <div className="relative">
                           <input
                             type="color"
-                            value={field.value || "#FF8C00"}
+                            value={field.value || "#7C3AED"}
                             onChange={(e) => field.onChange(e.target.value)}
                             className="w-12 h-10 rounded-lg border cursor-pointer p-0.5 bg-transparent"
                           />
@@ -1283,7 +1283,7 @@ function BrandingTab({ orgId }: { orgId: number }) {
                         <Input
                           value={field.value || ""}
                           onChange={(e) => field.onChange(e.target.value)}
-                          placeholder="#FF8C00"
+                          placeholder="#7C3AED"
                           className="font-mono uppercase"
                           maxLength={7}
                         />
@@ -1304,7 +1304,7 @@ function BrandingTab({ orgId }: { orgId: number }) {
                         <div className="relative">
                           <input
                             type="color"
-                            value={field.value || "#FF1493"}
+                            value={field.value || "#EA580C"}
                             onChange={(e) => field.onChange(e.target.value)}
                             className="w-12 h-10 rounded-lg border cursor-pointer p-0.5 bg-transparent"
                           />
@@ -1312,7 +1312,7 @@ function BrandingTab({ orgId }: { orgId: number }) {
                         <Input
                           value={field.value || ""}
                           onChange={(e) => field.onChange(e.target.value)}
-                          placeholder="#FF1493"
+                          placeholder="#EA580C"
                           className="font-mono uppercase"
                           maxLength={7}
                         />
@@ -1431,7 +1431,7 @@ function BrandingTab({ orgId }: { orgId: number }) {
         </Card>
 
         <div className="flex justify-end">
-          <Button type="submit" disabled={updateOrg.isPending || !form.formState.isDirty} className="bg-gradient-to-r from-primary to-accent border-0 text-white">
+          <Button type="submit" disabled={updateOrg.isPending || !form.formState.isDirty} className="bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0">
             {updateOrg.isPending ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Saving…</> : "Save Branding"}
           </Button>
         </div>
@@ -1682,7 +1682,7 @@ export default function Settings() {
                             <li>✓ AI campaign generator</li>
                             <li>✓ Social media scheduling</li>
                           </ul>
-                          <Button size="sm" variant={plan.highlight ? "default" : "outline"} className={`w-full ${plan.highlight ? "bg-gradient-to-r from-primary to-accent border-0 text-white" : ""}`}>
+                          <Button size="sm" variant={plan.highlight ? "default" : "outline"} className={`w-full ${plan.highlight ? "bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0" : ""}`}>
                             {plan.name === "Enterprise" ? "Contact Sales" : "Upgrade"}
                           </Button>
                         </div>

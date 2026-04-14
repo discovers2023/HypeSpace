@@ -11,6 +11,8 @@ import Dashboard from "@/pages/dashboard";
 import EventList from "@/pages/events/event-list";
 import EventNew from "@/pages/events/event-new";
 import EventDetail from "@/pages/events/event-detail";
+import EventSetup from "@/pages/events/event-setup";
+import EventEdit from "@/pages/events/event-edit";
 import CampaignList from "@/pages/campaigns/campaign-list";
 import CampaignAi from "@/pages/campaigns/campaign-ai";
 import CampaignEdit from "@/pages/campaigns/campaign-edit";
@@ -34,6 +36,8 @@ function Router() {
       <Route path="/events" component={EventList} />
       <Route path="/events/new" component={EventNew} />
       <Route path="/events/:id" component={EventDetail} />
+      <Route path="/events/:id/setup" component={EventSetup} />
+      <Route path="/events/:id/edit" component={EventEdit} />
       <Route path="/campaigns" component={CampaignList} />
       <Route path="/campaigns/ai" component={CampaignAi} />
       <Route path="/campaigns/:id/edit" component={CampaignEdit} />

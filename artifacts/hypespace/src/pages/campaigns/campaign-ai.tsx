@@ -33,10 +33,10 @@ type AiCampaignFormValues = z.infer<typeof aiCampaignSchema>;
 
 function applyBranding(html: string, branding: { primaryColor?: string | null; accentColor?: string | null; name: string; logoUrl?: string | null; emailFooterText?: string | null; fromEmail?: string | null }) {
   let out = html;
-  const primary = branding.primaryColor || "#FF8C00";
-  const accent = branding.accentColor || "#FF1493";
+  const primary = branding.primaryColor || "#7C3AED";
+  const accent = branding.accentColor || "#EA580C";
 
-  out = out.replace(/#FF8C00/g, primary).replace(/#FF1493/g, accent);
+  out = out.replace(/#7C3AED/g, primary).replace(/#EA580C/g, accent);
   out = out.replace(/HypeSpace Events/g, branding.name);
   out = out.replace(/Where moments are made/g, branding.fromEmail ? `Sent by ${branding.fromEmail}` : "Where moments are made");
 
@@ -292,7 +292,7 @@ export default function CampaignAi() {
 
                     <Button 
                       type="submit" 
-                      className="w-full bg-gradient-to-r from-primary to-accent border-0 text-white" 
+                      className="w-full bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0" 
                       disabled={generateCampaign.isPending}
                     >
                       {generateCampaign.isPending ? (

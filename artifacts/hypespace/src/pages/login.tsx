@@ -14,7 +14,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { AlertCircle, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, Eye, EyeOff, Sparkles } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -93,7 +93,7 @@ export default function Login() {
           </div>
 
           {globalError === "register" && (
-            <div className="mb-5 flex items-start gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200">
+            <div className="mb-5 flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200">
               <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
               <div className="text-sm">
                 <p className="font-medium text-amber-800">No account found</p>
@@ -103,7 +103,7 @@ export default function Login() {
                     href={`/register?email=${encodeURIComponent(form.getValues("email"))}`}
                     className="font-semibold underline underline-offset-2 hover:text-amber-900"
                   >
-                    Create a free account →
+                    Create a free account &rarr;
                   </Link>
                 </p>
               </div>
@@ -111,7 +111,7 @@ export default function Login() {
           )}
 
           {globalError && globalError !== "register" && (
-            <div className="mb-5 flex items-center gap-3 p-4 rounded-lg bg-destructive/10 border border-destructive/20">
+            <div className="mb-5 flex items-center gap-3 p-4 rounded-xl bg-destructive/10 border border-destructive/20">
               <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
               <p className="text-sm text-destructive">{globalError}</p>
             </div>
@@ -129,6 +129,7 @@ export default function Login() {
                       <Input
                         placeholder="you@company.com"
                         autoComplete="email"
+                        className="h-11"
                         {...field}
                         onChange={(e) => {
                           field.onChange(e);
@@ -155,13 +156,14 @@ export default function Login() {
                       <div className="relative">
                         <Input
                           type={showPassword ? "text" : "password"}
-                          placeholder="••••••••"
+                          placeholder="Enter your password"
                           autoComplete="current-password"
+                          className="h-11 pr-10"
                           {...field}
                         />
                         <button
                           type="button"
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                           onClick={() => setShowPassword(s => !s)}
                           tabIndex={-1}
                         >
@@ -175,10 +177,10 @@ export default function Login() {
               />
               <Button
                 type="submit"
-                className="w-full bg-gradient-to-r from-primary to-accent border-0 text-white mt-1"
+                className="w-full h-11 bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 mt-1"
                 disabled={isLoading}
               >
-                {isLoading ? "Logging in…" : "Log in"}
+                {isLoading ? "Logging in..." : "Log in"}
               </Button>
             </form>
           </Form>
@@ -192,20 +194,29 @@ export default function Login() {
         </div>
       </div>
 
-      <div className="hidden lg:block relative bg-muted overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-background to-accent/20" />
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=2070')] bg-cover bg-center mix-blend-overlay opacity-30" />
-        <div className="absolute bottom-12 left-12 right-12 p-8 bg-background/60 backdrop-blur-xl rounded-2xl border border-white/10">
-          <p className="text-xl font-medium text-foreground mb-4">
-            "HypeSpace transformed how we manage our annual conference. From guest lists to follow-up campaigns, everything is seamlessly integrated."
-          </p>
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary">
-              SJ
+      <div className="hidden lg:flex relative overflow-hidden items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5">
+        {/* Background orbs */}
+        <div className="absolute -top-20 -right-20 w-[400px] h-[400px] rounded-full bg-primary/8 blur-3xl" />
+        <div className="absolute -bottom-20 -left-20 w-[300px] h-[300px] rounded-full bg-accent/8 blur-3xl" />
+
+        {/* Glassmorphic testimonial card */}
+        <div className="relative max-w-md mx-12">
+          <div className="glass rounded-2xl p-8 shadow-xl">
+            <div className="flex items-center gap-2 text-primary mb-6">
+              <Sparkles className="h-5 w-5" />
+              <span className="text-sm font-semibold">What our users say</span>
             </div>
-            <div>
-              <p className="font-semibold text-sm">Sarah Jenkins</p>
-              <p className="text-xs text-muted-foreground">Director of Events, TechCorp</p>
+            <p className="text-lg font-medium text-foreground mb-6 leading-relaxed">
+              "HypeSpace transformed how we manage our annual conference. From guest lists to follow-up campaigns, everything is seamlessly integrated."
+            </p>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-primary/15 flex items-center justify-center font-bold text-primary text-sm">
+                SJ
+              </div>
+              <div>
+                <p className="font-semibold text-sm">Sarah Jenkins</p>
+                <p className="text-xs text-muted-foreground">Director of Events, TechCorp</p>
+              </div>
             </div>
           </div>
         </div>

@@ -8,7 +8,7 @@ export default function NotFound() {
       <Navbar />
       <main className="flex-1 flex flex-col items-center justify-center p-4">
         <div className="text-center space-y-6 max-w-md mx-auto">
-          <h1 className="text-7xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
+          <h1 className="text-7xl font-bold gradient-text">
             404
           </h1>
           <h2 className="text-2xl font-semibold text-foreground">
@@ -24,7 +24,7 @@ export default function NotFound() {
               </Button>
             </Link>
             <Link href="/dashboard">
-              <Button className="w-full sm:w-auto bg-gradient-to-r from-primary to-accent border-0">
+              <Button className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0">
                 Back to Dashboard
               </Button>
             </Link>

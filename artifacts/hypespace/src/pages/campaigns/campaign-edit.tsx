@@ -460,7 +460,7 @@ export default function CampaignEdit() {
             <Button variant="outline" onClick={form.handleSubmit(onSave)} disabled={isBusy || isSent}>
               <Save className="h-4 w-4 mr-2" /> {updateCampaign.isPending ? "Saving..." : "Save draft"}
             </Button>
-            <Button className="bg-gradient-to-r from-primary to-accent border-0 text-white" onClick={() => setConfirmSend(true)} disabled={isBusy || isSent}>
+            <Button className="bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0" onClick={() => setConfirmSend(true)} disabled={isBusy || isSent}>
               <Send className="h-4 w-4 mr-2" /> {isSent ? "Already sent" : "Save & send"}
             </Button>
           </div>
@@ -725,7 +725,7 @@ export default function CampaignEdit() {
               <Button
                 onClick={onGenerateImage}
                 disabled={isGeneratingImage || !imagePrompt.trim()}
-                className="bg-gradient-to-r from-primary to-accent border-0 text-white"
+                className="bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0"
               >
                 {isGeneratingImage ? (
                   <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Generating...</>
@@ -749,7 +749,7 @@ export default function CampaignEdit() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={onSend} className="bg-gradient-to-r from-primary to-accent border-0 text-white">
+            <AlertDialogAction onClick={onSend} className="bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0">
               Save &amp; send
             </AlertDialogAction>
           </AlertDialogFooter>

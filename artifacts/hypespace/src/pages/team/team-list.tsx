@@ -162,7 +162,7 @@ export default function TeamList() {
           
           <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-gradient-to-r from-primary to-accent border-0 text-white">
+              <Button className="bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0">
                 <Plus className="mr-2 h-4 w-4" />
                 Invite Member
               </Button>
