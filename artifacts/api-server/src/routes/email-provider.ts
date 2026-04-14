@@ -64,8 +64,8 @@ router.post("/organizations/:orgId/email-provider", async (req, res): Promise<vo
     fromName?: string;
   };
 
-  if (!user || !pass) {
-    res.status(400).json({ error: "Username and password/API key are required" });
+  if (!user) {
+    res.status(400).json({ error: "Username/email is required" });
     return;
   }
 
@@ -78,16 +78,7 @@ router.post("/organizations/:orgId/email-provider", async (req, res): Promise<vo
     return;
   }
 
-  const metadata = {
-    provider: providerKey,
-    host: resolvedHost,
-    port: resolvedPort,
-    user,
-    pass,
-    fromEmail: fromEmail || user,
-    fromName: fromName || "HypeSpace",
-  };
-
+  // Fetch existing record so we can keep the password if not re-supplied
   const [existing] = await db
     .select()
     .from(integrationsTable)
@@ -98,6 +89,24 @@ router.post("/organizations/:orgId/email-provider", async (req, res): Promise<vo
       ),
     )
     .limit(1);
+
+  const existingPass = existing ? (existing.metadata as Record<string, unknown>)?.pass as string | undefined : undefined;
+  const resolvedPass = pass || existingPass;
+
+  if (!resolvedPass) {
+    res.status(400).json({ error: "Password/API key is required" });
+    return;
+  }
+
+  const metadata = {
+    provider: providerKey,
+    host: resolvedHost,
+    port: resolvedPort,
+    user,
+    pass: resolvedPass,
+    fromEmail: fromEmail || user,
+    fromName: fromName || "HypeSpace",
+  };
 
   if (existing) {
     await db

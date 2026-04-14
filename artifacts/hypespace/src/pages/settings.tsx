@@ -1007,19 +1007,130 @@ const brandingSchema = z.object({
 });
 type BrandingFormValues = z.infer<typeof brandingSchema>;
 
-// --- Email Provider types & component ---
-const EMAIL_PROVIDERS = [
-  { value: "gmail",     label: "Gmail",                 host: "smtp.gmail.com",         port: 587, userLabel: "Gmail address",          passLabel: "App password",      hint: "Create an App Password at myaccount.google.com → Security → 2-Step Verification → App passwords" },
-  { value: "outlook",   label: "Outlook / Office 365",  host: "smtp.office365.com",     port: 587, userLabel: "Microsoft email",         passLabel: "Password",          hint: "Use your Microsoft 365 email address and password. You may need to enable SMTP AUTH in admin settings." },
-  { value: "resend",    label: "Resend",                host: "smtp.resend.com",         port: 587, userLabel: "Username (always 'resend')", passLabel: "API key",         hint: "Get your API key at resend.com → API Keys. The username is always the word 'resend'." },
-  { value: "sendgrid",  label: "SendGrid",              host: "smtp.sendgrid.net",       port: 587, userLabel: "Username (always 'apikey')", passLabel: "API key",        hint: "Get your API key at app.sendgrid.com → Settings → API Keys. The username is always the word 'apikey'." },
-  { value: "mailgun",   label: "Mailgun",               host: "smtp.mailgun.org",        port: 587, userLabel: "SMTP login",             passLabel: "SMTP password",     hint: "Find these in your Mailgun dashboard → Sending → Domain Settings → SMTP credentials." },
-  { value: "postmark",  label: "Postmark",              host: "smtp.postmarkapp.com",    port: 587, userLabel: "Server API token",       passLabel: "Server API token",  hint: "Use your Server API token as both username and password. Find it in Postmark → Servers → Your Server → API Tokens." },
-  { value: "zoho",      label: "Zoho Mail",             host: "smtp.zoho.com",           port: 587, userLabel: "Zoho email address",     passLabel: "Password",          hint: "Use your Zoho email and password. Make sure IMAP/SMTP access is enabled in Zoho Mail settings." },
-  { value: "custom",    label: "Custom SMTP",           host: "",                        port: 587, userLabel: "Username",               passLabel: "Password",          hint: "Enter the SMTP host and credentials provided by your email service." },
-] as const;
+// --- Email Provider wizard ---
+type ProviderValue = "gmail" | "outlook" | "resend" | "sendgrid" | "postmark" | "custom";
 
-type ProviderValue = typeof EMAIL_PROVIDERS[number]["value"];
+type ProviderDef = {
+  value: ProviderValue;
+  label: string;
+  icon: string;
+  tagline: string;
+  badge?: string;
+  badgeColor?: string;
+  host: string;
+  port: number;
+  fixedUser?: string;
+  userLabel: string;
+  userPlaceholder: string;
+  passLabel: string;
+  steps: Array<{ text: string; link?: string; linkLabel?: string }>;
+};
+
+const PROVIDER_DEFS: ProviderDef[] = [
+  {
+    value: "gmail",
+    label: "Gmail",
+    icon: "✉️",
+    tagline: "Use your existing Google / Gmail account",
+    host: "smtp.gmail.com",
+    port: 587,
+    userLabel: "Your Gmail address",
+    userPlaceholder: "you@gmail.com",
+    passLabel: "App password (16 letters, no spaces)",
+    steps: [
+      { text: "Open your Google Account security settings", link: "https://myaccount.google.com/security", linkLabel: "Open Google Security →" },
+      { text: "Make sure 2-Step Verification is turned on. If not, turn it on first." },
+      { text: 'Search for "App passwords" on that same page and click it.' },
+      { text: 'Choose "Mail" as the app. Copy the 16-letter password Google shows you.' },
+      { text: "Paste that password in the field below (not your regular Gmail password)." },
+    ],
+  },
+  {
+    value: "outlook",
+    label: "Outlook",
+    icon: "📧",
+    tagline: "Use your Microsoft / Office 365 account",
+    host: "smtp.office365.com",
+    port: 587,
+    userLabel: "Your Microsoft email address",
+    userPlaceholder: "you@outlook.com",
+    passLabel: "Your Microsoft password",
+    steps: [
+      { text: "Make sure your account allows SMTP sending.", link: "https://support.microsoft.com/en-us/office/pop-imap-and-smtp-settings-8361e398-8af4-4e97-b147-6c6c4ac95353", linkLabel: "Check Microsoft guide →" },
+      { text: "Enter your full Microsoft email address below." },
+      { text: "Enter your regular Microsoft account password." },
+      { text: "If your org uses multi-factor auth, you may need an app password from your IT admin." },
+    ],
+  },
+  {
+    value: "resend",
+    label: "Resend",
+    icon: "⚡",
+    tagline: "Free service, easiest to set up — recommended for new users",
+    badge: "Recommended",
+    badgeColor: "bg-violet-500/10 text-violet-700 border-violet-500/20",
+    host: "smtp.resend.com",
+    port: 587,
+    fixedUser: "resend",
+    userLabel: "Username",
+    userPlaceholder: "resend",
+    passLabel: "Your Resend API key",
+    steps: [
+      { text: "Create a free Resend account", link: "https://resend.com/signup", linkLabel: "Sign up for free →" },
+      { text: 'In Resend, click "API Keys" in the left menu, then "Create API Key".' },
+      { text: "Give it any name (e.g. HypeSpace) and click Create." },
+      { text: "Copy the key that appears and paste it below." },
+    ],
+  },
+  {
+    value: "sendgrid",
+    label: "SendGrid",
+    icon: "📮",
+    tagline: "Twilio SendGrid — popular for bulk email",
+    host: "smtp.sendgrid.net",
+    port: 587,
+    fixedUser: "apikey",
+    userLabel: "Username",
+    userPlaceholder: "apikey",
+    passLabel: "Your SendGrid API key",
+    steps: [
+      { text: "Log into SendGrid and go to API Keys", link: "https://app.sendgrid.com/settings/api_keys", linkLabel: "Open SendGrid →" },
+      { text: 'Click "Create API Key", give it Full Access, and click Create.' },
+      { text: "Copy the key shown and paste it below." },
+    ],
+  },
+  {
+    value: "postmark",
+    label: "Postmark",
+    icon: "📬",
+    tagline: "High deliverability for transactional email",
+    host: "smtp.postmarkapp.com",
+    port: 587,
+    userLabel: "Server API token",
+    userPlaceholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    passLabel: "Server API token (same as above)",
+    steps: [
+      { text: "Log into Postmark and open your server", link: "https://account.postmarkapp.com/servers", linkLabel: "Open Postmark →" },
+      { text: 'Click "API Tokens" tab and copy your Server API Token.' },
+      { text: "Paste that token in both fields below (Postmark uses it as both username and password)." },
+    ],
+  },
+  {
+    value: "custom",
+    label: "Other / Custom",
+    icon: "⚙️",
+    tagline: "I have my own mail server or a different provider",
+    host: "",
+    port: 587,
+    userLabel: "Username / email",
+    userPlaceholder: "you@yourdomain.com",
+    passLabel: "Password",
+    steps: [
+      { text: "Ask your email provider or IT admin for the SMTP host, port, username, and password." },
+      { text: "Fill in all the fields below exactly as given." },
+    ],
+  },
+];
 
 type EmailProviderConfig = {
   id: number;
@@ -1033,20 +1144,33 @@ type EmailProviderConfig = {
   status: string;
 } | null;
 
+function StepBubble({ n, active, done }: { n: number; active: boolean; done: boolean }) {
+  return (
+    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-colors ${
+      done ? "bg-green-500 text-white" : active ? "bg-violet-600 text-white" : "bg-muted text-muted-foreground"
+    }`}>
+      {done ? <CheckCircle2 className="h-4 w-4" /> : n}
+    </div>
+  );
+}
+
 function EmailProviderCard({ orgId }: { orgId: number }) {
   const { toast } = useToast();
-  const [provider, setProvider] = useState<ProviderValue>("gmail");
-  const [host, setHost] = useState("");
-  const [port, setPort] = useState("587");
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [provider, setProvider] = useState<ProviderValue>("resend");
+  const [customHost, setCustomHost] = useState("");
+  const [customPort, setCustomPort] = useState("587");
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [fromEmail, setFromEmail] = useState("");
-  const [fromName, setFromName] = useState("HypeSpace");
+  const [fromName, setFromName] = useState("");
   const [testTo, setTestTo] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+  const [testSent, setTestSent] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const { data: config, isLoading, refetch } = useQuery<EmailProviderConfig>({
     queryKey: ["email-provider", orgId],
@@ -1058,37 +1182,49 @@ function EmailProviderCard({ orgId }: { orgId: number }) {
 
   useEffect(() => {
     if (config) {
-      setProvider((config.provider as ProviderValue) ?? "gmail");
-      setHost(config.host ?? "");
-      setPort(String(config.port ?? 587));
+      setProvider((config.provider as ProviderValue) ?? "resend");
       setUser(config.user ?? "");
       setFromEmail(config.fromEmail ?? "");
-      setFromName(config.fromName ?? "HypeSpace");
+      setFromName(config.fromName ?? "");
+      setCustomHost(config.host ?? "");
+      setCustomPort(String(config.port ?? 587));
     }
   }, [config]);
 
-  const providerMeta = EMAIL_PROVIDERS.find(p => p.value === provider) ?? EMAIL_PROVIDERS[0];
+  const def = PROVIDER_DEFS.find(p => p.value === provider) ?? PROVIDER_DEFS[0];
 
   const onSave = async () => {
-    if (!user || !pass) {
-      toast({ title: "Username and password are required", variant: "destructive" });
+    const effectiveUser = def.fixedUser ?? user;
+    if (!effectiveUser || (!pass && !config?.passSet)) {
+      toast({ title: "Please fill in all required fields", variant: "destructive" });
+      return;
+    }
+    if (!fromEmail || !fromName) {
+      toast({ title: "Please enter your name and email address", variant: "destructive" });
       return;
     }
     setIsSaving(true);
     try {
-      const body: Record<string, unknown> = { provider, user, pass, fromEmail: fromEmail || user, fromName };
-      if (provider === "custom") { body.host = host; body.port = parseInt(port, 10); }
+      const body: Record<string, unknown> = {
+        provider,
+        user: effectiveUser,
+        fromEmail,
+        fromName,
+      };
+      if (pass) body.pass = pass;
+      if (provider === "custom") { body.host = customHost; body.port = parseInt(customPort, 10); }
       const res = await fetch(`${BASE}/api/organizations/${orgId}/email-provider`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
-      toast({ title: "Email provider saved", description: "All emails will now be sent through this provider." });
       setPass("");
+      setEditing(false);
       refetch();
+      setStep(3);
     } catch (err: any) {
-      toast({ title: "Failed to save", description: err.message, variant: "destructive" });
+      toast({ title: "Could not connect", description: err.message, variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -1096,7 +1232,7 @@ function EmailProviderCard({ orgId }: { orgId: number }) {
 
   const onTest = async () => {
     if (!testTo || !testTo.includes("@")) {
-      toast({ title: "Enter a valid email to send the test to", variant: "destructive" });
+      toast({ title: "Enter your email address to receive the test", variant: "destructive" });
       return;
     }
     setIsTesting(true);
@@ -1108,7 +1244,7 @@ function EmailProviderCard({ orgId }: { orgId: number }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      toast({ title: "Test email sent!", description: `Check ${testTo} for the test message.` });
+      setTestSent(true);
     } catch (err: any) {
       toast({ title: "Test failed", description: err.message, variant: "destructive" });
     } finally {
@@ -1121,7 +1257,8 @@ function EmailProviderCard({ orgId }: { orgId: number }) {
     try {
       await fetch(`${BASE}/api/organizations/${orgId}/email-provider`, { method: "DELETE" });
       toast({ title: "Email provider removed" });
-      setUser(""); setPass(""); setFromEmail(""); setFromName("HypeSpace");
+      setUser(""); setPass(""); setFromEmail(""); setFromName(""); setTestSent(false);
+      setStep(1); setEditing(false);
       refetch();
     } catch {
       toast({ title: "Failed to remove", variant: "destructive" });
@@ -1130,137 +1267,266 @@ function EmailProviderCard({ orgId }: { orgId: number }) {
     }
   };
 
+  if (isLoading) {
+    return <Card><CardContent className="pt-6"><Skeleton className="h-40 w-full" /></CardContent></Card>;
+  }
+
+  const isConnected = !!config && !editing;
+
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2">
-              <Server className="h-4 w-4" /> Email Provider
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Mail className="h-4 w-4" /> Email Setup
             </CardTitle>
-            <CardDescription>Connect your own SMTP provider so emails land in real inboxes</CardDescription>
+            <CardDescription>Connect an email account so your guests actually receive emails</CardDescription>
           </div>
-          {config && (
+          {isConnected && (
             <Badge className="bg-green-500/10 text-green-700 border-green-500/20 border">
               <CheckCircle2 className="h-3 w-3 mr-1" /> Connected
             </Badge>
           )}
         </div>
       </CardHeader>
-      <CardContent className="space-y-5">
-        {isLoading ? (
-          <Skeleton className="h-32 w-full" />
-        ) : (
-          <>
-            {!config && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                No provider configured — emails are currently captured in a test mode and not delivered to real inboxes.
-              </div>
-            )}
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Provider</label>
-              <Select value={provider} onValueChange={v => setProvider(v as ProviderValue)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a provider" />
-                </SelectTrigger>
-                <SelectContent>
-                  {EMAIL_PROVIDERS.map(p => (
-                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {providerMeta.hint && (
-                <p className="text-xs text-muted-foreground">{providerMeta.hint}</p>
-              )}
+      <CardContent className="space-y-6">
+
+        {/* === Connected summary view === */}
+        {isConnected && (
+          <div className="space-y-4">
+            <div className="rounded-xl border bg-muted/30 p-4 flex items-start gap-4">
+              <div className="text-3xl leading-none">{PROVIDER_DEFS.find(p => p.value === config.provider)?.icon ?? "📧"}</div>
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-sm">{PROVIDER_DEFS.find(p => p.value === config.provider)?.label ?? config.provider}</div>
+                <div className="text-sm text-muted-foreground mt-0.5">Sending as <strong className="text-foreground">{config.fromName}</strong> &lt;{config.fromEmail}&gt;</div>
+              </div>
             </div>
 
-            {provider === "custom" && (
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2 space-y-1.5">
-                  <label className="text-sm font-medium">SMTP Host</label>
-                  <Input placeholder="smtp.yourdomain.com" value={host} onChange={e => setHost(e.target.value)} />
+            <div className="border-t pt-4 space-y-3">
+              <p className="text-sm font-medium">Send a test to make sure it's working</p>
+              {testSent ? (
+                <div className="flex items-center gap-2 text-green-700 bg-green-50 rounded-lg px-4 py-3 text-sm">
+                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                  Test email sent to <strong>{testTo}</strong>. Check your inbox!
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Port</label>
-                  <Input placeholder="587" value={port} onChange={e => setPort(e.target.value)} />
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">{providerMeta.userLabel}</label>
-                <Input
-                  placeholder={provider === "resend" ? "resend" : provider === "sendgrid" ? "apikey" : "you@example.com"}
-                  value={user}
-                  onChange={e => setUser(e.target.value)}
-                  autoComplete="off"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">
-                  {providerMeta.passLabel}
-                  {config?.passSet && <span className="text-xs text-muted-foreground font-normal ml-1">(saved — leave blank to keep)</span>}
-                </label>
-                <div className="relative">
-                  <Input
-                    type={showPass ? "text" : "password"}
-                    placeholder={config?.passSet ? "••••••••" : "Enter password or API key"}
-                    value={pass}
-                    onChange={e => setPass(e.target.value)}
-                    autoComplete="new-password"
-                    className="pr-9"
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    onClick={() => setShowPass(v => !v)}
-                  >
-                    {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">From Name</label>
-                <Input placeholder="HypeSpace" value={fromName} onChange={e => setFromName(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">From Email</label>
-                <Input placeholder="noreply@yourdomain.com" value={fromEmail} onChange={e => setFromEmail(e.target.value)} />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 pt-1">
-              <Button onClick={onSave} disabled={isSaving} size="sm">
-                {isSaving ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Saving...</> : "Save Provider"}
-              </Button>
-              {config && (
-                <Button variant="ghost" size="sm" className="text-destructive" onClick={onRemove} disabled={isRemoving}>
-                  {isRemoving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5 mr-1.5" />}
-                  Remove
-                </Button>
-              )}
-            </div>
-
-            {config && (
-              <div className="border-t pt-4 space-y-2">
-                <p className="text-sm font-medium">Send a test email</p>
+              ) : (
                 <div className="flex gap-2">
                   <Input
-                    placeholder="recipient@example.com"
+                    placeholder="your@email.com"
                     value={testTo}
                     onChange={e => setTestTo(e.target.value)}
                     className="max-w-xs"
                   />
                   <Button variant="outline" size="sm" onClick={onTest} disabled={isTesting}>
-                    {isTesting ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Sending...</> : <><Send className="h-3.5 w-3.5 mr-1.5" /> Send Test</>}
+                    {isTesting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
+                    Send Test
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">Sends a real email to verify your provider is working correctly.</p>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" size="sm" onClick={() => { setEditing(true); setStep(2); }}>
+                Change provider
+              </Button>
+              <Button variant="ghost" size="sm" className="text-destructive" onClick={onRemove} disabled={isRemoving}>
+                {isRemoving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Trash2 className="h-3.5 w-3.5 mr-1" />}
+                Disconnect
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* === Wizard === */}
+        {!isConnected && (
+          <>
+            {/* Step indicator */}
+            <div className="flex items-center gap-2">
+              <StepBubble n={1} active={step === 1} done={step > 1} />
+              <div className={`flex-1 h-0.5 rounded ${step > 1 ? "bg-green-400" : "bg-muted"}`} />
+              <StepBubble n={2} active={step === 2} done={step > 2} />
+              <div className={`flex-1 h-0.5 rounded ${step > 2 ? "bg-green-400" : "bg-muted"}`} />
+              <StepBubble n={3} active={step === 3} done={testSent} />
+            </div>
+
+            {/* Step 1: Pick a provider */}
+            {step === 1 && (
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-foreground">Which email service would you like to send from?</p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {PROVIDER_DEFS.map(p => (
+                    <button
+                      key={p.value}
+                      onClick={() => setProvider(p.value)}
+                      className={`relative text-left rounded-xl border-2 p-3 transition-all hover:border-violet-400 ${
+                        provider === p.value ? "border-violet-500 bg-violet-50" : "border-border bg-card"
+                      }`}
+                    >
+                      {p.badge && (
+                        <span className={`absolute -top-2 left-3 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${p.badgeColor}`}>
+                          {p.badge}
+                        </span>
+                      )}
+                      <div className="text-2xl mb-1">{p.icon}</div>
+                      <div className="font-semibold text-sm">{p.label}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5 leading-snug">{p.tagline}</div>
+                    </button>
+                  ))}
+                </div>
+                <div className="flex justify-end pt-1">
+                  <Button onClick={() => setStep(2)}>
+                    Continue with {def.label} →
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Setup guide + credentials */}
+            {step === 2 && (
+              <div className="space-y-5">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">{def.icon}</span>
+                  <div>
+                    <p className="font-semibold">{def.label}</p>
+                    <button className="text-xs text-muted-foreground underline underline-offset-2" onClick={() => setStep(1)}>
+                      ← Choose a different provider
+                    </button>
+                  </div>
+                </div>
+
+                {/* Step guide */}
+                <div className="rounded-xl bg-muted/40 border p-4 space-y-3">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Follow these steps</p>
+                  {def.steps.map((s, i) => (
+                    <div key={i} className="flex gap-3 text-sm">
+                      <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+                      <span className="text-muted-foreground leading-snug">
+                        {s.text}
+                        {s.link && (
+                          <a href={s.link} target="_blank" rel="noopener noreferrer"
+                            className="ml-1.5 inline-flex items-center gap-0.5 text-violet-600 font-medium hover:underline">
+                            {s.linkLabel} <ExternalLink className="h-3 w-3" />
+                          </a>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Custom host/port */}
+                {provider === "custom" && (
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="col-span-2 space-y-1.5">
+                      <label className="text-sm font-medium">Mail server address (SMTP host)</label>
+                      <Input placeholder="mail.yourdomain.com" value={customHost} onChange={e => setCustomHost(e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium">Port</label>
+                      <Input placeholder="587" value={customPort} onChange={e => setCustomPort(e.target.value)} />
+                    </div>
+                  </div>
+                )}
+
+                {/* Credentials */}
+                <div className="space-y-3">
+                  {def.fixedUser ? (
+                    <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                      Username is automatically set to <code className="text-foreground font-mono font-medium">{def.fixedUser}</code>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium">{def.userLabel}</label>
+                      <Input placeholder={def.userPlaceholder} value={user} onChange={e => setUser(e.target.value)} autoComplete="off" />
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">
+                      {def.passLabel}
+                      {config?.passSet && <span className="text-xs text-muted-foreground font-normal ml-1">(already saved — leave blank to keep it)</span>}
+                    </label>
+                    <div className="relative">
+                      <Input
+                        type={showPass ? "text" : "password"}
+                        placeholder={config?.passSet ? "••••••••" : "Paste here"}
+                        value={pass}
+                        onChange={e => setPass(e.target.value)}
+                        autoComplete="new-password"
+                        className="pr-9"
+                      />
+                      <button type="button"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        onClick={() => setShowPass(v => !v)}>
+                        {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Display identity */}
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">How should your emails appear?</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Your name (shown as the sender)</label>
+                      <Input placeholder="e.g. Events Team" value={fromName} onChange={e => setFromName(e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">From email address</label>
+                      <Input placeholder={def.fixedUser ? "you@yourdomain.com" : (user || "you@example.com")} value={fromEmail} onChange={e => setFromEmail(e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 justify-between pt-1">
+                  <Button variant="outline" onClick={() => setStep(1)}>← Back</Button>
+                  <Button onClick={onSave} disabled={isSaving}>
+                    {isSaving ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Connecting...</> : "Save & Continue →"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Test */}
+            {step === 3 && (
+              <div className="space-y-4">
+                <div className="text-center py-4 space-y-2">
+                  <div className="text-4xl">🎉</div>
+                  <p className="font-semibold text-lg">Almost done!</p>
+                  <p className="text-sm text-muted-foreground">Send yourself a quick test to confirm everything is working.</p>
+                </div>
+
+                {testSent ? (
+                  <div className="rounded-xl border border-green-200 bg-green-50 p-5 text-center space-y-2">
+                    <CheckCircle2 className="h-8 w-8 text-green-600 mx-auto" />
+                    <p className="font-semibold text-green-800">Test email sent to {testTo}</p>
+                    <p className="text-sm text-green-700">Check your inbox — it should arrive within a minute. You're all set!</p>
+                    <Button className="mt-2" onClick={() => { refetch(); setEditing(false); }}>
+                      Done →
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <label className="text-sm font-medium">Enter your email address to receive the test</label>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="your@email.com"
+                        value={testTo}
+                        onChange={e => setTestTo(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button onClick={onTest} disabled={isTesting}>
+                        {isTesting ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Sending...</> : <><Send className="h-3.5 w-3.5 mr-1.5" /> Send Test</>}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">A real email will arrive in your inbox confirming the connection works.</p>
+                    <button className="text-xs text-muted-foreground underline underline-offset-2" onClick={() => { refetch(); }}>
+                      Skip test for now
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </>
