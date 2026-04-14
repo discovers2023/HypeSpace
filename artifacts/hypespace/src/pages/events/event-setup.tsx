@@ -291,7 +291,7 @@ export default function EventSetup() {
 
         {/* Step Content */}
         {currentStep === "campaign" && (
-          <CampaignStep eventId={eventId} event={event} org={org} onComplete={goNext} />
+          <CampaignStep eventId={eventId} event={event} org={org} campaigns={campaigns} onComplete={goNext} />
         )}
         {currentStep === "test" && (
           <TestEmailStep eventId={eventId} campaigns={campaigns} onComplete={goNext} onBack={goBack} />
@@ -321,13 +321,16 @@ function CampaignStep({
   eventId,
   event,
   org,
+  campaigns,
   onComplete,
 }: {
   eventId: number;
   event: any;
   org: any;
+  campaigns: any;
   onComplete: () => void;
 }) {
+  const hasCampaign = (campaigns?.length ?? 0) > 0;
   const { toast } = useToast();
   const generateCampaign = useAiGenerateCampaign();
   const createCampaign = useCreateCampaign();
@@ -552,6 +555,21 @@ function CampaignStep({
                 </div>
               </div>
             </div>
+          )}
+        </div>
+      </div>
+
+      {/* Navigation footer */}
+      <div className="flex items-center justify-between pt-2 border-t">
+        <div /> {/* no Back on step 1 */}
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" className="text-muted-foreground" onClick={onComplete}>
+            Skip this step <ArrowRight className="h-4 w-4 ml-1" />
+          </Button>
+          {hasCampaign && (
+            <Button className="bg-primary hover:bg-primary/90 text-white" onClick={onComplete}>
+              Continue <ArrowRight className="h-4 w-4 ml-1" />
+            </Button>
           )}
         </div>
       </div>
@@ -891,14 +909,21 @@ function GuestsStep({
         <Button variant="outline" onClick={onBack}>
           <ArrowLeft className="h-4 w-4 mr-2" />Back
         </Button>
-        <Button
-          className="bg-primary hover:bg-primary/90 text-white"
-          disabled={(guests ?? []).length === 0}
-          onClick={onComplete}
-        >
-          Continue to Review
-          <ArrowRight className="h-4 w-4 ml-2" />
-        </Button>
+        <div className="flex items-center gap-3">
+          {(guests ?? []).length === 0 && (
+            <Button variant="ghost" className="text-muted-foreground" onClick={onComplete}>
+              Skip for now <ArrowRight className="h-4 w-4 ml-1" />
+            </Button>
+          )}
+          <Button
+            className="bg-primary hover:bg-primary/90 text-white"
+            disabled={(guests ?? []).length === 0}
+            onClick={onComplete}
+          >
+            Continue to Review
+            <ArrowRight className="h-4 w-4 ml-2" />
+          </Button>
+        </div>
       </div>
 
       <CSVImportModal
