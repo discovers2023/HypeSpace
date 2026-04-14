@@ -211,6 +211,7 @@ router.post("/organizations/:orgId/events/:eventId/launch", async (req, res): Pr
         html: personalizedHtml,
         text: campaign.textContent ?? undefined,
         fromOverride,
+        orgId,
       });
     }
 
@@ -356,6 +357,7 @@ router.post("/organizations/:orgId/events/:eventId/bulk-email", async (req, res)
         html: personalize(htmlContent),
         text: textContent ? personalize(textContent) : undefined,
         fromOverride,
+        orgId,
       });
       sent += 1;
       if (!firstPreviewUrl && typeof result.previewUrl === "string") firstPreviewUrl = result.previewUrl;
