@@ -339,6 +339,7 @@ function CampaignStep({
   const [campaignType, setCampaignType] = useState("invitation");
   const [tone, setTone] = useState("professional");
   const [context, setContext] = useState("");
+  const [editMode, setEditMode] = useState<"preview" | "edit">("preview");
   const [generated, setGenerated] = useState<{
     subject: string;
     htmlContent: string;
@@ -479,12 +480,29 @@ function CampaignStep({
                   <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
                     <Sparkles className="h-3 w-3 mr-1" /> AI Generated
                   </Badge>
-                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setGenerated(null)}>
-                    <Loader2 className="h-3 w-3 mr-1" />
-                    Regenerate
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {/* Preview / Edit toggle */}
+                    <div className="flex items-center rounded-lg border border-border bg-background overflow-hidden">
+                      <button
+                        onClick={() => setEditMode("preview")}
+                        className={`px-3 py-1.5 text-xs font-medium transition-colors ${editMode === "preview" ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground"}`}
+                      >
+                        Preview
+                      </button>
+                      <button
+                        onClick={() => setEditMode("edit")}
+                        className={`px-3 py-1.5 text-xs font-medium transition-colors ${editMode === "edit" ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground"}`}
+                      >
+                        Edit HTML
+                      </button>
+                    </div>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setGenerated(null); setEditMode("preview"); }}>
+                      <Loader2 className="h-3 w-3 mr-1" />
+                      Regenerate
+                    </Button>
+                  </div>
                 </div>
-                <div className="text-xs text-muted-foreground mb-1.5 font-medium">Subject Line · editable</div>
+                <div className="text-xs text-muted-foreground mb-1.5 font-medium">Subject Line</div>
                 <Input
                   className="text-base font-semibold bg-white/80 border-border"
                   value={generated.subject}
@@ -492,9 +510,28 @@ function CampaignStep({
                 />
               </CardHeader>
               <CardContent className="p-0">
-                <div className="p-6 max-h-[380px] overflow-y-auto bg-white/50">
-                  <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: generated.htmlContent }} />
-                </div>
+                {editMode === "preview" ? (
+                  <div className="max-h-[440px] overflow-y-auto bg-[#f3f0ff]">
+                    <iframe
+                      srcDoc={generated.htmlContent}
+                      title="Email preview"
+                      className="w-full border-0"
+                      style={{ height: "440px" }}
+                      sandbox="allow-same-origin"
+                    />
+                  </div>
+                ) : (
+                  <div className="p-4 bg-zinc-950">
+                    <p className="text-xs text-zinc-400 mb-2 font-mono">Edit the HTML directly — changes update the preview in real time</p>
+                    <textarea
+                      className="w-full font-mono text-xs text-green-300 bg-zinc-950 border border-zinc-700 rounded-lg p-3 resize-y focus:outline-none focus:ring-1 focus:ring-primary"
+                      style={{ minHeight: "380px" }}
+                      value={generated.htmlContent}
+                      onChange={(e) => setGenerated({ ...generated, htmlContent: e.target.value })}
+                      spellCheck={false}
+                    />
+                  </div>
+                )}
               </CardContent>
 
               {/* AI Suggestions */}
@@ -502,7 +539,7 @@ function CampaignStep({
                 <div className="bg-gradient-to-r from-primary/5 to-accent/5 border-t p-5">
                   <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
                     <AlertCircle className="h-4 w-4 text-accent" />
-                    AI Suggestions
+                    Tips to improve your invite
                   </h4>
                   <ul className="space-y-2">
                     {generated.suggestions.map((suggestion, i) => (
@@ -516,7 +553,7 @@ function CampaignStep({
               )}
 
               <CardFooter className="bg-muted/30 border-t flex justify-between p-4">
-                <Button variant="outline" size="sm" onClick={() => setGenerated(null)}>
+                <Button variant="outline" size="sm" onClick={() => { setGenerated(null); setEditMode("preview"); }}>
                   Discard
                 </Button>
                 <Button
