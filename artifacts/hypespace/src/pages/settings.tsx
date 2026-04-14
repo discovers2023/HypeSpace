@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/layout/app-layout";
+import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
@@ -44,14 +45,14 @@ import {
   RefreshCw,
   XCircle,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const orgSchema = z.object({
   name: z.string().min(2, "Organization name must be at least 2 characters"),
   description: z.string().optional(),
-  logoUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  logoUrl: z.string().refine((v) => !v || v.startsWith("data:") || /^https?:\/\//.test(v), "Must be a valid URL").optional().or(z.literal("")),
 });
 type OrgFormValues = z.infer<typeof orgSchema>;
 
@@ -219,13 +220,37 @@ const PLATFORM_CREDS: Record<string, PlatformCredDef> = {
     ],
     zapierFields: [],
   },
+  google_calendar: {
+    accountNameKey: "email",
+    summary: "Sync your events with Google Calendar. Fetch busy slots and export invitations.",
+    helpUrl: "https://console.cloud.google.com/apis/library/calendar-json.googleapis.com",
+    zapierHelpUrl: "",
+    apiFields: [
+      { key: "client_id", label: "Client ID", type: "text", placeholder: "xxx-xxx.apps.googleusercontent.com", required: true, hint: "Google Cloud Console → Credentials → OAuth 2.0 Client ID" },
+      { key: "client_secret", label: "Client Secret", type: "password", placeholder: "Secret key", required: true, hint: "Google Cloud Console → Credentials → Client Secret" },
+      { key: "email", label: "Google Email", type: "text", placeholder: "you@gmail.com", required: true },
+    ],
+    zapierFields: [],
+  },
+  outlook_calendar: {
+    accountNameKey: "email",
+    summary: "Connect your Microsoft Outlook/Office 365 calendar to HypeSpace.",
+    helpUrl: "https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationsListBlade",
+    zapierHelpUrl: "",
+    apiFields: [
+      { key: "client_id", label: "Application (client) ID", type: "text", placeholder: "00000000-0000-0000-0000-000000000000", required: true, hint: "Azure Portal → App Registrations → Essentials" },
+      { key: "client_secret", label: "Client Secret", type: "password", placeholder: "Secret key", required: true, hint: "Azure Portal → Certificates & Secrets" },
+      { key: "email", label: "Microsoft Email", type: "text", placeholder: "you@outlook.com", required: true },
+    ],
+    zapierFields: [],
+  },
 };
 
 // --- Platform definitions ---
 type Platform = {
   id: string;
   name: string;
-  type: "social" | "crm";
+  type: "social" | "crm" | "calendar";
   color: string;
   textColor: string;
   description: string;
@@ -241,17 +266,20 @@ const SOCIAL_PLATFORMS: Platform[] = [
   { id: "youtube", name: "YouTube", type: "social", color: "#FF0000", textColor: "#fff", description: "Live stream events and post highlight reels.", icon: "▶️" },
 ];
 
-const CRM_PLATFORMS: Platform[] = [
-  { id: "hubspot", name: "HubSpot", type: "crm", color: "#FF7A59", textColor: "#fff", description: "Sync contacts, track deals, and manage event pipelines.", icon: "🟠" },
-  { id: "salesforce", name: "Salesforce", type: "crm", color: "#00A1E0", textColor: "#fff", description: "Sync event registrations and guest data with Salesforce.", icon: "☁️" },
-  { id: "mailchimp", name: "Mailchimp", type: "crm", color: "#FFE01B", textColor: "#333", description: "Export guest lists and sync with Mailchimp audiences.", icon: "🐒" },
-  { id: "activecampaign", name: "ActiveCampaign", type: "crm", color: "#356AE6", textColor: "#fff", description: "Automate email sequences and manage contacts.", icon: "⚡" },
-  { id: "zoho", name: "Zoho CRM", type: "crm", color: "#E42527", textColor: "#fff", description: "Manage leads and contacts from your events.", icon: "📊" },
-  { id: "klaviyo", name: "Klaviyo", type: "crm", color: "#1A1A1A", textColor: "#fff", description: "Power data-driven email and SMS campaigns for events.", icon: "📧" },
-  { id: "gohighlevel", name: "Go HighLevel", type: "crm", color: "#7C3AED", textColor: "#fff", description: "Import contacts with a tag (e.g. studyclub) directly into your event guest lists.", icon: "🚀" },
+const CALENDAR_PLATFORMS: Platform[] = [
+  { id: "google_calendar", name: "Google Calendar", type: "calendar", color: "#4285F4", textColor: "#fff", description: "Sync events and manage availability with Google.", icon: "📅" },
+  { id: "outlook_calendar", name: "Outlook Calendar", type: "calendar", color: "#0078D4", textColor: "#fff", description: "Connect your Microsoft 365 or Outlook events.", icon: "📧" },
 ];
 
-const ALL_PLATFORMS = [...SOCIAL_PLATFORMS, ...CRM_PLATFORMS];
+const CRM_PLATFORMS: Platform[] = [
+  { id: "hubspot", name: "HubSpot", type: "crm", color: "#FF7A59", textColor: "#fff", description: "Sync contacts and track deal stages automatically.", icon: "🏢" },
+  { id: "salesforce", name: "Salesforce", type: "crm", color: "#00A1E0", textColor: "#fff", description: "Enterprise-grade lead routing and opportunity mapping.", icon: "☁️" },
+  { id: "zoho", name: "Zoho CRM", type: "crm", color: "#F0483E", textColor: "#fff", description: "Seamless event lead to customer conversion pipelines.", icon: "📊" },
+  { id: "monday", name: "monday.com", type: "crm", color: "#FF3D57", textColor: "#fff", description: "Orchestrate your event tasks and lead follow-up.", icon: "📝" },
+];
+
+
+const ALL_PLATFORMS = [...SOCIAL_PLATFORMS, ...CRM_PLATFORMS, ...CALENDAR_PLATFORMS];
 
 type Integration = {
   id: number;
@@ -912,6 +940,25 @@ function IntegrationsTab({ orgId }: { orgId: number }) {
             ))}
           </div>
         </div>
+
+        <div>
+          <h3 className="font-semibold text-base mb-1">Calendar & Meetings</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Sync with your personal or team calendars to manage availability and invitations.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {CALENDAR_PLATFORMS.map((platform) => (
+              <PlatformCard
+                key={platform.id}
+                platform={platform}
+                connected={getConnected(platform.id)}
+                onConnect={handleConnect}
+                onDisconnect={handleDisconnect}
+                isLoading={disconnectingId === platform.id}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     </>
   );
@@ -919,7 +966,7 @@ function IntegrationsTab({ orgId }: { orgId: number }) {
 
 // --- Branding schemas ---
 const brandingSchema = z.object({
-  logoUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  logoUrl: z.string().refine((v) => !v || v.startsWith("data:") || /^https?:\/\//.test(v), "Must be a valid URL").optional().or(z.literal("")),
   primaryColor: z.string().min(4, "Select a color"),
   accentColor: z.string().min(4, "Select a color"),
   fromEmail: z.string().email("Must be a valid email").optional().or(z.literal("")),
@@ -1161,6 +1208,7 @@ function BrandingTab({ orgId }: { orgId: number }) {
   const updateOrg = useUpdateOrganization();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
 
   const form = useForm<BrandingFormValues>({
     resolver: zodResolver(brandingSchema),
@@ -1241,12 +1289,34 @@ function BrandingTab({ orgId }: { orgId: number }) {
                   name="logoUrl"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Logo URL</FormLabel>
+                      <FormLabel>Logo</FormLabel>
                       <FormControl>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 items-center">
                           <Input placeholder="https://yoursite.com/logo.png" {...field} />
+                          <input
+                            ref={logoInputRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              e.target.value = "";
+                              if (!file) return;
+                              if (file.size > 2 * 1024 * 1024) {
+                                toast({ title: "Image too large", description: "Please choose an image under 2 MB.", variant: "destructive" });
+                                return;
+                              }
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                form.setValue("logoUrl", String(reader.result), { shouldDirty: true, shouldValidate: true });
+                              };
+                              reader.readAsDataURL(file);
+                            }}
+                          />
+                          <Button type="button" variant="outline" onClick={() => logoInputRef.current?.click()}>Upload</Button>
                         </div>
                       </FormControl>
+                      <FormDescription>Paste a URL or upload from your computer (max 2 MB).</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1442,12 +1512,14 @@ function BrandingTab({ orgId }: { orgId: number }) {
 
 // --- Settings Page ---
 export default function Settings() {
-  const orgId = 1;
+  const { activeOrgId } = useAuth();
+  const orgId = activeOrgId ?? 1;
   const [activeTab, setActiveTab] = useState<TabId>("general");
   const { data: org, isLoading } = useGetOrganization(orgId);
   const updateOrg = useUpdateOrganization();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
 
   const form = useForm<OrgFormValues>({
     resolver: zodResolver(orgSchema),
@@ -1538,7 +1610,30 @@ export default function Settings() {
                             </div>
                             <div>
                               <p className="text-sm font-medium mb-2">Organization Logo</p>
-                              <Button type="button" variant="outline" size="sm">Upload new logo</Button>
+                              <input
+                                ref={logoInputRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  e.target.value = "";
+                                  if (!file) return;
+                                  if (file.size > 2 * 1024 * 1024) {
+                                    toast({ title: "Image too large", description: "Please choose an image under 2 MB.", variant: "destructive" });
+                                    return;
+                                  }
+                                  const reader = new FileReader();
+                                  reader.onload = () => {
+                                    form.setValue("logoUrl", String(reader.result), { shouldDirty: true, shouldValidate: true });
+                                  };
+                                  reader.readAsDataURL(file);
+                                }}
+                              />
+                              <Button type="button" variant="outline" size="sm" onClick={() => logoInputRef.current?.click()}>Upload new logo</Button>
+                              {form.watch("logoUrl") && (
+                                <Button type="button" variant="ghost" size="sm" className="ml-2" onClick={() => form.setValue("logoUrl", "", { shouldDirty: true })}>Remove</Button>
+                              )}
                             </div>
                           </div>
                           <FormField

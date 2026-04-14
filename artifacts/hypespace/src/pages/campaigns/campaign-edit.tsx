@@ -10,6 +10,7 @@ import {
   useDeleteCampaign,
 } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
+import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -70,7 +71,6 @@ const editSchema = z.object({
 
 type EditFormValues = z.infer<typeof editSchema>;
 
-const ORG_ID = 1;
 
 // ── Helpers to parse/rebuild the email template ─────────────────────────────
 
@@ -112,6 +112,8 @@ const IMAGE_KEYWORDS: Record<string, string> = {
 // ── Component ───────────────────────────────────────────────────────────────
 
 export default function CampaignEdit() {
+  const { activeOrgId } = useAuth();
+  const orgId = activeOrgId ?? 1;
   const [, params] = useRoute<{ id: string }>("/campaigns/:id/edit");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -120,7 +122,7 @@ export default function CampaignEdit() {
   const campaignId = params?.id ? parseInt(params.id, 10) : NaN;
   const invalidId = Number.isNaN(campaignId);
 
-  const { data: campaign, isLoading, error } = useGetCampaign(ORG_ID, campaignId, {
+  const { data: campaign, isLoading, error } = useGetCampaign(orgId, campaignId, {
     query: { enabled: !invalidId },
   });
 
@@ -325,11 +327,11 @@ export default function CampaignEdit() {
       : data;
 
     updateCampaign.mutate(
-      { orgId: ORG_ID, campaignId, data: finalData },
+      { orgId, campaignId, data: finalData },
       {
         onSuccess: () => {
           toast({ title: "Campaign saved" });
-          queryClient.invalidateQueries({ queryKey: ["/api/organizations", ORG_ID, "campaigns"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/organizations", orgId, "campaigns"] });
           form.reset(finalData);
         },
         onError: (err) => {
@@ -348,15 +350,15 @@ export default function CampaignEdit() {
         : data;
 
       updateCampaign.mutate(
-        { orgId: ORG_ID, campaignId, data: finalData },
+        { orgId, campaignId, data: finalData },
         {
           onSuccess: () => {
             sendCampaign.mutate(
-              { orgId: ORG_ID, campaignId },
+              { orgId, campaignId },
               {
                 onSuccess: () => {
                   toast({ title: "Campaign sent!", description: `${data.name} is on its way.` });
-                  queryClient.invalidateQueries({ queryKey: ["/api/organizations", ORG_ID, "campaigns"] });
+                  queryClient.invalidateQueries({ queryKey: ["/api/organizations", orgId, "campaigns"] });
                   setLocation("/campaigns");
                 },
                 onError: (err) => toast({ title: "Send failed", description: err.message, variant: "destructive" }),
@@ -376,7 +378,7 @@ export default function CampaignEdit() {
       {
         onSuccess: () => {
           toast({ title: "Campaign deleted" });
-          queryClient.invalidateQueries({ queryKey: ["/api/organizations", ORG_ID, "campaigns"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/organizations", orgId, "campaigns"] });
           setLocation("/campaigns");
         },
         onError: (err) => toast({ title: "Delete failed", description: err.message, variant: "destructive" }),

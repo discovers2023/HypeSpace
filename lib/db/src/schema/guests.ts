@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { sql } from "drizzle-orm";
@@ -19,6 +19,9 @@ export const guestsTable = pgTable("guests", {
   tags: text("tags").array().notNull().default(sql`ARRAY[]::text[]`),
   status: text("status").notNull().default("added"),
   notes: text("notes"),
+  // Whether the guest opted in to hear about future events (captured on public RSVP).
+  // null = unasked/legacy row, true = opted in, false = explicitly declined.
+  optInFuture: boolean("opt_in_future"),
   invitedAt: timestamp("invited_at", { withTimezone: true }),
   respondedAt: timestamp("responded_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
+import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import { useListTeamMembers, useInviteTeamMember, useUpdateTeamMember } from "@workspace/api-client-react";
 import { Users, Plus, Search, MoreHorizontal, Shield, Mail, User, ShieldAlert } from "lucide-react";
@@ -48,7 +49,8 @@ const inviteSchema = z.object({
 type InviteFormValues = z.infer<typeof inviteSchema>;
 
 export default function TeamList() {
-  const { data: members, isLoading } = useListTeamMembers(1);
+  const { activeOrgId } = useAuth();
+  const { data: members, isLoading } = useListTeamMembers(activeOrgId);
   const inviteMember = useInviteTeamMember();
   const updateMember = useUpdateTeamMember();
   
@@ -74,7 +76,7 @@ export default function TeamList() {
   const onSubmit = (data: InviteFormValues) => {
     inviteMember.mutate(
       {
-        orgId: 1,
+        orgId: activeOrgId,
         data: {
           name: data.name,
           email: data.email,
@@ -83,7 +85,7 @@ export default function TeamList() {
       },
       {
         onSuccess: (result: any) => {
-          queryClient.invalidateQueries({ queryKey: ["/api/organizations", 1, "team"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/organizations", activeOrgId, "team"] });
           setIsInviteOpen(false);
           form.reset();
           if (result?.inviteLink) {
@@ -122,14 +124,14 @@ export default function TeamList() {
   const handleRoleChange = (memberId: number, role: string) => {
     updateMember.mutate(
       {
-        orgId: 1,
+        orgId: activeOrgId,
         memberId,
         data: { role }
       },
       {
         onSuccess: () => {
           toast({ title: "Role updated successfully" });
-          queryClient.invalidateQueries({ queryKey: ["/api/organizations", 1, "team"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/organizations", activeOrgId, "team"] });
         },
         onError: (err) => {
           toast({ 

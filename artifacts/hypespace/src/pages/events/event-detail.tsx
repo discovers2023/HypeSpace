@@ -68,6 +68,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { BulkEmailDialog, type BulkRecipientMode } from "@/components/events/bulk-email-dialog";
 import {
   Dialog,
   DialogContent,
@@ -213,6 +214,8 @@ export default function EventDetail() {
   const [selectedGuests, setSelectedGuests] = useState<Set<number>>(new Set());
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"all" | "yes" | "no" | "maybe" | "invited" | "not_responded">("all");
+  const [bulkEmail, setBulkEmail] = useState<{ open: boolean; recipient: BulkRecipientMode; label: string; count: number } | null>(null);
   const [isCSVImportOpen, setIsCSVImportOpen] = useState(false);
   const [isGHLImportOpen, setIsGHLImportOpen] = useState(false);
   const [isLaunchOpen, setIsLaunchOpen] = useState(false);
@@ -259,11 +262,37 @@ export default function EventDetail() {
   };
 
   // ── Guest selection ────────────────────────────────────────────────────
+  const segmentMatches = (status: string, s: typeof statusFilter) => {
+    if (s === "all") return true;
+    if (s === "yes") return status === "confirmed";
+    if (s === "no") return status === "declined";
+    if (s === "maybe") return status === "maybe";
+    if (s === "invited") return status === "invited";
+    if (s === "not_responded") return status === "invited" || status === "added";
+    return true;
+  };
   const filteredGuests = guests?.filter(
     (g) =>
-      g.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      g.email.toLowerCase().includes(searchTerm.toLowerCase()),
+      segmentMatches(g.status, statusFilter) &&
+      (g.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        g.email.toLowerCase().includes(searchTerm.toLowerCase())),
   );
+  const segmentCounts = {
+    all: guests?.length ?? 0,
+    yes: guests?.filter((g) => g.status === "confirmed").length ?? 0,
+    no: guests?.filter((g) => g.status === "declined").length ?? 0,
+    maybe: guests?.filter((g) => g.status === "maybe").length ?? 0,
+    invited: guests?.filter((g) => g.status === "invited").length ?? 0,
+    not_responded: guests?.filter((g) => g.status === "invited" || g.status === "added").length ?? 0,
+  };
+  const segmentLabels: Record<typeof statusFilter, string> = {
+    all: "All guests",
+    yes: "RSVP — Yes",
+    no: "RSVP — No",
+    maybe: "RSVP — Maybe",
+    invited: "Invited",
+    not_responded: "Not responded",
+  };
 
   const toggleGuestSelection = (guestId: number) => {
     setSelectedGuests((prev) => {
@@ -447,7 +476,15 @@ export default function EventDetail() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Send failed");
       setTestEmailSent(true);
-      toast({ title: "Test email sent!", description: `Sent to ${testEmailTo}` });
+      if (data.previewUrl) {
+        toast({
+          title: "Test email sent (preview only)",
+          description: `No SMTP configured — open the Ethereal preview: ${data.previewUrl}`,
+        });
+        try { window.open(data.previewUrl, "_blank", "noopener"); } catch { /* noop */ }
+      } else {
+        toast({ title: "Test email sent!", description: `Sent to ${testEmailTo}` });
+      }
     } catch (err) {
       toast({
         title: "Failed to send test",
@@ -868,11 +905,28 @@ export default function EventDetail() {
         {event.status === "draft" && (
           <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
             <CardContent className="py-5 px-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-sm">Launch Checklist</h3>
-                <span className="text-xs text-muted-foreground">
-                  {completedSteps} of 6 complete
-                </span>
+              <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+                <div>
+                  <h3 className="font-semibold text-sm">Launch Checklist</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {completedSteps} of 6 complete · pick up where you left off
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {readyToLaunch ? (
+                    <Button size="sm" onClick={() => setIsLaunchOpen(true)} className="gap-1.5">
+                      <Rocket className="h-3.5 w-3.5" />
+                      Review &amp; Launch
+                    </Button>
+                  ) : (
+                    <Link href={`/events/${eventId}/setup`}>
+                      <Button size="sm" className="gap-1.5">
+                        Continue setup
+                        <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
+                      </Button>
+                    </Link>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-0">
                 {stepperItems.map((step, i, arr) => (
@@ -1039,6 +1093,41 @@ export default function EventDetail() {
               </div>
             </div>
 
+            {/* Segment pills */}
+            <div className="flex flex-wrap items-center gap-2">
+              {(["all", "yes", "maybe", "no", "invited", "not_responded"] as const).map((s) => (
+                <Button
+                  key={s}
+                  type="button"
+                  size="sm"
+                  variant={statusFilter === s ? "default" : "outline"}
+                  className="h-8 text-xs gap-1.5"
+                  onClick={() => { setStatusFilter(s); setSelectedGuests(new Set()); }}
+                >
+                  {segmentLabels[s]}
+                  <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{segmentCounts[s]}</Badge>
+                </Button>
+              ))}
+              <div className="ml-auto">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs gap-1.5"
+                  disabled={segmentCounts[statusFilter] === 0}
+                  onClick={() => setBulkEmail({
+                    open: true,
+                    recipient: { mode: "segment", segment: statusFilter },
+                    label: segmentLabels[statusFilter],
+                    count: segmentCounts[statusFilter],
+                  })}
+                >
+                  <Mail className="h-3.5 w-3.5" />
+                  Email {segmentLabels[statusFilter].toLowerCase()}
+                </Button>
+              </div>
+            </div>
+
             {/* Bulk selection bar */}
             {selectedGuests.size > 0 && (
               <div className="flex items-center gap-3 px-4 py-2.5 bg-primary/5 border border-primary/20 rounded-xl">
@@ -1053,7 +1142,21 @@ export default function EventDetail() {
                 >
                   Clear
                 </Button>
-                <div className="ml-auto">
+                <div className="ml-auto flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1.5"
+                    onClick={() => setBulkEmail({
+                      open: true,
+                      recipient: { mode: "ids", guestIds: Array.from(selectedGuests) },
+                      label: `${selectedGuests.size} selected`,
+                      count: selectedGuests.size,
+                    })}
+                  >
+                    <Mail className="h-3.5 w-3.5" />
+                    Email {selectedGuests.size} selected
+                  </Button>
                   <AlertDialog open={isBulkDeleteOpen} onOpenChange={setIsBulkDeleteOpen}>
                     <AlertDialogTrigger asChild>
                       <Button size="sm" variant="destructive" className="h-7 text-xs gap-1.5">
@@ -1615,88 +1718,190 @@ export default function EventDetail() {
 
       {/* Review & Launch Dialog */}
       <Dialog open={isLaunchOpen} onOpenChange={setIsLaunchOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Rocket className="h-5 w-5 text-primary" />
               Review &amp; Launch
             </DialogTitle>
-            <DialogDescription>Review your event setup before sending invites.</DialogDescription>
+            <DialogDescription>
+              Review everything that will happen when you launch. Nothing is sent until you hit Launch.
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-lg border p-3">
-                <div className="text-xs text-muted-foreground">Event</div>
-                <div className="font-medium text-sm truncate">{event?.title}</div>
-                <div className="text-xs text-muted-foreground mt-0.5">{event?.status}</div>
-              </div>
-              <div className="rounded-lg border p-3">
-                <div className="text-xs text-muted-foreground">Campaign</div>
-                <div className="font-medium text-sm truncate">
-                  {campaigns?.[0]?.subject ?? "None"}
-                </div>
-                <div className="text-xs text-muted-foreground mt-0.5">
-                  {campaigns?.[0]?.status ?? "--"}
-                </div>
-              </div>
-              <div className="rounded-lg border p-3">
-                <div className="text-xs text-muted-foreground">Guests</div>
-                <div className="font-medium text-sm">{guests?.length ?? 0} total</div>
-                <div className="text-xs text-muted-foreground mt-0.5">
-                  {guests?.filter((g) => g.status === "added").length ?? 0} will be invited
-                </div>
-              </div>
-              <div className="rounded-lg border p-3">
-                <div className="text-xs text-muted-foreground">Date</div>
-                <div className="font-medium text-sm">
-                  {event?.startDate
-                    ? format(parseISO(event.startDate), "MMM d, yyyy")
-                    : "--"}
-                </div>
-                <div className="text-xs text-muted-foreground mt-0.5">
-                  {event?.startDate ? format(parseISO(event.startDate), "h:mm a") : ""}
-                </div>
-              </div>
-            </div>
 
-            <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1.5">
-              <p className="font-medium text-foreground">When you launch:</p>
-              <ul className="text-muted-foreground space-y-1 text-xs">
-                <li>
-                  Campaign email sent to all{" "}
-                  {guests?.filter((g) => g.status === "added").length ?? 0} pending guests
-                </li>
-                <li>Guest statuses update from "added" to "invited"</li>
-                <li>LinkedIn announcement post auto-created</li>
-                <li>Event status set to "published"</li>
-              </ul>
-              <p className="text-xs text-muted-foreground pt-1 border-t mt-2">
-                Guests will not receive invites until you hit Launch below.
-              </p>
-            </div>
+          <Tabs defaultValue="overview" className="flex-1 flex flex-col overflow-hidden">
+            <TabsList>
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="preview">Email preview</TabsTrigger>
+              <TabsTrigger value="recipients">
+                Recipients ({guests?.filter((g) => g.status === "added").length ?? 0})
+              </TabsTrigger>
+            </TabsList>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setIsLaunchOpen(false)}>
-                Go Back
-              </Button>
-              <Button
-                onClick={onLaunch}
-                disabled={isLaunching}
-                className="bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0"
-              >
-                {isLaunching ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Launching...
-                  </>
+            <div className="flex-1 overflow-y-auto pt-3 pr-1">
+              <TabsContent value="overview" className="space-y-4 mt-0">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="rounded-lg border p-3">
+                    <div className="text-xs text-muted-foreground">Event</div>
+                    <div className="font-medium text-sm truncate">{event?.title}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{event?.status}</div>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <div className="text-xs text-muted-foreground">Date</div>
+                    <div className="font-medium text-sm">
+                      {event?.startDate ? format(parseISO(event.startDate), "MMM d, yyyy") : "--"}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {event?.startDate ? format(parseISO(event.startDate), "h:mm a") : ""}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <div className="text-xs text-muted-foreground">Location</div>
+                    <div className="font-medium text-sm truncate">
+                      {event?.type === "remote" ? "Online" : event?.location || "--"}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5 capitalize">{event?.type}</div>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <div className="text-xs text-muted-foreground">Capacity</div>
+                    <div className="font-medium text-sm">
+                      {guests?.length ?? 0}{event?.capacity ? ` / ${event.capacity}` : ""}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {guests?.filter((g) => g.status === "added").length ?? 0} pending invites
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border p-4 space-y-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-xs text-muted-foreground uppercase tracking-wide">Campaign</div>
+                      <div className="font-medium text-sm">{campaigns?.[0]?.subject ?? "No campaign set"}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {campaigns?.[0]?.name ?? "—"} · {campaigns?.[0]?.status ?? "draft"}
+                      </div>
+                    </div>
+                    {campaigns?.[0] && (
+                      <Link href={`/campaigns/${campaigns[0].id}/edit`}>
+                        <Button variant="outline" size="sm">Edit campaign</Button>
+                      </Link>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border p-4 space-y-2">
+                  <div className="text-xs text-muted-foreground uppercase tracking-wide">What happens on launch</div>
+                  <ul className="text-sm space-y-1">
+                    <li className="flex items-start gap-2">
+                      <Send className="h-4 w-4 text-primary mt-0.5" />
+                      <span>Campaign email sent to <strong>{guests?.filter((g) => g.status === "added").length ?? 0}</strong> pending guests, each with a personalized RSVP link.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Users className="h-4 w-4 text-primary mt-0.5" />
+                      <span>Guests with status <code className="text-xs px-1 rounded bg-muted">added</code> move to <code className="text-xs px-1 rounded bg-muted">invited</code>.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Share2 className="h-4 w-4 text-primary mt-0.5" />
+                      <span>A LinkedIn announcement post is auto-created in the Social tab.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Globe className="h-4 w-4 text-primary mt-0.5" />
+                      <span>Event status flips to <code className="text-xs px-1 rounded bg-muted">published</code>; the public RSVP page goes live at <code className="text-xs px-1 rounded bg-muted">/e/{event?.slug}</code>.</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
+                  <span className="font-medium">Heads up:</span>
+                  <span>If no SMTP is configured in <code>.env</code>, emails will go to an Ethereal preview inbox (not delivered to real recipients). Configure SMTP_HOST / SMTP_USER / SMTP_PASS before a live launch.</span>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="preview" className="mt-0">
+                {campaigns?.[0]?.htmlContent ? (
+                  <div className="space-y-2">
+                    <div className="text-xs text-muted-foreground">
+                      Subject: <strong className="text-foreground">{campaigns[0].subject}</strong>
+                    </div>
+                    <div className="rounded-lg border bg-card overflow-hidden">
+                      <iframe
+                        title="Campaign preview"
+                        srcDoc={campaigns[0].htmlContent ?? ""}
+                        className="w-full min-h-[500px] border-0 bg-white"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 pt-1">
+                      <Input
+                        placeholder="you@example.com"
+                        value={testEmailTo}
+                        onChange={(e) => setTestEmailTo(e.target.value)}
+                        className="max-w-xs h-9"
+                      />
+                      <Button variant="outline" size="sm" onClick={onTestEmail} disabled={isSendingTest || !testEmailTo.includes("@")}>
+                        {isSendingTest ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <TestTube className="h-3.5 w-3.5 mr-1.5" />}
+                        Send me a test
+                      </Button>
+                    </div>
+                  </div>
                 ) : (
-                  <>
-                    <Rocket className="h-4 w-4 mr-2" />
-                    Launch Event
-                  </>
+                  <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground text-sm">
+                    No campaign HTML yet. <Link href={`/events/${eventId}/setup`} className="text-primary underline">Create a campaign</Link> to preview it here.
+                  </div>
                 )}
-              </Button>
+              </TabsContent>
+
+              <TabsContent value="recipients" className="mt-0 space-y-3">
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div className="rounded-lg border p-2"><div className="text-muted-foreground">Will receive invite</div><div className="font-semibold text-base">{guests?.filter((g) => g.status === "added").length ?? 0}</div></div>
+                  <div className="rounded-lg border p-2"><div className="text-muted-foreground">Already invited</div><div className="font-semibold text-base">{guests?.filter((g) => g.status === "invited").length ?? 0}</div></div>
+                  <div className="rounded-lg border p-2"><div className="text-muted-foreground">Already responded</div><div className="font-semibold text-base">{(guests?.filter((g) => ["confirmed","declined","maybe"].includes(g.status)).length) ?? 0}</div></div>
+                </div>
+                <div className="rounded-lg border overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50 text-xs text-muted-foreground">
+                      <tr>
+                        <th className="text-left px-3 py-2 font-medium">Guest</th>
+                        <th className="text-left px-3 py-2 font-medium">Email</th>
+                        <th className="text-left px-3 py-2 font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y max-h-64">
+                      {(guests?.filter((g) => g.status === "added") ?? []).slice(0, 50).map((g) => (
+                        <tr key={g.id}>
+                          <td className="px-3 py-2">{g.name}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{g.email}</td>
+                          <td className="px-3 py-2"><Badge variant="outline" className="text-xs">will invite</Badge></td>
+                        </tr>
+                      ))}
+                      {!guests?.some((g) => g.status === "added") && (
+                        <tr><td colSpan={3} className="px-3 py-6 text-center text-muted-foreground text-sm">No pending invites. Add guests first.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                  {(guests?.filter((g) => g.status === "added").length ?? 0) > 50 && (
+                    <div className="px-3 py-2 bg-muted/30 text-xs text-muted-foreground border-t">
+                      Showing first 50 of {guests?.filter((g) => g.status === "added").length}.
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
             </div>
+          </Tabs>
+
+          <div className="flex justify-end gap-2 pt-3 border-t">
+            <Button variant="outline" onClick={() => setIsLaunchOpen(false)}>Go Back</Button>
+            <Button
+              onClick={onLaunch}
+              disabled={isLaunching || !(guests?.some((g) => g.status === "added")) || !campaigns?.[0]}
+              className="bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0"
+            >
+              {isLaunching ? (
+                <><Loader2 className="h-4 w-4 animate-spin mr-2" />Launching...</>
+              ) : (
+                <><Rocket className="h-4 w-4 mr-2" />Launch &amp; send {guests?.filter((g) => g.status === "added").length ?? 0}</>
+              )}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -1802,6 +2007,24 @@ export default function EventDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {bulkEmail && (
+        <BulkEmailDialog
+          open={bulkEmail.open}
+          onOpenChange={(o) => setBulkEmail((prev) => (prev ? { ...prev, open: o } : prev))}
+          orgId={ORG_ID}
+          eventId={eventId}
+          recipientLabel={bulkEmail.label}
+          recipientCount={bulkEmail.count}
+          recipient={bulkEmail.recipient}
+          templates={campaigns?.filter((c) => c.eventId === eventId).map((c) => ({ id: c.id, name: c.name, subject: c.subject, htmlContent: c.htmlContent, textContent: c.textContent })) ?? []}
+          onSent={() => {
+            setSelectedGuests(new Set());
+            queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/campaigns`] });
+            queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/activity`] });
+          }}
+        />
+      )}
     </AppLayout>
   );
 }

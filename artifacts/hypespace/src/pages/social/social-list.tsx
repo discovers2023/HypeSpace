@@ -62,9 +62,12 @@ const postSchema = z.object({
 
 type PostFormValues = z.infer<typeof postSchema>;
 
+import { useAuth } from "@/components/auth-provider";
+
 export default function SocialList() {
-  const { data: posts, isLoading } = useListSocialPosts(1);
-  const { data: events, isLoading: isEventsLoading } = useListEvents(1);
+  const { activeOrgId } = useAuth();
+  const { data: posts, isLoading } = useListSocialPosts(activeOrgId);
+  const { data: events, isLoading: isEventsLoading } = useListEvents(activeOrgId);
   const deletePost = useDeleteSocialPost();
   const createPost = useCreateSocialPost();
   
@@ -95,7 +98,7 @@ export default function SocialList() {
     deletePost.mutate({ postId: postToDelete }, {
       onSuccess: () => {
         toast({ title: "Post deleted successfully" });
-        queryClient.invalidateQueries({ queryKey: ["/api/organizations", 1, "social-posts"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/organizations", activeOrgId, "social-posts"] });
         setPostToDelete(null);
       },
       onError: (error) => {
@@ -112,7 +115,7 @@ export default function SocialList() {
   const onSubmit = (data: PostFormValues) => {
     createPost.mutate(
       {
-        orgId: 1,
+        orgId: activeOrgId,
         data: {
           eventId: data.eventId ? parseInt(data.eventId, 10) : undefined,
           platform: data.platform,
@@ -124,7 +127,7 @@ export default function SocialList() {
       {
         onSuccess: () => {
           toast({ title: "Social post scheduled successfully" });
-          queryClient.invalidateQueries({ queryKey: ["/api/organizations", 1, "social-posts"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/organizations", activeOrgId, "social-posts"] });
           setIsCreateOpen(false);
           form.reset();
         },

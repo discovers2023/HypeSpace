@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
+import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
@@ -163,6 +164,7 @@ function Stepper({ current, completed }: { current: number; completed: boolean[]
 // Main Wizard
 // ═══════════════════════════════════════════════════════════════════
 export default function EventNew() {
+  const { activeOrgId } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const createEvent = useCreateEvent();
@@ -242,7 +244,7 @@ export default function EventNew() {
     };
 
     createEvent.mutate(
-      { orgId: 1, data: formattedData },
+      { orgId: activeOrgId ?? 1, data: formattedData },
       {
         onSuccess: (newEvent) => {
           queryClient.invalidateQueries({ queryKey: ["/api/events"] });

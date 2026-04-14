@@ -153,6 +153,7 @@ export default function EventSetup() {
 
   const [currentStep, setCurrentStep] = useState<StepKey>("campaign");
   const currentIndex = STEPS.findIndex((s) => s.key === currentStep);
+  const [hasResumed, setHasResumed] = useState(false);
 
   // ── Data fetching ─────────────────────────────────────────────────
   const { data: event, isLoading: isEventLoading } = useGetEvent(ORG_ID, eventId);
@@ -163,12 +164,18 @@ export default function EventSetup() {
   const hasCampaign = (campaigns?.length ?? 0) > 0;
   const hasGuests = (guests?.length ?? 0) > 0;
 
-  // Auto-advance past campaign step if one already exists
+  // On first load, resume from the earliest incomplete step so users returning
+  // to a draft event pick up where they left off.
   useEffect(() => {
-    if (hasCampaign && currentStep === "campaign") {
-      setCurrentStep("test");
-    }
-  }, [hasCampaign, currentStep]);
+    if (hasResumed) return;
+    if (!event || !campaigns || !guests) return;
+    let resumeStep: StepKey = "campaign";
+    if (!hasCampaign) resumeStep = "campaign";
+    else if (!hasGuests) resumeStep = "guests";
+    else resumeStep = "review";
+    setCurrentStep(resumeStep);
+    setHasResumed(true);
+  }, [event, campaigns, guests, hasCampaign, hasGuests, hasResumed]);
 
   // ── Navigation ────────────────────────────────────────────────────
   const goNext = () => {
@@ -218,11 +225,16 @@ export default function EventSetup() {
             <h1 className="text-2xl font-bold tracking-tight truncate">Set up: {event.title}</h1>
             <p className="text-muted-foreground text-sm mt-0.5">Complete each step to launch your event.</p>
           </div>
-          <Link href={`/events/${eventId}`}>
-            <Button variant="ghost" className="text-muted-foreground text-sm">
-              Skip to event details
-            </Button>
-          </Link>
+          <Button
+            variant="outline"
+            className="text-sm"
+            onClick={() => {
+              toast({ title: "Saved for later", description: "You'll pick up where you left off next time." });
+              setLocation(`/events/${eventId}`);
+            }}
+          >
+            Save for later
+          </Button>
         </div>
 
         {/* Event summary strip */}
@@ -554,7 +566,16 @@ function TestEmailStep({
         },
       );
       if (res.ok) {
-        toast({ title: "Test email sent!", description: `Check ${testEmail}` });
+        const data = await res.json().catch(() => ({}));
+        if (data?.previewUrl) {
+          toast({
+            title: "Test email sent (preview only)",
+            description: `No SMTP configured — opening Ethereal preview.`,
+          });
+          try { window.open(data.previewUrl, "_blank", "noopener"); } catch { /* noop */ }
+        } else {
+          toast({ title: "Test email sent!", description: `Check ${testEmail}` });
+        }
         setSent(true);
       } else {
         toast({ title: "Failed to send", variant: "destructive" });

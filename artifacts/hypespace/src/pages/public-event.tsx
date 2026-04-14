@@ -39,7 +39,12 @@ export default function PublicEvent() {
   const { slug } = useParams<{ slug: string }>();
   const search = useSearch();
   const params = new URLSearchParams(search);
-  const guestToken = params.get("t");
+  const guestTokenFromUrl = params.get("t");
+
+  // Allow a recipient who received a forwarded email to RSVP as themselves
+  // by discarding the token and falling back to the self-register form.
+  const [useSelfRegister, setUseSelfRegister] = useState(false);
+  const guestToken = useSelfRegister ? null : guestTokenFromUrl;
 
   const [selectedStatus, setSelectedStatus] = useState<RsvpStatus | null>(null);
   const [firstName, setFirstName] = useState("");
@@ -48,6 +53,7 @@ export default function PublicEvent() {
   const [practiceName, setPracticeName] = useState("");
   const [specialty, setSpecialty] = useState("");
   const [phone, setPhone] = useState("");
+  const [optInFuture, setOptInFuture] = useState(true);
   const [rsvpSuccess, setRsvpSuccess] = useState<RsvpStatus | null>(null);
 
   const {
@@ -78,6 +84,7 @@ export default function PublicEvent() {
             practiceName: practiceName || undefined,
             specialty: specialty || undefined,
             phone: phone || undefined,
+            optInFuture,
           };
       const res = await fetch(`${BASE}/api/public/events/${slug}/rsvp`, {
         method: "POST",
@@ -270,6 +277,18 @@ export default function PublicEvent() {
                       Will you attend?
                     </h3>
 
+                    {guestTokenFromUrl && !useSelfRegister && (
+                      <div className="text-center -mt-1">
+                        <button
+                          type="button"
+                          onClick={() => setUseSelfRegister(true)}
+                          className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2"
+                        >
+                          Not you? RSVP as a different person →
+                        </button>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-3 gap-3">
                       <Button
                         variant={selectedStatus === "confirmed" ? "default" : "outline"}
@@ -345,7 +364,7 @@ export default function PublicEvent() {
                         />
                         <div className="grid grid-cols-2 gap-3">
                           <Input
-                            placeholder="Specialty"
+                            placeholder="Specialty (optional)"
                             value={specialty}
                             onChange={(e) => setSpecialty(e.target.value)}
                           />
@@ -356,6 +375,15 @@ export default function PublicEvent() {
                             onChange={(e) => setPhone(e.target.value)}
                           />
                         </div>
+                        <label className="flex items-start gap-2.5 text-sm text-muted-foreground cursor-pointer pt-1">
+                          <input
+                            type="checkbox"
+                            checked={optInFuture}
+                            onChange={(e) => setOptInFuture(e.target.checked)}
+                            className="mt-1 h-4 w-4 rounded border-muted-foreground/30 accent-primary"
+                          />
+                          <span>Keep me in the loop on future study club events.</span>
+                        </label>
                         <Button
                           type="submit"
                           className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white border-0"

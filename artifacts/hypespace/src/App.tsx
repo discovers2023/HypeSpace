@@ -2,6 +2,7 @@ import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider } from "@/components/auth-provider";
 
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
@@ -22,6 +23,9 @@ import Settings from "@/pages/settings";
 import AcceptInvite from "@/pages/accept-invite";
 import CalendarPage from "@/pages/calendar";
 import PublicEvent from "@/pages/public-event";
+import About from "@/pages/about";
+import Careers from "@/pages/careers";
+import AdminDashboard from "@/pages/admin";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +36,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/admin" component={AdminDashboard} />
       <Route path="/calendar" component={CalendarPage} />
       <Route path="/events" component={EventList} />
       <Route path="/events/new" component={EventNew} />
@@ -46,6 +51,8 @@ function Router() {
       <Route path="/settings" component={Settings} />
       <Route path="/accept-invite" component={AcceptInvite} />
       <Route path="/e/:slug" component={PublicEvent} />
+      <Route path="/about" component={About} />
+      <Route path="/careers" component={Careers} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -54,12 +61,14 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <Router />
+          </WouterRouter>
+          <Toaster />
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

@@ -19,17 +19,16 @@ import {
   parseISO,
   isToday,
 } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
+import { Mail, Globe, Settings as SettingsIcon } from "lucide-react";
 
 const ORG_ID = 1;
 
 type EventStatus = "draft" | "published" | "completed" | "cancelled";
 
 interface CalendarEvent {
-  id: number;
-  title: string;
-  startDate: string;
-  endDate: string;
   status: EventStatus;
+  type?: "hypespace" | "google" | "outlook";
 }
 
 const STATUS_STYLES: Record<EventStatus, string> = {
@@ -54,7 +53,61 @@ const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export default function CalendarPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const { data: events, isLoading } = useListEvents(ORG_ID);
+  const [showExternal, setShowExternal] = useState(true);
+  
+  const { data: events, isLoading: eventsLoading } = useListEvents(ORG_ID);
+
+  // Fetch integrations to check for connected calendars
+  const { data: integrations } = useQuery<any[]>({
+    queryKey: ["integrations", ORG_ID],
+    queryFn: async () => {
+      const res = await fetch(`${import.meta.env.BASE_URL.replace(/\/$/, "")}/api/organizations/${ORG_ID}/integrations`);
+      return res.json();
+    },
+  });
+
+  const connectedCalendars = useMemo(() => {
+    return integrations?.filter(i => i.platform === "google_calendar" || i.platform === "outlook_calendar") || [];
+  }, [integrations]);
+
+  // Mock fetching external events
+  const { data: externalEvents, isLoading: externalLoading } = useQuery<CalendarEvent[]>({
+    queryKey: ["external-events", ORG_ID, currentMonth.getMonth()],
+    enabled: connectedCalendars.length > 0 && showExternal,
+    queryFn: async () => {
+      // In a real app, this would call /api/organizations/:orgId/external-events
+      await new Promise(r => setTimeout(r, 800));
+      
+      const mocked: CalendarEvent[] = [];
+      const monthStart = startOfMonth(currentMonth);
+      
+      connectedCalendars.forEach(cal => {
+        const type = cal.platform === "google_calendar" ? "google" : "outlook";
+        // Add a few mock events for the month
+        mocked.push(
+          { 
+            id: Math.random(), 
+            title: `Team Sync (${type === "google" ? "Google" : "Outlook"})`, 
+            startDate: format(addMonths(monthStart, 0).setDate(5 + Math.random() * 20), "yyyy-MM-dd'T'10:00:00"), 
+            endDate: "", 
+            status: "published", 
+            type 
+          },
+          { 
+            id: Math.random(), 
+            title: `Client Meeting (${type === "google" ? "Google" : "Outlook"})`, 
+            startDate: format(addMonths(monthStart, 0).setDate(5 + Math.random() * 20), "yyyy-MM-dd'T'14:00:00"), 
+            endDate: "", 
+            status: "published", 
+            type 
+          }
+        );
+      });
+      return mocked;
+    }
+  });
+
+  const isLoading = eventsLoading || (externalLoading && showExternal);
 
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
@@ -66,8 +119,12 @@ export default function CalendarPage() {
 
   const eventsByDate = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
-    if (!events) return map;
-    for (const event of events as CalendarEvent[]) {
+    const allEvents = [
+      ...(events || []).map((e: any) => ({ ...e, type: "hypespace" as const })),
+      ...(showExternal ? (externalEvents || []) : [])
+    ];
+
+    for (const event of allEvents as CalendarEvent[]) {
       if (!event.startDate) continue;
       const key = format(parseISO(event.startDate), "yyyy-MM-dd");
       const existing = map.get(key) ?? [];
@@ -75,7 +132,7 @@ export default function CalendarPage() {
       map.set(key, existing);
     }
     return map;
-  }, [events]);
+  }, [events, externalEvents, showExternal]);
 
   const goToPrevMonth = () => setCurrentMonth((m) => subMonths(m, 1));
   const goToNextMonth = () => setCurrentMonth((m) => addMonths(m, 1));
@@ -96,12 +153,30 @@ export default function CalendarPage() {
                 : `${totalEvents} event${totalEvents !== 1 ? "s" : ""} in your organization`}
             </p>
           </div>
-          <Link href="/events/new">
-            <Button className="bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0">
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              Create Event
-            </Button>
-          </Link>
+          <div className="flex items-center gap-3">
+            {connectedCalendars.length > 0 && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowExternal(!showExternal)}
+                className={`h-9 border-dashed ${showExternal ? "bg-primary/5 border-primary/50 text-primary" : "text-muted-foreground"}`}
+              >
+                <Globe className="mr-2 h-4 w-4" />
+                {showExternal ? "External On" : "External Off"}
+              </Button>
+            )}
+            <Link href="/events/new">
+              <Button className="bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/15 border-0 h-9">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                Create Event
+              </Button>
+            </Link>
+            <Link href="/settings">
+              <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground">
+                <SettingsIcon className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Month Navigation */}
@@ -136,17 +211,31 @@ export default function CalendarPage() {
             {format(currentMonth, "MMMM yyyy")}
           </h2>
           {/* Status legend */}
-          <div className="hidden md:flex items-center gap-4 text-xs text-muted-foreground">
-            {(["published", "draft", "completed", "cancelled"] as EventStatus[]).map(
-              (status) => (
-                <div key={status} className="flex items-center gap-1.5">
-                  <div
-                    className={`h-2.5 w-2.5 rounded-full ${STATUS_DOT[status]}`}
-                  />
-                  <span className="capitalize">{status}</span>
-                </div>
-              )
-            )}
+          {/* Status legend */}
+          <div className="hidden md:flex items-center gap-4 text-[11px] text-muted-foreground">
+            <div className="flex items-center gap-4 mr-4 border-r pr-4">
+              {(["published", "draft", "completed", "cancelled"] as EventStatus[]).map(
+                (status) => (
+                  <div key={status} className="flex items-center gap-1.5">
+                    <div
+                      className={`h-2 w-2 rounded-full ${STATUS_DOT[status]}`}
+                    />
+                    <span className="capitalize">{status}</span>
+                  </div>
+                )
+              )}
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <div className="h-3 w-3 rounded bg-primary/20 border border-primary/20" />
+                <span>HypeSpace</span>
+              </div>
+              <div className="flex items-center gap-1.5 opacity-70">
+                <div className="h-3 w-3 rounded bg-slate-200 border border-slate-300" />
+                <span>External</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -219,24 +308,34 @@ export default function CalendarPage() {
 
                     {/* Event pills */}
                     <div className="flex flex-col gap-0.5">
-                      {dayEvents.slice(0, 3).map((event) => (
-                        <Link key={event.id} href={`/events/${event.id}`}>
+                      {dayEvents.slice(0, 3).map((event) => {
+                        const isExternal = event.type === "google" || event.type === "outlook";
+                        const content = (
                           <div
-                            className={`group/pill cursor-pointer rounded-md px-1.5 py-0.5 text-[11px] md:text-xs font-medium truncate transition-all duration-150 ${STATUS_STYLES[event.status]}`}
+                            className={`group/pill cursor-pointer rounded-md px-1.5 py-0.5 text-[11px] md:text-xs font-medium truncate transition-all duration-150 ${
+                              isExternal 
+                                ? "bg-secondary/50 text-secondary-foreground hover:bg-secondary border border-border/50" 
+                                : STATUS_STYLES[event.status]
+                            }`}
                             title={event.title}
                           >
-                            <span className="hidden md:inline">
-                              {event.title}
-                            </span>
-                            <span className="md:hidden flex items-center gap-1">
-                              <span
-                                className={`inline-block h-1.5 w-1.5 rounded-full shrink-0 ${STATUS_DOT[event.status]}`}
-                              />
+                            <span className="flex items-center gap-1">
+                              {event.type === "google" && <span className="text-[10px]">G</span>}
+                              {event.type === "outlook" && <span className="text-[10px]">O</span>}
+                              {!isExternal && <span className={`hidden md:inline-block h-1.5 w-1.5 rounded-full shrink-0 ${STATUS_DOT[event.status]}`} />}
                               <span className="truncate">{event.title}</span>
                             </span>
                           </div>
-                        </Link>
-                      ))}
+                        );
+
+                        return isExternal ? (
+                          <div key={event.id}>{content}</div>
+                        ) : (
+                          <Link key={event.id} href={`/events/${event.id}`}>
+                            {content}
+                          </Link>
+                        );
+                      })}
                       {dayEvents.length > 3 && (
                         <span className="text-[10px] text-muted-foreground pl-1.5 font-medium">
                           +{dayEvents.length - 3} more

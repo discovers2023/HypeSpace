@@ -2,7 +2,7 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, Users, Mail, BarChart, ArrowUpRight, Activity, CheckCircle, XCircle, HelpCircle, Clock, Plus, TrendingUp } from "lucide-react";
+import { Calendar, Users, Mail, BarChart, ArrowUpRight, Activity, CheckCircle, XCircle, HelpCircle, Clock, Plus, TrendingUp, Sparkles } from "lucide-react";
 import { useGetDashboardStats, useGetRecentActivity } from "@workspace/api-client-react";
 import { format, parseISO } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -195,9 +195,12 @@ function StatCard({ href, icon: Icon, title, value, subtitle, accentColor }: {
   );
 }
 
+import { useAuth } from "@/components/auth-provider";
+
 export default function Dashboard() {
-  const { data: stats, isLoading: isStatsLoading } = useGetDashboardStats(1);
-  const { data: activity, isLoading: isActivityLoading } = useGetRecentActivity(1, { limit: 5 });
+  const { activeOrgId } = useAuth();
+  const { data: stats, isLoading: isStatsLoading } = useGetDashboardStats(activeOrgId);
+  const { data: activity, isLoading: isActivityLoading } = useGetRecentActivity(activeOrgId, { limit: 5 });
 
   const chartData = stats ? [
     { name: "Onsite", total: stats.eventsByType.onsite },
@@ -220,6 +223,32 @@ export default function Dashboard() {
             </Button>
           </Link>
         </div>
+
+        {/* Integration Sync Alert */}
+        <Card className="border-primary/20 bg-primary/5 overflow-hidden relative group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <Calendar className="h-24 w-24 -rotate-12" />
+          </div>
+          <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0 animate-pulse">
+                <Sparkles className="h-6 w-6" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Connect Your External Calendars</CardTitle>
+                <CardDescription className="text-muted-foreground/80 max-w-md mt-1">
+                  Sync Google and Outlook events to avoid scheduling conflicts and manage your entire event lifecycle in one place.
+                </CardDescription>
+              </div>
+            </div>
+            <Link href="/settings">
+              <Button variant="outline" className="border-primary/20 hover:bg-primary/10 rounded-xl">
+                Configure Integrations
+                <ArrowUpRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
 
         {/* Top metric cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

@@ -6,11 +6,20 @@
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:push": "dotenv -e .env -- pnpm --filter @workspace/db run push",
+    "dev:api": "dotenv -e .env -- cross-env PORT=$API_SERVER_PORT pnpm --filter @workspace/api-server run dev",
+    "dev:web": "dotenv -e .env -- cross-env PORT=$VITE_PORT pnpm --filter @workspace/hypespace run dev",
+    "dev": "pnpm run db:up && pnpm run db:push && concurrently -n api,web -c cyan,magenta \"pnpm run dev:api\" \"pnpm run dev:web\""
   },
   "private": true,
   "devDependencies": {
-    "typescript": "~5.9.2",
-    "prettier": "^3.8.1"
+    "concurrently": "^9.1.0",
+    "cross-env": "^7.0.3",
+    "dotenv-cli": "^8.0.0",
+    "prettier": "^3.8.1",
+    "typescript": "~5.9.2"
   }
 }

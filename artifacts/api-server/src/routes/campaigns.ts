@@ -161,20 +161,22 @@ router.post("/organizations/:orgId/campaigns/ai-generate", async (req, res): Pro
   }
 
   const { campaignType, tone, additionalContext } = parsed.data;
-  // Build the RSVP link. Use a relative path so it works from any origin.
+  // Build the RSVP link as an ABSOLUTE url so it works from any email client.
   // At send-time the launch endpoint personalises with ?t=<guestId>.
-  const rsvpUrl = eventSlug ? `/e/${eventSlug}` : "#";
+  const appBaseUrl = (process.env.APP_BASE_URL || "http://localhost:5173").replace(/\/$/, "");
+  const rsvpUrl = eventSlug ? `${appBaseUrl}/e/${eventSlug}` : "#";
 
-  // Generate a header image based on campaign type
-  const imageKeywords: Record<string, string> = {
-    invitation: "conference,event,professional",
-    reminder: "calendar,schedule,professional",
-    followup: "thank-you,handshake,team",
-    announcement: "celebration,announcement,stage",
-    custom: "business,professional,modern",
+  // Generate a header image based on campaign type.
+  // source.unsplash.com was deprecated in 2024 — use picsum.photos (no API key, stable).
+  const seedMap: Record<string, string> = {
+    invitation: "conference",
+    reminder: "calendar",
+    followup: "teamwork",
+    announcement: "celebration",
+    custom: "business",
   };
-  const imgQuery = imageKeywords[campaignType] || "event,professional";
-  const headerImageUrl = `https://source.unsplash.com/600x200/?${imgQuery}&sig=${Date.now()}`;
+  const seed = seedMap[campaignType] || "event";
+  const headerImageUrl = `https://picsum.photos/seed/${seed}-${Date.now()}/600/200`;
 
   const subjectMap: Record<string, Record<string, string>> = {
     invitation: {
