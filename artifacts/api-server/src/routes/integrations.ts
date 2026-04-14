@@ -3,6 +3,7 @@ import { db, guestsTable, eventsTable, organizationsTable } from "@workspace/db"
 import { integrationsTable } from "@workspace/db/schema";
 import { eq, and, count } from "drizzle-orm";
 import { getPlan, assertWithinLimit, PlanLimitError } from "../lib/plans";
+import ical from "node-ical";
 
 const router = Router();
 
@@ -398,6 +399,129 @@ export async function syncRsvpToGHL(
     console.error("[GHL] Sync error (non-fatal):", err);
   }
 }
+
+// ── Calendar event helpers ────────────────────────────────────────
+
+type CalendarEventItem = {
+  id: string;
+  title: string;
+  startDate: string;
+  endDate: string;
+  allDay: boolean;
+  location?: string | null;
+  description?: string | null;
+  source: string;
+  sourceType: "google" | "outlook" | "apple" | "ical";
+  color?: string;
+};
+
+const PLATFORM_COLOR: Record<string, string> = {
+  google_calendar: "#4285F4",
+  outlook_calendar: "#0078D4",
+  apple_calendar: "#555555",
+  other_calendar: "#6366f1",
+};
+
+const PLATFORM_SOURCE_TYPE: Record<string, CalendarEventItem["sourceType"]> = {
+  google_calendar: "google",
+  outlook_calendar: "outlook",
+  apple_calendar: "apple",
+  other_calendar: "ical",
+};
+
+async function fetchIcalEvents(
+  calendarUrl: string,
+  source: string,
+  sourceType: CalendarEventItem["sourceType"],
+  color: string,
+  monthStart: Date,
+  monthEnd: Date,
+): Promise<CalendarEventItem[]> {
+  const data = await ical.async.fromURL(calendarUrl);
+  const events: CalendarEventItem[] = [];
+
+  for (const key of Object.keys(data)) {
+    const e = data[key];
+    if (e.type !== "VEVENT") continue;
+
+    const start = e.start instanceof Date ? e.start : new Date(e.start as string);
+    const end = e.end instanceof Date ? e.end : (e.end ? new Date(e.end as string) : start);
+
+    // Only include events within the queried month range
+    if (start > monthEnd || end < monthStart) continue;
+
+    const allDay = !(e.start as any)?.dateOnly === false || Boolean((e.start as any)?.dateOnly);
+
+    events.push({
+      id: e.uid || key,
+      title: e.summary || "(No title)",
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      allDay,
+      location: (e as any).location || null,
+      description: (e as any).description || null,
+      source,
+      sourceType,
+      color,
+    });
+  }
+
+  return events;
+}
+
+// GET /organizations/:orgId/calendar/events?year=YYYY&month=MM
+router.get("/organizations/:orgId/calendar/events", async (req, res) => {
+  try {
+    const orgId = parseInt(req.params.orgId, 10);
+    const year = parseInt((req.query.year as string) || String(new Date().getFullYear()), 10);
+    const month = parseInt((req.query.month as string) || String(new Date().getMonth() + 1), 10);
+
+    const monthStart = new Date(year, month - 1, 1);
+    const monthEnd = new Date(year, month, 0, 23, 59, 59);
+
+    const calendarPlatforms = ["google_calendar", "outlook_calendar", "apple_calendar", "other_calendar"];
+
+    const integrations = await db
+      .select()
+      .from(integrationsTable)
+      .where(
+        and(
+          eq(integrationsTable.organizationId, orgId),
+          eq(integrationsTable.platformType, "calendar"),
+        )
+      );
+
+    const results: CalendarEventItem[] = [];
+    const errors: { platform: string; error: string }[] = [];
+
+    await Promise.all(
+      integrations
+        .filter(i => calendarPlatforms.includes(i.platform))
+        .map(async (integration) => {
+          const meta = (integration.metadata as Record<string, string>) ?? {};
+          const calendarUrl = meta.calendarUrl;
+          if (!calendarUrl) return;
+
+          const sourceType = PLATFORM_SOURCE_TYPE[integration.platform] ?? "ical";
+          const color = PLATFORM_COLOR[integration.platform] ?? "#6366f1";
+          const source = integration.accountName || integration.platform;
+
+          try {
+            const events = await fetchIcalEvents(calendarUrl, source, sourceType, color, monthStart, monthEnd);
+            results.push(...events);
+          } catch (err: any) {
+            req.log.warn({ platform: integration.platform, err: err.message }, "Failed to fetch calendar events");
+            errors.push({ platform: integration.platform, error: err.message });
+          }
+        })
+    );
+
+    res.json({ events: results, errors });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to fetch calendar events" });
+  }
+});
 
 // DELETE /organizations/:orgId/integrations/:platform - Disconnect a platform
 router.delete("/organizations/:orgId/integrations/:platform", async (req, res) => {

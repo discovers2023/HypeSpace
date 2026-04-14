@@ -221,26 +221,46 @@ const PLATFORM_CREDS: Record<string, PlatformCredDef> = {
     zapierFields: [],
   },
   google_calendar: {
-    accountNameKey: "email",
-    summary: "Sync your events with Google Calendar. Fetch busy slots and export invitations.",
-    helpUrl: "https://console.cloud.google.com/apis/library/calendar-json.googleapis.com",
+    accountNameKey: "calendarName",
+    summary: "Sync your Google Calendar events to HypeSpace using your private iCal link.",
+    helpUrl: "https://support.google.com/calendar/answer/37648",
     zapierHelpUrl: "",
     apiFields: [
-      { key: "client_id", label: "Client ID", type: "text", placeholder: "xxx-xxx.apps.googleusercontent.com", required: true, hint: "Google Cloud Console → Credentials → OAuth 2.0 Client ID" },
-      { key: "client_secret", label: "Client Secret", type: "password", placeholder: "Secret key", required: true, hint: "Google Cloud Console → Credentials → Client Secret" },
-      { key: "email", label: "Google Email", type: "text", placeholder: "you@gmail.com", required: true },
+      { key: "calendarUrl", label: "iCal URL (Secret Address)", type: "password", placeholder: "https://calendar.google.com/calendar/ical/.../basic.ics", required: true, raw: true, hint: "Google Calendar → Settings → [Your calendar] → Integrate calendar → Secret address in iCal format" },
+      { key: "calendarName", label: "Calendar Name", type: "text", placeholder: "My Google Calendar", required: true },
     ],
     zapierFields: [],
   },
   outlook_calendar: {
-    accountNameKey: "email",
-    summary: "Connect your Microsoft Outlook/Office 365 calendar to HypeSpace.",
-    helpUrl: "https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationsListBlade",
+    accountNameKey: "calendarName",
+    summary: "Connect your Outlook or Office 365 calendar via the published iCal link.",
+    helpUrl: "https://support.microsoft.com/en-us/office/share-your-calendar-in-outlook-on-the-web-7ecef8ae-139c-40d9-bae2-a23977ee58d5",
     zapierHelpUrl: "",
     apiFields: [
-      { key: "client_id", label: "Application (client) ID", type: "text", placeholder: "00000000-0000-0000-0000-000000000000", required: true, hint: "Azure Portal → App Registrations → Essentials" },
-      { key: "client_secret", label: "Client Secret", type: "password", placeholder: "Secret key", required: true, hint: "Azure Portal → Certificates & Secrets" },
-      { key: "email", label: "Microsoft Email", type: "text", placeholder: "you@outlook.com", required: true },
+      { key: "calendarUrl", label: "iCal URL", type: "password", placeholder: "https://outlook.live.com/owa/calendar/.../reachcalendar.ics", required: true, raw: true, hint: "Outlook Web → Settings → Calendar → Shared calendars → Publish a calendar → Copy ICS link" },
+      { key: "calendarName", label: "Calendar Name", type: "text", placeholder: "My Outlook Calendar", required: true },
+    ],
+    zapierFields: [],
+  },
+  apple_calendar: {
+    accountNameKey: "calendarName",
+    summary: "Connect your iCloud Calendar using a shared or public iCal link.",
+    helpUrl: "https://support.apple.com/guide/icloud/share-calendars-mm6b1a7ab2/icloud",
+    zapierHelpUrl: "",
+    apiFields: [
+      { key: "calendarUrl", label: "iCal URL", type: "password", placeholder: "webcal://p-caldav.icloud.com/published/2/.../calendar", required: true, raw: true, hint: "iCloud Calendar → select calendar → Share → tick 'Public Calendar' → copy link (change webcal:// to https://)" },
+      { key: "calendarName", label: "Calendar Name", type: "text", placeholder: "My iCloud Calendar", required: true },
+    ],
+    zapierFields: [],
+  },
+  other_calendar: {
+    accountNameKey: "calendarName",
+    summary: "Connect any calendar that supports iCal/ICS format, like Fantastical, Calendly, or Notion.",
+    helpUrl: "https://en.wikipedia.org/wiki/ICalendar",
+    zapierHelpUrl: "",
+    apiFields: [
+      { key: "calendarUrl", label: "iCal / ICS URL", type: "password", placeholder: "https://your-calendar-provider.com/feed.ics", required: true, raw: true, hint: "Find this in your calendar app's sharing or export settings. Look for an iCal, ICS, or webcal link." },
+      { key: "calendarName", label: "Calendar Name", type: "text", placeholder: "My Calendar", required: true },
     ],
     zapierFields: [],
   },
@@ -267,8 +287,10 @@ const SOCIAL_PLATFORMS: Platform[] = [
 ];
 
 const CALENDAR_PLATFORMS: Platform[] = [
-  { id: "google_calendar", name: "Google Calendar", type: "calendar", color: "#4285F4", textColor: "#fff", description: "Sync events and manage availability with Google.", icon: "📅" },
-  { id: "outlook_calendar", name: "Outlook Calendar", type: "calendar", color: "#0078D4", textColor: "#fff", description: "Connect your Microsoft 365 or Outlook events.", icon: "📧" },
+  { id: "google_calendar", name: "Google Calendar", type: "calendar", color: "#4285F4", textColor: "#fff", description: "Paste your private iCal URL to pull Google Calendar events into HypeSpace.", icon: "📅" },
+  { id: "outlook_calendar", name: "Outlook / Office 365", type: "calendar", color: "#0078D4", textColor: "#fff", description: "Connect your Microsoft 365 or Outlook.com calendar via iCal link.", icon: "📧" },
+  { id: "apple_calendar", name: "Apple Calendar", type: "calendar", color: "#1C1C1E", textColor: "#fff", description: "Connect your iCloud calendar by sharing a public iCal link.", icon: "🍎" },
+  { id: "other_calendar", name: "Other Calendar", type: "calendar", color: "#6366f1", textColor: "#fff", description: "Any calendar that supports iCal / ICS format (Calendly, Fantastical, etc.).", icon: "🗓️" },
 ];
 
 const CRM_PLATFORMS: Platform[] = [

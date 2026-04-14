@@ -4,14 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import { useListEvents } from "@workspace/api-client-react";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertCircle } from "lucide-react";
 import {
   startOfMonth,
   endOfMonth,
   eachDayOfInterval,
   format,
   isSameMonth,
-  isSameDay,
   addMonths,
   subMonths,
   startOfWeek,
@@ -20,15 +19,22 @@ import {
   isToday,
 } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
-import { Mail, Globe, Settings as SettingsIcon } from "lucide-react";
+import { Globe, Settings as SettingsIcon } from "lucide-react";
 
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const ORG_ID = 1;
 
 type EventStatus = "draft" | "published" | "completed" | "cancelled";
 
 interface CalendarEvent {
+  id: string | number;
+  title: string;
+  startDate: string;
+  endDate?: string;
   status: EventStatus;
-  type?: "hypespace" | "google" | "outlook";
+  type?: "hypespace" | "google" | "outlook" | "apple" | "ical";
+  color?: string;
+  source?: string;
 }
 
 const STATUS_STYLES: Record<EventStatus, string> = {
@@ -49,7 +55,16 @@ const STATUS_DOT: Record<EventStatus, string> = {
   cancelled: "bg-red-400",
 };
 
+const SOURCE_ICON: Record<string, string> = {
+  google: "G",
+  outlook: "O",
+  apple: "A",
+  ical: "i",
+};
+
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+const CALENDAR_PLATFORMS = ["google_calendar", "outlook_calendar", "apple_calendar", "other_calendar"];
 
 export default function CalendarPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -61,52 +76,38 @@ export default function CalendarPage() {
   const { data: integrations } = useQuery<any[]>({
     queryKey: ["integrations", ORG_ID],
     queryFn: async () => {
-      const res = await fetch(`${import.meta.env.BASE_URL.replace(/\/$/, "")}/api/organizations/${ORG_ID}/integrations`);
+      const res = await fetch(`${BASE}/api/organizations/${ORG_ID}/integrations`);
       return res.json();
     },
   });
 
   const connectedCalendars = useMemo(() => {
-    return integrations?.filter(i => i.platform === "google_calendar" || i.platform === "outlook_calendar") || [];
+    return integrations?.filter(i => CALENDAR_PLATFORMS.includes(i.platform)) || [];
   }, [integrations]);
 
-  // Mock fetching external events
-  const { data: externalEvents, isLoading: externalLoading } = useQuery<CalendarEvent[]>({
-    queryKey: ["external-events", ORG_ID, currentMonth.getMonth()],
+  // Fetch external calendar events from backend
+  const { data: externalData, isLoading: externalLoading } = useQuery<{ events: CalendarEvent[]; errors: any[] }>({
+    queryKey: ["calendar-events", ORG_ID, currentMonth.getFullYear(), currentMonth.getMonth() + 1],
     enabled: connectedCalendars.length > 0 && showExternal,
     queryFn: async () => {
-      // In a real app, this would call /api/organizations/:orgId/external-events
-      await new Promise(r => setTimeout(r, 800));
-      
-      const mocked: CalendarEvent[] = [];
-      const monthStart = startOfMonth(currentMonth);
-      
-      connectedCalendars.forEach(cal => {
-        const type = cal.platform === "google_calendar" ? "google" : "outlook";
-        // Add a few mock events for the month
-        mocked.push(
-          { 
-            id: Math.random(), 
-            title: `Team Sync (${type === "google" ? "Google" : "Outlook"})`, 
-            startDate: format(addMonths(monthStart, 0).setDate(5 + Math.random() * 20), "yyyy-MM-dd'T'10:00:00"), 
-            endDate: "", 
-            status: "published", 
-            type 
-          },
-          { 
-            id: Math.random(), 
-            title: `Client Meeting (${type === "google" ? "Google" : "Outlook"})`, 
-            startDate: format(addMonths(monthStart, 0).setDate(5 + Math.random() * 20), "yyyy-MM-dd'T'14:00:00"), 
-            endDate: "", 
-            status: "published", 
-            type 
-          }
-        );
-      });
-      return mocked;
-    }
+      const year = currentMonth.getFullYear();
+      const month = currentMonth.getMonth() + 1;
+      const res = await fetch(`${BASE}/api/organizations/${ORG_ID}/calendar/events?year=${year}&month=${month}`);
+      if (!res.ok) throw new Error("Failed to fetch calendar events");
+      const data = await res.json();
+      return {
+        events: (data.events || []).map((e: any) => ({
+          ...e,
+          type: e.sourceType,
+          status: "published" as EventStatus,
+        })),
+        errors: data.errors || [],
+      };
+    },
   });
 
+  const externalEvents = externalData?.events || [];
+  const calendarErrors = externalData?.errors || [];
   const isLoading = eventsLoading || (externalLoading && showExternal);
 
   const calendarDays = useMemo(() => {
@@ -162,7 +163,7 @@ export default function CalendarPage() {
                 className={`h-9 border-dashed ${showExternal ? "bg-primary/5 border-primary/50 text-primary" : "text-muted-foreground"}`}
               >
                 <Globe className="mr-2 h-4 w-4" />
-                {showExternal ? "External On" : "External Off"}
+                {showExternal ? `External (${connectedCalendars.length})` : "External Off"}
               </Button>
             )}
             <Link href="/events/new">
@@ -171,13 +172,43 @@ export default function CalendarPage() {
                 Create Event
               </Button>
             </Link>
-            <Link href="/settings">
-              <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground">
+            <Link href="/settings?tab=integrations">
+              <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground" title="Calendar integrations">
                 <SettingsIcon className="h-4 w-4" />
               </Button>
             </Link>
           </div>
         </div>
+
+        {/* Connect calendar prompt */}
+        {!isLoading && connectedCalendars.length === 0 && (
+          <div className="flex items-center gap-3 p-3.5 rounded-xl border border-dashed bg-muted/30">
+            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <CalendarIcon className="h-4 w-4 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">Connect your calendar</p>
+              <p className="text-xs text-muted-foreground">Pull in events from Google Calendar, Outlook, Apple Calendar, or any iCal-compatible calendar.</p>
+            </div>
+            <Link href="/settings">
+              <Button size="sm" variant="outline" className="shrink-0 h-8 text-xs">
+                Connect Calendar
+              </Button>
+            </Link>
+          </div>
+        )}
+
+        {/* Calendar fetch errors */}
+        {calendarErrors.length > 0 && showExternal && (
+          <div className="flex items-start gap-2 p-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-800">
+            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <div className="text-xs">
+              <span className="font-medium">Some calendars failed to load: </span>
+              {calendarErrors.map(e => e.platform.replace(/_/g, " ")).join(", ")}. Check your iCal URLs in{" "}
+              <Link href="/settings" className="underline">Settings → Integrations</Link>.
+            </div>
+          </div>
+        )}
 
         {/* Month Navigation */}
         <div className="flex items-center justify-between rounded-xl border bg-card p-4">
@@ -211,30 +242,31 @@ export default function CalendarPage() {
             {format(currentMonth, "MMMM yyyy")}
           </h2>
           {/* Status legend */}
-          {/* Status legend */}
           <div className="hidden md:flex items-center gap-4 text-[11px] text-muted-foreground">
             <div className="flex items-center gap-4 mr-4 border-r pr-4">
               {(["published", "draft", "completed", "cancelled"] as EventStatus[]).map(
                 (status) => (
                   <div key={status} className="flex items-center gap-1.5">
-                    <div
-                      className={`h-2 w-2 rounded-full ${STATUS_DOT[status]}`}
-                    />
+                    <div className={`h-2 w-2 rounded-full ${STATUS_DOT[status]}`} />
                     <span className="capitalize">{status}</span>
                   </div>
                 )
               )}
             </div>
-            
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1.5">
                 <div className="h-3 w-3 rounded bg-primary/20 border border-primary/20" />
                 <span>HypeSpace</span>
               </div>
-              <div className="flex items-center gap-1.5 opacity-70">
-                <div className="h-3 w-3 rounded bg-slate-200 border border-slate-300" />
-                <span>External</span>
-              </div>
+              {connectedCalendars.map(cal => (
+                <div key={cal.platform} className="flex items-center gap-1.5">
+                  <div className="h-3 w-3 rounded border" style={{
+                    backgroundColor: cal.platform === "google_calendar" ? "#4285F433" : cal.platform === "outlook_calendar" ? "#0078D433" : cal.platform === "apple_calendar" ? "#1C1C1E33" : "#6366f133",
+                    borderColor: cal.platform === "google_calendar" ? "#4285F4" : cal.platform === "outlook_calendar" ? "#0078D4" : cal.platform === "apple_calendar" ? "#555" : "#6366f1",
+                  }} />
+                  <span>{cal.accountName || cal.platform.replace(/_/g, " ")}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -309,20 +341,30 @@ export default function CalendarPage() {
                     {/* Event pills */}
                     <div className="flex flex-col gap-0.5">
                       {dayEvents.slice(0, 3).map((event) => {
-                        const isExternal = event.type === "google" || event.type === "outlook";
+                        const isExternal = event.type !== "hypespace" && event.type != null;
+                        const sourceIcon = event.type ? SOURCE_ICON[event.type] : null;
+
                         const content = (
                           <div
                             className={`group/pill cursor-pointer rounded-md px-1.5 py-0.5 text-[11px] md:text-xs font-medium truncate transition-all duration-150 ${
-                              isExternal 
-                                ? "bg-secondary/50 text-secondary-foreground hover:bg-secondary border border-border/50" 
+                              isExternal
+                                ? "hover:opacity-80 border"
                                 : STATUS_STYLES[event.status]
                             }`}
-                            title={event.title}
+                            style={isExternal && event.color ? {
+                              backgroundColor: `${event.color}22`,
+                              borderColor: `${event.color}55`,
+                              color: event.color,
+                            } : undefined}
+                            title={`${event.title}${event.source ? ` (${event.source})` : ""}`}
                           >
                             <span className="flex items-center gap-1">
-                              {event.type === "google" && <span className="text-[10px]">G</span>}
-                              {event.type === "outlook" && <span className="text-[10px]">O</span>}
-                              {!isExternal && <span className={`hidden md:inline-block h-1.5 w-1.5 rounded-full shrink-0 ${STATUS_DOT[event.status]}`} />}
+                              {isExternal && sourceIcon && (
+                                <span className="text-[9px] font-bold shrink-0 opacity-80">{sourceIcon}</span>
+                              )}
+                              {!isExternal && (
+                                <span className={`hidden md:inline-block h-1.5 w-1.5 rounded-full shrink-0 ${STATUS_DOT[event.status]}`} />
+                              )}
                               <span className="truncate">{event.title}</span>
                             </span>
                           </div>
