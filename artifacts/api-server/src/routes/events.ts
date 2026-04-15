@@ -4,6 +4,7 @@ import { eq, and, count, gt } from "drizzle-orm";
 import { syncRsvpToGHL } from "./integrations";
 import { sendEmail } from "../lib/email";
 import { getPlan, assertWithinLimit, PlanLimitError } from "../lib/plans";
+import { getAppBaseUrl } from "../lib/app-url";
 import {
   ListEventsResponse,
   CreateEventBody,
@@ -183,7 +184,7 @@ router.post("/organizations/:orgId/events/:eventId/launch", async (req, res): Pr
   }
 
   // Determine the base URL for RSVP links in campaign emails
-  const appBaseUrl = process.env.APP_BASE_URL || "http://localhost:5173";
+  const appBaseUrl = getAppBaseUrl();
 
   // Look up verified sending domain for this org (so emails come from their domain)
   const [sendingDomain] = await db.select().from(sendingDomainsTable)
@@ -336,7 +337,7 @@ router.post("/organizations/:orgId/events/:eventId/bulk-email", async (req, res)
     ? { name: sendingDomain.fromName, email: sendingDomain.fromEmail }
     : undefined;
 
-  const appBaseUrl = process.env.APP_BASE_URL || "http://localhost:5173";
+  const appBaseUrl = getAppBaseUrl();
   const eventDate = event.startDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
   const now = new Date();

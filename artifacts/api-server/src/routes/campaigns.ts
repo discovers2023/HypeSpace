@@ -199,7 +199,8 @@ router.post("/organizations/:orgId/campaigns/ai-generate", async (req, res): Pro
   }
 
   const { campaignType, tone, additionalContext } = parsed.data;
-  const appBaseUrl = (process.env.APP_BASE_URL || "http://localhost:5173").replace(/\/$/, "");
+  const { getAppBaseUrl } = await import("../lib/app-url.js");
+  const appBaseUrl = getAppBaseUrl();
   const rsvpUrl = eventSlug ? `${appBaseUrl}/e/${eventSlug}` : "#";
 
   // Extract speaker / topic from additionalContext heuristically
