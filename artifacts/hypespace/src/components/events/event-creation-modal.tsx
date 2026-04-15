@@ -117,6 +117,9 @@ export function EventCreationModal({ open, onClose, prefillDate, onEventCreated 
   const [createdEventId, setCreatedEventId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventSchema),
     mode: "onChange",
@@ -125,7 +128,9 @@ export function EventCreationModal({ open, onClose, prefillDate, onEventCreated 
       description: "",
       type: "onsite",
       category: "conference",
+      startDate: tomorrow,
       startTime: "09:00",
+      endDate: tomorrow,
       endTime: "17:00",
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       location: "",
@@ -151,7 +156,7 @@ export function EventCreationModal({ open, onClose, prefillDate, onEventCreated 
     return combined.toISOString();
   };
 
-  const createOrUpdateDraft = async (data: EventFormValues): Promise<number | null> => {
+  const createOrUpdateDraft = async (data: EventFormValues): Promise<{ id: number | null; error?: Error }> => {
     const payload = {
       ...data,
       startDate: combineDateTime(data.startDate, data.startTime),
@@ -163,8 +168,8 @@ export function EventCreationModal({ open, onClose, prefillDate, onEventCreated 
         updateEvent.mutate(
           { orgId: ORG_ID, eventId: createdEventId, data: payload },
           {
-            onSuccess: () => resolve(createdEventId),
-            onError: () => resolve(null),
+            onSuccess: () => resolve({ id: createdEventId }),
+            onError: (err) => resolve({ id: null, error: err as Error }),
           },
         );
       });
@@ -177,9 +182,9 @@ export function EventCreationModal({ open, onClose, prefillDate, onEventCreated 
             setCreatedEventId(ev.id);
             queryClient.invalidateQueries({ queryKey: ["/api/events"] });
             queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-            resolve(ev.id);
+            resolve({ id: ev.id });
           },
-          onError: () => resolve(null),
+          onError: (err) => resolve({ id: null, error: err as Error }),
         },
       );
     });
@@ -189,18 +194,28 @@ export function EventCreationModal({ open, onClose, prefillDate, onEventCreated 
     if (stepIndex === 0) {
       const valid = await form.trigger();
       if (!valid) {
-        toast({ title: "Please complete required fields", variant: "destructive" });
+        toast({ title: "Please fill in all required fields", variant: "destructive" });
         return;
       }
       setIsSubmitting(true);
       const data = form.getValues();
-      const eventId = await createOrUpdateDraft(data);
+      const result = await createOrUpdateDraft(data);
       setIsSubmitting(false);
-      if (!eventId) {
-        toast({ title: "Failed to save event", variant: "destructive" });
+      if (!result.id) {
+        const err = result.error as (Error & { status?: number }) | undefined;
+        const status = err?.status;
+        if (status === 402) {
+          toast({
+            title: "Plan limit reached",
+            description: "Your free plan allows 1 active event. Please upgrade your plan to create more events, or delete your existing event first.",
+            variant: "destructive",
+          });
+        } else {
+          toast({ title: "Failed to save event", description: err?.message || "Please try again.", variant: "destructive" });
+        }
         return;
       }
-      toast({ title: "Draft saved!" });
+      toast({ title: "Draft saved!", description: "Your event details have been saved." });
     } else if (createdEventId && stepIndex < STEPS.length - 1) {
       const data = form.getValues();
       createOrUpdateDraft(data).catch(() => {});
