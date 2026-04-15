@@ -9,6 +9,7 @@ import {
   UpdateGuestResponse,
 } from "@workspace/api-zod";
 import { getPlan, assertWithinLimit, PlanLimitError } from "../lib/plans";
+import { syncRsvpToGHL, syncRsvpToCustomCRM } from "./integrations";
 
 const router: IRouter = Router();
 
@@ -128,6 +129,22 @@ router.put("/organizations/:orgId/events/:eventId/guests/:guestId", async (req, 
     .returning();
   if (!guest) { res.status(404).json({ error: "Guest not found" }); return; }
   res.json(UpdateGuestResponse.parse(formatGuest(guest)));
+
+  // Fire CRM syncs in the background for RSVP-relevant status changes
+  const rsvpStatuses = ["confirmed", "declined", "maybe"];
+  if (parsed.data.status && rsvpStatuses.includes(parsed.data.status)) {
+    const rawOrgId = Array.isArray(req.params.orgId) ? req.params.orgId[0] : req.params.orgId;
+    const orgId = parseInt(rawOrgId, 10);
+    const guestContact = { name: guest.name, email: guest.email, phone: guest.phone ?? null };
+    // Look up event title for the custom CRM payload
+    const [event] = await db.select({ title: eventsTable.title }).from(eventsTable).where(eq(eventsTable.id, eventId));
+    const eventTitle = event?.title;
+    // Both are best-effort (never throw)
+    Promise.all([
+      syncRsvpToGHL(orgId, guestContact, parsed.data.status),
+      syncRsvpToCustomCRM(orgId, guestContact, parsed.data.status, eventTitle),
+    ]).catch(() => {});
+  }
 });
 
 router.delete("/organizations/:orgId/events/:eventId/guests/:guestId", async (req, res): Promise<void> => {

@@ -400,6 +400,56 @@ export async function syncRsvpToGHL(
   }
 }
 
+// ── Custom CRM webhook sync ───────────────────────────────────────
+
+/**
+ * POST guest RSVP data to a user-configured webhook URL (custom CRM integration).
+ * Best-effort: never throws — failures are logged but do not affect the RSVP.
+ */
+export async function syncRsvpToCustomCRM(
+  orgId: number,
+  guest: { name: string; email: string; phone?: string | null },
+  rsvpStatus: string,
+  eventTitle?: string,
+): Promise<void> {
+  try {
+    const [integration] = await db.select().from(integrationsTable).where(
+      and(
+        eq(integrationsTable.organizationId, orgId),
+        eq(integrationsTable.platform, "custom_crm"),
+        eq(integrationsTable.status, "connected"),
+      )
+    );
+    if (!integration) return;
+
+    const meta = (integration.metadata as Record<string, string>) ?? {};
+    const webhookUrl = meta.webhookUrl;
+    if (!webhookUrl) return;
+
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (meta.apiKey) headers["Authorization"] = meta.apiKey.startsWith("Bearer ") ? meta.apiKey : `Bearer ${meta.apiKey}`;
+
+    const payload: Record<string, unknown> = {
+      event: eventTitle ?? null,
+      guest: { name: guest.name, email: guest.email, phone: guest.phone ?? null },
+      rsvpStatus,
+      timestamp: new Date().toISOString(),
+      source: "hypespace",
+    };
+    if (meta.contactListId) payload.contactListId = meta.contactListId;
+
+    const resp = await fetch(webhookUrl, { method: "POST", headers, body: JSON.stringify(payload) });
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => "");
+      console.warn(`[CustomCRM] Webhook returned ${resp.status}: ${body.slice(0, 200)}`);
+    } else {
+      console.log(`[CustomCRM] Synced ${guest.email} (${rsvpStatus}) → ${webhookUrl}`);
+    }
+  } catch (err) {
+    console.error("[CustomCRM] Webhook sync error (non-fatal):", err);
+  }
+}
+
 // ── Calendar event helpers ────────────────────────────────────────
 
 type CalendarEventItem = {

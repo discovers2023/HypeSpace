@@ -221,12 +221,25 @@ const PLATFORM_CREDS: Record<string, PlatformCredDef> = {
   },
   gohighlevel: {
     accountNameKey: "locationId",
-    summary: "Import contacts tagged 'studyclub' directly from your Go HighLevel sub-account.",
+    summary: "Import contacts directly from your Go HighLevel sub-account. Filter by tag, preview, then import as event guests. RSVPs sync back automatically.",
     helpUrl: "https://app.gohighlevel.com/settings/integrations",
     zapierHelpUrl: "",
     apiFields: [
-      { key: "apiKey", label: "Private Integration Token", type: "password", placeholder: "eyJhbGci...", required: true, raw: true, hint: "Go HighLevel → Settings → Integrations → Private Integrations" },
+      { key: "apiKey", label: "Private Integration Token", type: "password", placeholder: "eyJhbGci...", required: true, raw: true, hint: "Go HighLevel → Settings → Integrations → Private Integrations → Create" },
       { key: "locationId", label: "Location ID", type: "text", placeholder: "abc123XYZxxx", required: true, raw: true, hint: "Go HighLevel → Settings → Business Info → Location ID" },
+    ],
+    zapierFields: [],
+  },
+  custom_crm: {
+    accountNameKey: "crmName",
+    summary: "Connect any CRM via a webhook URL. HypeSpace will POST guest data (name, email, status, event) to your endpoint on every RSVP change.",
+    helpUrl: "https://en.wikipedia.org/wiki/Webhook",
+    zapierHelpUrl: "",
+    apiFields: [
+      { key: "crmName", label: "CRM Name", type: "text", placeholder: "e.g. Pipedrive, Nutshell, Keap…", required: true, hint: "A label to identify this integration" },
+      { key: "webhookUrl", label: "Webhook URL", type: "text", placeholder: "https://your-crm.com/api/webhook", required: true, hint: "HypeSpace will POST JSON here on every guest RSVP change: { event, guest, status }" },
+      { key: "apiKey", label: "Authorization Token (optional)", type: "password", placeholder: "Bearer sk-...", required: false, hint: "Sent as the Authorization header if provided" },
+      { key: "contactListId", label: "Contact List / Pipeline ID (optional)", type: "text", placeholder: "list_123", required: false, hint: "Include this in the webhook payload to route contacts to a specific list" },
     ],
     zapierFields: [],
   },
@@ -304,10 +317,12 @@ const CALENDAR_PLATFORMS: Platform[] = [
 ];
 
 const CRM_PLATFORMS: Platform[] = [
+  { id: "gohighlevel", name: "Go HighLevel", type: "crm", color: "#F97316", textColor: "#fff", description: "Import contacts by tag, sync RSVPs back — built-in two-way integration.", icon: "⚡" },
   { id: "hubspot", name: "HubSpot", type: "crm", color: "#FF7A59", textColor: "#fff", description: "Sync contacts and track deal stages automatically.", icon: "🏢" },
   { id: "salesforce", name: "Salesforce", type: "crm", color: "#00A1E0", textColor: "#fff", description: "Enterprise-grade lead routing and opportunity mapping.", icon: "☁️" },
   { id: "zoho", name: "Zoho CRM", type: "crm", color: "#F0483E", textColor: "#fff", description: "Seamless event lead to customer conversion pipelines.", icon: "📊" },
   { id: "monday", name: "monday.com", type: "crm", color: "#FF3D57", textColor: "#fff", description: "Orchestrate your event tasks and lead follow-up.", icon: "📝" },
+  { id: "custom_crm", name: "Custom CRM", type: "crm", color: "#6d28d9", textColor: "#fff", description: "Connect any CRM via a webhook URL — Pipedrive, Nutshell, Keap, or your own system.", icon: "🔌" },
 ];
 
 
