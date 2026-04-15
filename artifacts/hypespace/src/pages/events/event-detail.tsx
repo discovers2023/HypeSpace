@@ -12,6 +12,8 @@ import {
   useListReminders,
   useCreateReminder,
   useDeleteEvent,
+  useGetRecentActivity,
+  type ActivityItem,
 } from "@workspace/api-client-react";
 import { useParams, Link, useLocation } from "wouter";
 import { format, parseISO } from "date-fns";
@@ -59,6 +61,7 @@ import {
   BarChart2,
   ClipboardCheck,
   Layers,
+  Lock,
 } from "lucide-react";
 import {
   PieChart,
@@ -126,6 +129,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { GHLImportModal } from "@/components/ghl-import-modal";
 import { CSVImportModal } from "@/components/csv-import-modal";
 import { Progress } from "@/components/ui/progress";
+import { CampaignCreationModal } from "@/components/campaigns/campaign-creation-modal";
 
 // ---------------------------------------------------------------------------
 // Constants & helpers
@@ -229,7 +233,7 @@ export default function EventDetail() {
   const [selectedGuests, setSelectedGuests] = useState<Set<number>>(new Set());
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<"all" | "yes" | "no" | "maybe" | "invited" | "not_responded">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "yes" | "no" | "maybe" | "invited" | "not_responded" | "waitlisted">("all");
   const [bulkEmail, setBulkEmail] = useState<{ open: boolean; recipient: BulkRecipientMode; label: string; count: number } | null>(null);
   const [isCSVImportOpen, setIsCSVImportOpen] = useState(false);
   const [isGHLImportOpen, setIsGHLImportOpen] = useState(false);
@@ -250,6 +254,8 @@ export default function EventDetail() {
   const [newReminderMessage, setNewReminderMessage] = useState("");
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isDuplicating, setIsDuplicating] = useState(false);
+  const [isCreateCampaignOpen, setIsCreateCampaignOpen] = useState(false);
+  const [mainTab, setMainTab] = useState("guests");
 
   // ── Form ───────────────────────────────────────────────────────────────
   const guestForm = useForm<AddGuestFormValues>({
@@ -285,6 +291,7 @@ export default function EventDetail() {
     if (s === "maybe") return status === "maybe";
     if (s === "invited") return status === "invited";
     if (s === "not_responded") return status === "invited" || status === "added";
+    if (s === "waitlisted") return status === "waitlisted";
     return true;
   };
   const filteredGuests = guests?.filter(
@@ -300,6 +307,7 @@ export default function EventDetail() {
     maybe: guests?.filter((g) => g.status === "maybe").length ?? 0,
     invited: guests?.filter((g) => g.status === "invited").length ?? 0,
     not_responded: guests?.filter((g) => g.status === "invited" || g.status === "added").length ?? 0,
+    waitlisted: guests?.filter((g) => g.status === "waitlisted").length ?? 0,
   };
   const segmentLabels: Record<typeof statusFilter, string> = {
     all: "All guests",
@@ -308,6 +316,7 @@ export default function EventDetail() {
     maybe: "RSVP — Maybe",
     invited: "Invited",
     not_responded: "Not responded",
+    waitlisted: "Waitlisted",
   };
 
   const toggleGuestSelection = (guestId: number) => {
@@ -391,12 +400,29 @@ export default function EventDetail() {
   };
 
   const onAddGuest = (data: AddGuestFormValues) => {
+    const isAtCapacity = event?.capacity != null && (event.guestCount ?? 0) >= event.capacity;
     addGuest.mutate(
       { orgId: ORG_ID, eventId, data },
       {
-        onSuccess: () => {
-          toast({ title: "Guest added" });
-          invalidateGuests();
+        onSuccess: (newGuest) => {
+          if (isAtCapacity) {
+            updateGuest.mutate(
+              { orgId: ORG_ID, eventId, guestId: newGuest.id, data: { status: "waitlisted" } },
+              {
+                onSuccess: () => {
+                  toast({ title: "Event is at capacity — guest added to waitlist" });
+                  invalidateGuests();
+                },
+                onError: () => {
+                  toast({ title: "Guest added" });
+                  invalidateGuests();
+                },
+              },
+            );
+          } else {
+            toast({ title: "Guest added" });
+            invalidateGuests();
+          }
           setIsAddGuestOpen(false);
           guestForm.reset();
         },
@@ -414,7 +440,21 @@ export default function EventDetail() {
       {
         onSuccess: () => {
           toast({ title: `${guestToRemove.name} removed from guest list` });
-          invalidateGuests();
+          const firstWaitlisted = guests?.find((g) => g.status === "waitlisted" && g.id !== guestToRemove.id);
+          if (firstWaitlisted) {
+            updateGuest.mutate(
+              { orgId: ORG_ID, eventId, guestId: firstWaitlisted.id, data: { status: "added" } },
+              {
+                onSuccess: () => {
+                  toast({ title: `${firstWaitlisted.name} promoted from waitlist` });
+                  invalidateGuests();
+                },
+                onError: () => invalidateGuests(),
+              },
+            );
+          } else {
+            invalidateGuests();
+          }
           setGuestToRemove(null);
         },
         onError: (err) => {
@@ -427,13 +467,29 @@ export default function EventDetail() {
 
   const onUpdateStatus = (
     guestId: number,
-    status: "added" | "invited" | "confirmed" | "maybe" | "declined",
+    status: "added" | "invited" | "confirmed" | "maybe" | "declined" | "waitlisted",
   ) => {
     updateGuest.mutate(
       { orgId: ORG_ID, eventId, guestId, data: { status } },
       {
         onSuccess: () => {
           toast({ title: `Guest marked as ${status}` });
+          if (status === "declined") {
+            const firstWaitlisted = guests?.find((g) => g.status === "waitlisted" && g.id !== guestId);
+            if (firstWaitlisted) {
+              updateGuest.mutate(
+                { orgId: ORG_ID, eventId, guestId: firstWaitlisted.id, data: { status: "added" } },
+                {
+                  onSuccess: () => {
+                    toast({ title: `${firstWaitlisted.name} promoted from waitlist` });
+                    invalidateGuests();
+                  },
+                  onError: () => invalidateGuests(),
+                },
+              );
+              return;
+            }
+          }
           invalidateGuests();
         },
         onError: (err) => {
@@ -697,7 +753,7 @@ export default function EventDetail() {
     {
       label: "Design Campaign",
       done: hasCampaign,
-      action: event?.status !== "published" ? () => window.location.assign(`${BASE}/events/${eventId}/setup?step=campaign`) : null,
+      action: event?.status !== "published" ? () => setIsCreateCampaignOpen(true) : null,
       actionLabel: hasCampaign ? "Edit Campaign" : "Create Campaign",
     },
     {
@@ -709,7 +765,7 @@ export default function EventDetail() {
     {
       label: "Add Guests",
       done: hasGuests,
-      action: event?.status !== "published" ? () => window.location.assign(`${BASE}/events/${eventId}/setup?step=guests`) : null,
+      action: event?.status !== "published" ? () => setMainTab("guests") : null,
       actionLabel: hasGuests ? "Manage Guests" : "Add Guests",
     },
     {
@@ -1043,12 +1099,13 @@ export default function EventDetail() {
                       Review &amp; Launch
                     </Button>
                   ) : (
-                    <Link href={`/events/${eventId}/setup`}>
-                      <Button size="sm" className="gap-1.5">
-                        Continue setup
-                        <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
-                      </Button>
-                    </Link>
+                    <Button size="sm" className="gap-1.5" onClick={() => {
+                      if (!hasCampaign) setIsCreateCampaignOpen(true);
+                      else if (!hasGuests) setMainTab("guests");
+                    }}>
+                      Continue setup
+                      <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
+                    </Button>
                   )}
                 </div>
               </div>
@@ -1138,8 +1195,26 @@ export default function EventDetail() {
           </Card>
         )}
 
+        {/* ── Live Banner ─────────────────────────────────────────────── */}
+        {event.status === "published" && (
+          <div className="flex items-start gap-3 p-4 rounded-xl border border-green-200 bg-gradient-to-r from-green-50 to-emerald-50">
+            <div className="h-9 w-9 rounded-full bg-green-500/15 flex items-center justify-center shrink-0">
+              <Rocket className="h-4 w-4 text-green-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="font-semibold text-green-800 text-sm">This event is live</h3>
+                <Badge className="bg-green-500 text-white text-xs border-0">Live</Badge>
+              </div>
+              <p className="text-xs text-green-700">
+                Invitations have been sent. You can still: <strong>add/remove guests</strong>, <strong>update location or meeting link</strong>, <strong>send reminders</strong>, or <strong>cancel the event</strong>. Campaign email content is locked.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* ── Tabbed content ───────────────────────────────────────────── */}
-        <Tabs defaultValue="guests" className="w-full">
+        <Tabs value={mainTab} onValueChange={setMainTab} className="w-full">
           <TabsList className="w-full md:w-auto flex flex-wrap h-auto p-1 mb-6">
             <TabsTrigger value="guests" className="flex-1 md:flex-none py-2.5">
               <Users className="h-4 w-4 mr-2" />
@@ -1160,6 +1235,10 @@ export default function EventDetail() {
             <TabsTrigger value="analytics" className="flex-1 md:flex-none py-2.5">
               <BarChart2 className="h-4 w-4 mr-2" />
               Analytics
+            </TabsTrigger>
+            <TabsTrigger value="activity" className="flex-1 md:flex-none py-2.5">
+              <Activity className="h-4 w-4 mr-2" />
+              Activity
             </TabsTrigger>
           </TabsList>
 
@@ -1268,7 +1347,7 @@ export default function EventDetail() {
 
             {/* Segment pills */}
             <div className="flex flex-wrap items-center gap-2">
-              {(["all", "yes", "maybe", "no", "invited", "not_responded"] as const).map((s) => (
+              {(["all", "yes", "maybe", "no", "invited", "not_responded", "waitlisted"] as const).map((s) => (
                 <Button
                   key={s}
                   type="button"
@@ -1528,6 +1607,14 @@ export default function EventDetail() {
                                     Mark as Attended
                                   </DropdownMenuItem>
                                 )}
+                                {guest.status !== "waitlisted" && event?.capacity && (event.confirmedCount ?? 0) >= event.capacity && (
+                                  <DropdownMenuItem
+                                    onClick={() => onUpdateStatus(guest.id, "waitlisted")}
+                                  >
+                                    <Clock className="mr-2 h-4 w-4 text-orange-500" />
+                                    Move to Waitlist
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   className="text-destructive focus:text-destructive"
@@ -1559,12 +1646,19 @@ export default function EventDetail() {
                     <CardTitle>Email Campaigns</CardTitle>
                     <CardDescription>Manage communications for this event</CardDescription>
                   </div>
-                  <Link href="/campaigns/ai">
-                    <Button size="sm">
+                  <Button
+                    size="sm"
+                    onClick={() => setIsCreateCampaignOpen(true)}
+                    disabled={event?.status === "published"}
+                    title={event?.status === "published" ? "Event is live — new campaigns are locked" : undefined}
+                  >
+                    {event?.status === "published" ? (
+                      <Lock className="h-4 w-4 mr-2" />
+                    ) : (
                       <Plus className="h-4 w-4 mr-2" />
-                      New Campaign
-                    </Button>
-                  </Link>
+                    )}
+                    New Campaign
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
@@ -1578,25 +1672,38 @@ export default function EventDetail() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {campaigns?.map((campaign) => (
-                      <div
-                        key={campaign.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                      >
-                        <div>
-                          <div className="font-medium">{campaign.subject}</div>
-                          <div className="text-sm text-muted-foreground capitalize flex gap-2 mt-1">
-                            <Badge variant="secondary" className="text-[10px]">
-                              {campaign.type}
-                            </Badge>
-                            <span>{campaign.status}</span>
+                    {campaigns?.map((campaign) => {
+                      const isSent = campaign.status === "sent";
+                      return (
+                        <div
+                          key={campaign.id}
+                          className={`flex items-center justify-between p-4 border rounded-lg transition-colors ${isSent ? "bg-muted/30 border-muted" : "hover:bg-muted/50"}`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium flex items-center gap-2 truncate">
+                              {campaign.subject}
+                              {isSent && <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" title="Campaign sent — content is locked" />}
+                            </div>
+                            <div className="text-sm text-muted-foreground capitalize flex gap-2 mt-1">
+                              <Badge variant="secondary" className="text-[10px]">
+                                {campaign.type}
+                              </Badge>
+                              <Badge variant={isSent ? "outline" : "secondary"} className={`text-[10px] ${isSent ? "border-green-300 text-green-700 bg-green-50" : ""}`}>
+                                {campaign.status}
+                              </Badge>
+                            </div>
                           </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="shrink-0"
+                            onClick={() => setLocation(`/campaigns/${campaign.id}/edit`)}
+                          >
+                            {isSent ? <><Lock className="h-3.5 w-3.5 mr-1" />View</> : "Edit"}
+                          </Button>
                         </div>
-                        <Button variant="ghost" size="sm">
-                          View
-                        </Button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -2051,6 +2158,11 @@ export default function EventDetail() {
               );
             })()}
           </TabsContent>
+
+          {/* ── Activity Feed Tab ───────────────────────────────────────── */}
+          <TabsContent value="activity" className="space-y-4">
+            <ActivityFeedTab orgId={ORG_ID} eventId={eventId} />
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -2226,7 +2338,9 @@ export default function EventDetail() {
                   </div>
                 ) : (
                   <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground text-sm">
-                    No campaign HTML yet. <Link href={`/events/${eventId}/setup`} className="text-primary underline">Create a campaign</Link> to preview it here.
+                    No campaign HTML yet.{" "}
+                    <button type="button" className="text-primary underline" onClick={() => setIsCreateCampaignOpen(true)}>Create a campaign</button>{" "}
+                    to preview it here.
                   </div>
                 )}
               </TabsContent>
@@ -2405,6 +2519,103 @@ export default function EventDetail() {
           }}
         />
       )}
+
+      <CampaignCreationModal
+        open={isCreateCampaignOpen}
+        onClose={() => {
+          setIsCreateCampaignOpen(false);
+          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/campaigns`] });
+        }}
+        eventId={eventId}
+      />
     </AppLayout>
+  );
+}
+
+// ── Activity Feed Component ─────────────────────────────────────────────────
+const ACTIVITY_ICONS: Record<string, React.ReactNode> = {
+  event_created: <Plus className="h-3.5 w-3.5 text-primary" />,
+  event_updated: <Settings className="h-3.5 w-3.5 text-blue-500" />,
+  event_launched: <Rocket className="h-3.5 w-3.5 text-green-600" />,
+  event_cancelled: <XCircle className="h-3.5 w-3.5 text-red-500" />,
+  guest_added: <UserPlus className="h-3.5 w-3.5 text-violet-500" />,
+  guest_removed: <Trash2 className="h-3.5 w-3.5 text-red-400" />,
+  guest_status_updated: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />,
+  campaign_created: <Mail className="h-3.5 w-3.5 text-orange-500" />,
+  campaign_sent: <Send className="h-3.5 w-3.5 text-green-500" />,
+  campaign_updated: <Mail className="h-3.5 w-3.5 text-blue-400" />,
+  social_post_created: <Share2 className="h-3.5 w-3.5 text-pink-500" />,
+  reminder_sent: <Clock className="h-3.5 w-3.5 text-amber-500" />,
+};
+
+function ActivityFeedTab({ orgId, eventId }: { orgId: number; eventId: number }) {
+  const { data: activity, isLoading } = useGetRecentActivity(orgId, { limit: 50 });
+
+  const eventActivity: ActivityItem[] = activity?.filter(
+    (a) => a.entityId === eventId || !a.entityId
+  ) ?? [];
+
+  const sorted = [...eventActivity].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="flex items-start gap-3 p-3 rounded-xl border">
+            <div className="h-7 w-7 rounded-full bg-muted animate-pulse shrink-0" />
+            <div className="flex-1 space-y-2">
+              <div className="h-3 bg-muted rounded animate-pulse w-2/3" />
+              <div className="h-2.5 bg-muted rounded animate-pulse w-1/3" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (sorted.length === 0) {
+    return (
+      <div className="flex flex-col items-center py-16 text-center text-muted-foreground">
+        <div className="h-14 w-14 rounded-full bg-muted/50 flex items-center justify-center mb-4">
+          <Activity className="h-7 w-7 opacity-40" />
+        </div>
+        <p className="font-medium">No activity yet</p>
+        <p className="text-sm mt-1">Changes to this event will appear here.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="px-4 py-3 border-b bg-muted/20">
+        <h3 className="text-sm font-semibold">Event Activity</h3>
+        <p className="text-xs text-muted-foreground">{sorted.length} event{sorted.length !== 1 ? "s" : ""} logged</p>
+      </div>
+      <div className="divide-y">
+        {sorted.map((item, i) => {
+          const icon = ACTIVITY_ICONS[item.type] ?? <Activity className="h-3.5 w-3.5 text-muted-foreground" />;
+          return (
+            <div key={item.id ?? i} className="flex items-start gap-3 p-4 hover:bg-muted/20 transition-colors">
+              <div className="h-7 w-7 rounded-full bg-muted/50 flex items-center justify-center shrink-0 mt-0.5">
+                {icon}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">{item.description || item.type.replace(/_/g, " ")}</p>
+                {item.entityType && (
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                    {item.entityType}: {item.entityId}
+                  </p>
+                )}
+              </div>
+              <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
+                {format(parseISO(item.createdAt), "MMM d, h:mm a")}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }

@@ -8,6 +8,8 @@ import {
   useUpdateCampaign,
   useSendCampaign,
   useDeleteCampaign,
+  useListGuests,
+  useUpdateGuest,
 } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { useAuth } from "@/components/auth-provider";
@@ -27,7 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Save, Send, Trash2, AlertTriangle, Code2, Type,
-  Paintbrush, Loader2, Eye, TestTube, Lock, Sparkles, ChevronDown, ChevronUp,
+  Paintbrush, Loader2, Eye, TestTube, Lock, Sparkles, ChevronDown, ChevronUp, BarChart2,
 } from "lucide-react";
 import { CampaignSuggestionList } from "@/components/campaign-suggestion-list";
 import { DEFAULT_SUGGESTIONS } from "@/lib/campaign-suggestions";
@@ -97,6 +99,13 @@ export default function CampaignEdit() {
   const updateCampaign = useUpdateCampaign();
   const sendCampaign = useSendCampaign();
   const deleteCampaign = useDeleteCampaign();
+  const updateGuest = useUpdateGuest();
+
+  // Fetch guests for unsubscribe tracking (uses campaign.eventId once loaded)
+  const eventIdForGuests = campaign?.eventId ?? 0;
+  const { data: eventGuests } = useListGuests(orgId, eventIdForGuests, undefined, {
+    query: { enabled: !!campaign?.eventId },
+  });
 
   const [confirmSend, setConfirmSend] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -281,6 +290,22 @@ export default function CampaignEdit() {
 
   const isSent = campaign.status === "sent";
   const isBusy = updateCampaign.isPending || sendCampaign.isPending;
+
+  // Unsubscribe tracking: count guests whose notes contain "unsubscribed"
+  const unsubscribedGuests = (eventGuests ?? []).filter(
+    (g) => g.notes?.toLowerCase().includes("unsubscribed"),
+  );
+  const unsubscribeCount = unsubscribedGuests.length;
+
+  const toggleUnsubscribe = (guestId: number, currentNotes: string | null | undefined) => {
+    const isCurrentlyUnsub = currentNotes?.toLowerCase().includes("unsubscribed") ?? false;
+    const base = (currentNotes ?? "").replace(/\bunsubscribed\b/gi, "").trim();
+    const newNotes = isCurrentlyUnsub ? (base || null) : (base ? `${base}; unsubscribed` : "unsubscribed");
+    updateGuest.mutate(
+      { orgId, eventId: eventIdForGuests, guestId, data: { notes: newNotes } },
+      { onSuccess: () => queryClient.invalidateQueries({ queryKey: [`/api/organizations/${orgId}/events/${eventIdForGuests}/guests`] }) },
+    );
+  };
   const isDirty = form.formState.isDirty;
 
   return (
@@ -564,7 +589,69 @@ export default function CampaignEdit() {
           </div>
 
           {/* RIGHT — live preview */}
-          <div className="lg:col-span-3 sticky top-4">
+          <div className="lg:col-span-3 sticky top-4 flex flex-col gap-4">
+            {/* Sent campaign analytics */}
+            {isSent && (
+              <div className="bg-card border rounded-xl p-4 space-y-4">
+                <p className="text-sm font-semibold flex items-center gap-2">
+                  <BarChart2 className="h-4 w-4 text-primary" />
+                  Campaign Analytics
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="rounded-lg border bg-muted/20 p-3 text-center">
+                    <p className="text-2xl font-bold">{campaign.recipientCount.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Recipients</p>
+                  </div>
+                  <div className="rounded-lg border bg-muted/20 p-3 text-center">
+                    <p className="text-2xl font-bold">{campaign.openRate != null ? `${(campaign.openRate * 100).toFixed(1)}%` : "—"}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Open Rate</p>
+                  </div>
+                  <div className="rounded-lg border bg-muted/20 p-3 text-center">
+                    <p className="text-2xl font-bold">{campaign.clickRate != null ? `${(campaign.clickRate * 100).toFixed(1)}%` : "—"}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Click Rate</p>
+                  </div>
+                  <div className="rounded-lg border bg-muted/20 p-3 text-center">
+                    <p className="text-2xl font-bold">{unsubscribeCount}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Unsubscribes</p>
+                  </div>
+                </div>
+
+                {/* Unsubscribe management — only visible when linked to an event */}
+                {campaign.eventId && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Unsubscribe Management</p>
+                    {(eventGuests ?? []).length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No guests found for the linked event.</p>
+                    ) : (
+                      <div className="rounded-lg border overflow-hidden max-h-52 overflow-y-auto">
+                        {(eventGuests ?? []).map((g) => {
+                          const isUnsub = g.notes?.toLowerCase().includes("unsubscribed") ?? false;
+                          return (
+                            <div key={g.id} className={`flex items-center gap-3 px-3 py-2 text-sm border-b last:border-0 ${isUnsub ? "bg-red-50/40" : ""}`}>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate">{g.name}</p>
+                                <p className="text-xs text-muted-foreground truncate">{g.email}</p>
+                              </div>
+                              {isUnsub && <Badge variant="destructive" className="text-[10px]">Unsubscribed</Badge>}
+                              <button
+                                onClick={() => toggleUnsubscribe(g.id, g.notes)}
+                                className={`text-xs px-2 py-0.5 rounded border transition-all ${isUnsub ? "border-red-300 text-red-600 hover:bg-red-50" : "border-border text-muted-foreground hover:border-primary/40"}`}
+                              >
+                                {isUnsub ? "Re-subscribe" : "Unsubscribe"}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!campaign.eventId && (
+                  <p className="text-xs text-muted-foreground">Link this campaign to an event to track unsubscribes.</p>
+                )}
+              </div>
+            )}
             <div className="bg-card border rounded-xl overflow-hidden">
               <div className="flex items-center justify-between px-4 py-2.5 border-b bg-muted/30">
                 <div className="flex items-center gap-2 text-sm font-medium">

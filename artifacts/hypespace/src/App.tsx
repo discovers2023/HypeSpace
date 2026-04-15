@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, Redirect, useParams } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,9 +10,7 @@ import Login from "@/pages/login";
 import Register from "@/pages/register";
 import Dashboard from "@/pages/dashboard";
 import EventList from "@/pages/events/event-list";
-import EventNew from "@/pages/events/event-new";
 import EventDetail from "@/pages/events/event-detail";
-import EventSetup from "@/pages/events/event-setup";
 import EventEdit from "@/pages/events/event-edit";
 import CampaignList from "@/pages/campaigns/campaign-list";
 import CampaignAi from "@/pages/campaigns/campaign-ai";
@@ -29,6 +27,11 @@ import AdminDashboard from "@/pages/admin";
 
 const queryClient = new QueryClient();
 
+function SetupRedirect() {
+  const { id } = useParams<{ id: string }>();
+  return <Redirect to={`/events/${id}`} />;
+}
+
 function Router() {
   return (
     <Switch>
@@ -39,9 +42,9 @@ function Router() {
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/calendar" component={CalendarPage} />
       <Route path="/events" component={EventList} />
-      <Route path="/events/new" component={EventNew} />
+      <Route path="/events/new"><Redirect to="/events" /></Route>
+      <Route path="/events/:id/setup"><SetupRedirect /></Route>
       <Route path="/events/:id" component={EventDetail} />
-      <Route path="/events/:id/setup" component={EventSetup} />
       <Route path="/events/:id/edit" component={EventEdit} />
       <Route path="/campaigns" component={CampaignList} />
       <Route path="/campaigns/ai" component={CampaignAi} />
