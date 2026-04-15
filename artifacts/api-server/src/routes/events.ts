@@ -530,6 +530,53 @@ router.post("/public/events/:slug/rsvp", async (req, res): Promise<void> => {
   res.status(201).json({ status: guest.status, name: guest.name });
 });
 
+router.post("/organizations/:orgId/events/:eventId/duplicate", async (req, res): Promise<void> => {
+  const rawOrgId = Array.isArray(req.params.orgId) ? req.params.orgId[0] : req.params.orgId;
+  const rawEventId = Array.isArray(req.params.eventId) ? req.params.eventId[0] : req.params.eventId;
+  const orgId = parseInt(rawOrgId, 10);
+  const eventId = parseInt(rawEventId, 10);
+
+  const [original] = await db.select().from(eventsTable)
+    .where(and(eq(eventsTable.id, eventId), eq(eventsTable.organizationId, orgId)));
+  if (!original) { res.status(404).json({ error: "Event not found" }); return; }
+
+  // Check plan limits (count active events as usual)
+  const org = await db.select().from(organizationsTable).where(eq(organizationsTable.id, orgId)).then((r) => r[0]);
+  if (org) {
+    try {
+      const plan = getPlan(org.plan ?? "free");
+      const now = new Date();
+      const [{ c: activeCount }] = await db.select({ c: count() }).from(eventsTable)
+        .where(and(eq(eventsTable.organizationId, orgId), gt(eventsTable.endDate, now)));
+      assertWithinLimit("events", activeCount, plan.limits);
+    } catch (err) {
+      if (err instanceof PlanLimitError) {
+        res.status(402).json({ error: err.message, code: "PLAN_LIMIT" });
+        return;
+      }
+    }
+  }
+
+  const newSlug = generateSlug(`copy-${original.title}`);
+  const [newEvent] = await db.insert(eventsTable).values({
+    organizationId: orgId,
+    title: `Copy of ${original.title}`,
+    description: original.description,
+    startDate: original.startDate,
+    endDate: original.endDate,
+    location: original.location,
+    type: original.type,
+    status: "draft",
+    capacity: original.capacity,
+    timezone: original.timezone,
+    category: original.category,
+    recurrence: original.recurrence,
+    slug: newSlug,
+  }).returning();
+
+  res.status(201).json({ id: newEvent.id, slug: newSlug });
+});
+
 router.delete("/organizations/:orgId/events/:eventId", async (req, res): Promise<void> => {
   const rawOrgId = Array.isArray(req.params.orgId) ? req.params.orgId[0] : req.params.orgId;
   const rawEventId = Array.isArray(req.params.eventId) ? req.params.eventId[0] : req.params.eventId;

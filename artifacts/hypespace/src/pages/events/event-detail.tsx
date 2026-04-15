@@ -56,7 +56,22 @@ import {
   Tag,
   Repeat,
   Globe,
+  BarChart2,
+  ClipboardCheck,
+  Layers,
 } from "lucide-react";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Legend,
+} from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -234,6 +249,7 @@ export default function EventDetail() {
   const [newReminderSubject, setNewReminderSubject] = useState("");
   const [newReminderMessage, setNewReminderMessage] = useState("");
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isDuplicating, setIsDuplicating] = useState(false);
 
   // ── Form ───────────────────────────────────────────────────────────────
   const guestForm = useForm<AddGuestFormValues>({
@@ -572,6 +588,92 @@ export default function EventDetail() {
     });
   };
 
+  const exportGuestCSV = () => {
+    if (!guests?.length) {
+      toast({ title: "No guests to export" });
+      return;
+    }
+    const headers = ["Name", "Email", "Company", "Status", "Invited At"];
+    const rows = guests.map((g) => [
+      g.name,
+      g.email,
+      g.company || "",
+      GUEST_STATUS_LABELS[g.status] ?? g.status,
+      g.invitedAt ? format(parseISO(g.invitedAt), "MMM d, yyyy") : "",
+    ]);
+    const csv = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${event?.title ?? "guests"}-guests.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({ title: "Guest list exported", description: `${guests.length} guests saved to CSV` });
+  };
+
+  const onDuplicateEvent = async () => {
+    setIsDuplicating(true);
+    try {
+      const res = await fetch(`${BASE}/api/organizations/${ORG_ID}/events/${eventId}/duplicate`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Duplication failed");
+      toast({ title: "Event duplicated!", description: "A draft copy has been created." });
+      setLocation(`/events/${data.id}`);
+    } catch (err) {
+      toast({
+        title: "Failed to duplicate event",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDuplicating(false);
+    }
+  };
+
+  const onCheckInGuest = (guestId: number) => {
+    updateGuest.mutate(
+      { orgId: ORG_ID, eventId, guestId, data: { status: "attended" } },
+      {
+        onSuccess: () => {
+          toast({ title: "Guest checked in!" });
+          invalidateGuests();
+        },
+        onError: (err) => {
+          toast({ title: "Check-in failed", description: err.message, variant: "destructive" });
+        },
+      },
+    );
+  };
+
+  const onBulkCheckIn = async () => {
+    const ids = Array.from(selectedGuests);
+    try {
+      await Promise.all(
+        ids.map(
+          (gId) =>
+            new Promise<void>((resolve, reject) => {
+              updateGuest.mutate(
+                { orgId: ORG_ID, eventId, guestId: gId, data: { status: "attended" } },
+                { onSuccess: () => resolve(), onError: reject },
+              );
+            }),
+        ),
+      );
+      toast({ title: `${ids.length} guest${ids.length === 1 ? "" : "s"} checked in` });
+      setSelectedGuests(new Set());
+      invalidateGuests();
+    } catch {
+      toast({ title: "Some check-ins failed", variant: "destructive" });
+    }
+  };
+
   // ── Stepper data ───────────────────────────────────────────────────────
   const hasCampaign = (campaigns?.length ?? 0) > 0;
   const hasGuests = (guests?.length ?? 0) > 0;
@@ -696,12 +798,23 @@ export default function EventDetail() {
                   Settings
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem
                   onClick={() => setLocation(`/events/${eventId}/edit`)}
                 >
                   <Settings className="mr-2 h-4 w-4" />
                   Edit Event
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={onDuplicateEvent}
+                  disabled={isDuplicating}
+                >
+                  {isDuplicating ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Layers className="mr-2 h-4 w-4" />
+                  )}
+                  Duplicate Event
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -1044,6 +1157,10 @@ export default function EventDetail() {
               <Clock className="h-4 w-4 mr-2" />
               Reminders
             </TabsTrigger>
+            <TabsTrigger value="analytics" className="flex-1 md:flex-none py-2.5">
+              <BarChart2 className="h-4 w-4 mr-2" />
+              Analytics
+            </TabsTrigger>
           </TabsList>
 
           {/* ── Guests Tab ─────────────────────────────────────────────── */}
@@ -1060,6 +1177,10 @@ export default function EventDetail() {
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               </div>
               <div className="flex gap-2 w-full sm:w-auto">
+                <Button variant="outline" className="w-full sm:w-auto" onClick={exportGuestCSV} disabled={!guests?.length}>
+                  <FileSpreadsheet className="mr-2 h-4 w-4 text-green-600" />
+                  Export CSV
+                </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="w-full sm:w-auto">
@@ -1195,6 +1316,15 @@ export default function EventDetail() {
                   Clear
                 </Button>
                 <div className="ml-auto flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1.5 text-purple-700 border-purple-200 hover:bg-purple-50"
+                    onClick={onBulkCheckIn}
+                  >
+                    <ClipboardCheck className="h-3.5 w-3.5" />
+                    Check In {selectedGuests.size} selected
+                  </Button>
                   <Button
                     size="sm"
                     variant="outline"
@@ -1388,6 +1518,14 @@ export default function EventDetail() {
                                   >
                                     <XCircle className="mr-2 h-4 w-4 text-red-500" />
                                     RSVP -- No
+                                  </DropdownMenuItem>
+                                )}
+                                {guest.status !== "attended" && (
+                                  <DropdownMenuItem
+                                    onClick={() => onCheckInGuest(guest.id)}
+                                  >
+                                    <ClipboardCheck className="mr-2 h-4 w-4 text-purple-600" />
+                                    Mark as Attended
                                   </DropdownMenuItem>
                                 )}
                                 <DropdownMenuSeparator />
@@ -1722,6 +1860,196 @@ export default function EventDetail() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* ── Analytics Tab ──────────────────────────────────────────── */}
+          <TabsContent value="analytics" className="space-y-6">
+            {(() => {
+              const total = guests?.length ?? 0;
+              const confirmed = guests?.filter((g) => g.status === "confirmed").length ?? 0;
+              const maybe = guests?.filter((g) => g.status === "maybe").length ?? 0;
+              const declined = guests?.filter((g) => g.status === "declined").length ?? 0;
+              const invited = guests?.filter((g) => g.status === "invited").length ?? 0;
+              const added = guests?.filter((g) => g.status === "added").length ?? 0;
+              const attended = guests?.filter((g) => g.status === "attended").length ?? 0;
+              const attendanceRate = total > 0 ? Math.round((attended / total) * 100) : 0;
+              const rsvpRate = total > 0 ? Math.round(((confirmed + maybe + declined) / total) * 100) : 0;
+
+              const pieData = [
+                { name: "Confirmed", value: confirmed, color: "#22c55e" },
+                { name: "Attended", value: attended, color: "#a855f7" },
+                { name: "Maybe", value: maybe, color: "#f59e0b" },
+                { name: "Declined", value: declined, color: "#ef4444" },
+                { name: "Invite Sent", value: invited, color: "#3b82f6" },
+                { name: "Pending", value: added, color: "#94a3b8" },
+              ].filter((d) => d.value > 0);
+
+              const funnelData = [
+                { stage: "Added", count: total, fill: "#94a3b8" },
+                { stage: "Invited", count: invited + confirmed + maybe + declined + attended, fill: "#3b82f6" },
+                { stage: "Responded", count: confirmed + maybe + declined, fill: "#f59e0b" },
+                { stage: "Confirmed", count: confirmed + attended, fill: "#22c55e" },
+                { stage: "Attended", count: attended, fill: "#a855f7" },
+              ];
+
+              const campaignStats = campaigns?.map((c) => ({
+                name: c.type ? c.type.charAt(0).toUpperCase() + c.type.slice(1) : "Campaign",
+                subject: c.subject ?? "—",
+                status: c.status,
+                openRate: typeof c.openRate === "number" ? c.openRate : null,
+                sentAt: c.sentAt,
+              }));
+
+              return (
+                <>
+                  {/* KPI cards */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {[
+                      { label: "Total Guests", value: total, icon: Users, color: "text-blue-600", bg: "bg-blue-500/10" },
+                      { label: "Confirmed", value: confirmed, icon: CheckCircle2, color: "text-green-600", bg: "bg-green-500/10" },
+                      { label: "RSVP Rate", value: `${rsvpRate}%`, icon: Activity, color: "text-amber-600", bg: "bg-amber-500/10" },
+                      { label: "Attended", value: attended, icon: ClipboardCheck, color: "text-purple-600", bg: "bg-purple-500/10" },
+                    ].map((kpi) => (
+                      <Card key={kpi.label}>
+                        <CardContent className="py-5 px-5">
+                          <div className={`w-10 h-10 rounded-xl ${kpi.bg} flex items-center justify-center mb-3`}>
+                            <kpi.icon className={`h-5 w-5 ${kpi.color}`} />
+                          </div>
+                          <div className="text-2xl font-bold">{kpi.value}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">{kpi.label}</div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-6">
+                    {/* RSVP breakdown pie */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">RSVP Breakdown</CardTitle>
+                        <CardDescription>Guest status distribution</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {total === 0 ? (
+                          <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
+                            No guests yet
+                          </div>
+                        ) : (
+                          <ResponsiveContainer width="100%" height={220}>
+                            <PieChart>
+                              <Pie
+                                data={pieData}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={55}
+                                outerRadius={90}
+                                paddingAngle={2}
+                                dataKey="value"
+                              >
+                                {pieData.map((entry, i) => (
+                                  <Cell key={i} fill={entry.color} />
+                                ))}
+                              </Pie>
+                              <Tooltip
+                                formatter={(val: number, name: string) => [`${val} guests`, name]}
+                              />
+                              <Legend wrapperStyle={{ fontSize: "12px" }} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Attendance funnel */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">Attendance Funnel</CardTitle>
+                        <CardDescription>From added → attended</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {total === 0 ? (
+                          <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
+                            No guests yet
+                          </div>
+                        ) : (
+                          <ResponsiveContainer width="100%" height={220}>
+                            <BarChart data={funnelData} layout="vertical" margin={{ left: 10, right: 20, top: 5, bottom: 5 }}>
+                              <XAxis type="number" hide />
+                              <YAxis type="category" dataKey="stage" width={72} tick={{ fontSize: 12 }} />
+                              <Tooltip formatter={(val: number) => [`${val} guests`]} />
+                              <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                                {funnelData.map((entry, i) => (
+                                  <Cell key={i} fill={entry.fill} />
+                                ))}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Campaign performance */}
+                  {(campaignStats?.length ?? 0) > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">Campaign Performance</CardTitle>
+                        <CardDescription>Email campaigns linked to this event</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          {campaignStats?.map((c, i) => (
+                            <div key={i} className="flex items-center gap-4 p-3 rounded-xl bg-muted/30 border">
+                              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                                <Mail className="h-5 w-5 text-primary" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">{c.subject}</p>
+                                <p className="text-xs text-muted-foreground capitalize">{c.name} campaign</p>
+                              </div>
+                              <div className="text-right shrink-0">
+                                {c.status === "sent" ? (
+                                  <>
+                                    {c.openRate != null ? (
+                                      <div className="text-sm font-semibold text-green-600">{c.openRate}% open</div>
+                                    ) : (
+                                      <div className="text-sm font-medium text-green-600">Sent</div>
+                                    )}
+                                    {c.sentAt && (
+                                      <div className="text-xs text-muted-foreground">
+                                        {format(parseISO(c.sentAt), "MMM d")}
+                                      </div>
+                                    )}
+                                  </>
+                                ) : (
+                                  <Badge variant="outline" className="capitalize text-xs">{c.status}</Badge>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Attendance rate bar */}
+                  {attended > 0 && (
+                    <Card>
+                      <CardContent className="py-5 px-5">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <p className="font-semibold text-sm">Attendance Rate</p>
+                            <p className="text-xs text-muted-foreground">{attended} of {total} guests attended</p>
+                          </div>
+                          <span className="text-2xl font-bold text-purple-600">{attendanceRate}%</span>
+                        </div>
+                        <Progress value={attendanceRate} className="h-3" />
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
+              );
+            })()}
           </TabsContent>
         </Tabs>
       </div>
