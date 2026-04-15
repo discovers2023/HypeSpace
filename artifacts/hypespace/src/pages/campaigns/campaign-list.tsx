@@ -91,7 +91,7 @@ export default function CampaignList() {
   const handleDelete = () => {
     if (!campaignToDelete) return;
     deleteCampaign.mutate(
-      { campaignId: campaignToDelete },
+      { orgId: ORG_ID, campaignId: campaignToDelete },
       {
         onSuccess: () => {
           toast({ title: "Campaign deleted" });

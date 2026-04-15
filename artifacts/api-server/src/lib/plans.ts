@@ -9,12 +9,14 @@ export interface PlanLimits {
   key: "free" | "starter" | "growth" | "agency";
   name: string;
   priceMonthly: number; // USD
-  // Max events the org can have in a non-archived state (any status).
+  // Max simultaneous active (non-past) events the org can have.
   events: number | null;
   // Max attendees (guest rows) per event.
   attendeesPerEvent: number | null;
   // Max team members (active + invited) on the org.
   users: number | null;
+  // Whether the org can send / launch campaigns.
+  canSendCampaigns: boolean;
 }
 
 export const PLANS: Record<string, PlanLimits> = {
@@ -25,6 +27,7 @@ export const PLANS: Record<string, PlanLimits> = {
     events: 1,
     attendeesPerEvent: 20,
     users: 1,
+    canSendCampaigns: false,
   },
   starter: {
     key: "starter",
@@ -33,6 +36,7 @@ export const PLANS: Record<string, PlanLimits> = {
     events: 3,
     attendeesPerEvent: 100,
     users: 3,
+    canSendCampaigns: true,
   },
   growth: {
     key: "growth",
@@ -41,6 +45,7 @@ export const PLANS: Record<string, PlanLimits> = {
     events: 15,
     attendeesPerEvent: 500,
     users: 10,
+    canSendCampaigns: true,
   },
   agency: {
     key: "agency",
@@ -49,6 +54,7 @@ export const PLANS: Record<string, PlanLimits> = {
     events: UNLIMITED,
     attendeesPerEvent: 2000,
     users: UNLIMITED,
+    canSendCampaigns: true,
   },
 };
 

@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
-import { db, campaignsTable, activityTable, eventsTable } from "@workspace/db";
+import { db, campaignsTable, activityTable, eventsTable, organizationsTable } from "@workspace/db";
 import { eq, and, avg } from "drizzle-orm";
+import { getPlan } from "../lib/plans";
 import { sendEmail } from "../lib/email";
 import {
   ListCampaignsResponse,
@@ -98,6 +99,20 @@ router.post("/organizations/:orgId/campaigns/:campaignId/send", async (req, res)
   const rawCampaignId = Array.isArray(req.params.campaignId) ? req.params.campaignId[0] : req.params.campaignId;
   const orgId = parseInt(rawOrgId, 10);
   const campaignId = parseInt(rawCampaignId, 10);
+
+  // Enforce plan: free plan cannot send campaigns
+  const [org] = await db.select().from(organizationsTable).where(eq(organizationsTable.id, orgId));
+  const plan = getPlan(org?.plan);
+  if (!plan.canSendCampaigns) {
+    res.status(402).json({
+      error: "PLAN_LIMIT_EXCEEDED",
+      message: "Sending campaigns requires a paid plan. Upgrade to Starter or higher to launch your campaigns.",
+      limit: "canSendCampaigns",
+      plan: plan.key,
+      suggestedPlan: "starter",
+    });
+    return;
+  }
 
   const [campaign] = await db.update(campaignsTable)
     .set({ status: "sent", sentAt: new Date() })

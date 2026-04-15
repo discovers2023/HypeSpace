@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, eventsTable, guestsTable, activityTable, campaignsTable, socialPostsTable, sendingDomainsTable, organizationsTable } from "@workspace/db";
-import { eq, and, count } from "drizzle-orm";
+import { db, eventsTable, guestsTable, activityTable, campaignsTable, socialPostsTable, sendingDomainsTable, organizationsTable, remindersTable } from "@workspace/db";
+import { eq, and, count, gt } from "drizzle-orm";
 import { syncRsvpToGHL } from "./integrations";
 import { sendEmail } from "../lib/email";
 import { getPlan, assertWithinLimit, PlanLimitError } from "../lib/plans";
@@ -76,13 +76,18 @@ router.post("/organizations/:orgId/events", async (req, res): Promise<void> => {
   const parsed = CreateEventBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
-  // Enforce plan event-count limit
+  // Enforce plan event-count limit — only active (non-past) events count.
+  // Expired events (endDate in the past) do not block creating a new one.
   const [org] = await db.select().from(organizationsTable).where(eq(organizationsTable.id, orgId));
   if (!org) { res.status(404).json({ error: "Organization not found" }); return; }
   const plan = getPlan(org.plan);
-  const [eventCountRow] = await db.select({ c: count() }).from(eventsTable).where(eq(eventsTable.organizationId, orgId));
+  const now = new Date();
+  const [eventCountRow] = await db
+    .select({ c: count() })
+    .from(eventsTable)
+    .where(and(eq(eventsTable.organizationId, orgId), gt(eventsTable.endDate, now)));
   try {
-    assertWithinLimit(plan.key, "events", (eventCountRow?.c ?? 0) + 1, plan.events, "events");
+    assertWithinLimit(plan.key, "events", (eventCountRow?.c ?? 0) + 1, plan.events, "active events");
   } catch (e) {
     if (e instanceof PlanLimitError) {
       res.status(402).json({ error: e.code, message: e.message, limit: e.limit, plan: e.plan, current: e.current, max: e.max, suggestedPlan: e.suggestedPlan });
@@ -530,7 +535,11 @@ router.delete("/organizations/:orgId/events/:eventId", async (req, res): Promise
   const rawEventId = Array.isArray(req.params.eventId) ? req.params.eventId[0] : req.params.eventId;
   const orgId = parseInt(rawOrgId, 10);
   const eventId = parseInt(rawEventId, 10);
+  // Cascade-delete all child records before removing the event itself
   await db.delete(guestsTable).where(eq(guestsTable.eventId, eventId));
+  await db.delete(remindersTable).where(eq(remindersTable.eventId, eventId));
+  await db.delete(campaignsTable).where(eq(campaignsTable.eventId, eventId));
+  await db.delete(socialPostsTable).where(eq(socialPostsTable.eventId, eventId));
   await db.delete(eventsTable).where(and(eq(eventsTable.id, eventId), eq(eventsTable.organizationId, orgId)));
   res.sendStatus(204);
 });

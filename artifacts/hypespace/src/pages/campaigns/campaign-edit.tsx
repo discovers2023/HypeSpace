@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -27,7 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Save, Send, Trash2, AlertTriangle, Code2, Type,
-  Paintbrush, Loader2, Eye, TestTube,
+  Paintbrush, Loader2, Eye, TestTube, Lock, Sparkles,
 } from "lucide-react";
 
 // ─── Regex-based extraction / patching for the AI template ───────────────────
@@ -98,6 +98,7 @@ export default function CampaignEdit() {
 
   const [confirmSend, setConfirmSend] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [upgradeNeeded, setUpgradeNeeded] = useState(false);
   const [editorTab, setEditorTab] = useState<EditorTab>("visual");
   const [testEmail, setTestEmail] = useState("");
   const [testSending, setTestSending] = useState(false);
@@ -181,7 +182,14 @@ export default function CampaignEdit() {
               queryClient.invalidateQueries({ queryKey: ["/api/organizations", orgId, "campaigns"] });
               setLocation("/campaigns");
             },
-            onError: (err) => toast({ title: "Send failed", description: err.message, variant: "destructive" }),
+            onError: (err) => {
+              const msg = err.message ?? "";
+              if (msg.includes("402") || msg.includes("paid plan") || msg.includes("PLAN_LIMIT")) {
+                setUpgradeNeeded(true);
+              } else {
+                toast({ title: "Send failed", description: msg, variant: "destructive" });
+              }
+            },
           });
         },
         onError: (err) => toast({ title: "Save before send failed", description: err.message, variant: "destructive" }),
@@ -191,7 +199,7 @@ export default function CampaignEdit() {
   };
 
   const onDelete = () => {
-    deleteCampaign.mutate({ campaignId }, {
+    deleteCampaign.mutate({ orgId, campaignId }, {
       onSuccess: () => {
         toast({ title: "Campaign deleted" });
         queryClient.invalidateQueries({ queryKey: ["/api/organizations", orgId, "campaigns"] });
@@ -585,6 +593,44 @@ export default function CampaignEdit() {
             <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Delete
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Upgrade required ── */}
+      <AlertDialog open={upgradeNeeded} onOpenChange={setUpgradeNeeded}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <div className="flex items-center justify-center mb-4">
+              <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                <Lock className="h-8 w-8 text-primary" />
+              </div>
+            </div>
+            <AlertDialogTitle className="text-center text-xl">Upgrade to send campaigns</AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-base leading-relaxed">
+              The free plan lets you create unlimited campaigns, but sending requires a paid plan.
+              Upgrade to <strong>Starter</strong> or higher to launch your campaigns to your audience.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="grid grid-cols-3 gap-3 my-2">
+            {[
+              { name: "Starter", price: "$49/mo", events: "3 events", color: "border-blue-200 bg-blue-50" },
+              { name: "Growth", price: "$149/mo", events: "15 events", color: "border-purple-200 bg-purple-50" },
+              { name: "Agency", price: "$399/mo", events: "Unlimited", color: "border-orange-200 bg-orange-50" },
+            ].map((p) => (
+              <div key={p.name} className={`rounded-xl border p-3 text-center ${p.color}`}>
+                <p className="font-semibold text-sm">{p.name}</p>
+                <p className="text-lg font-bold mt-0.5">{p.price}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{p.events}</p>
+              </div>
+            ))}
+          </div>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
+            <AlertDialogAction className="w-full bg-primary hover:bg-primary/90 text-white h-11">
+              <Sparkles className="h-4 w-4 mr-2" />
+              View upgrade options
+            </AlertDialogAction>
+            <AlertDialogCancel className="w-full m-0">Maybe later</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
