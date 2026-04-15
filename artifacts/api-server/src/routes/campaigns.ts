@@ -3,6 +3,7 @@ import { db, campaignsTable, activityTable, eventsTable, organizationsTable } fr
 import { eq, and, avg } from "drizzle-orm";
 import { getPlan } from "../lib/plans";
 import { sendEmail } from "../lib/email";
+import { getAppBaseUrl } from "../lib/app-url";
 import {
   ListCampaignsResponse,
   CreateCampaignBody,
@@ -199,8 +200,7 @@ router.post("/organizations/:orgId/campaigns/ai-generate", async (req, res): Pro
   }
 
   const { campaignType, tone, additionalContext } = parsed.data;
-  const { getAppBaseUrl } = await import("../lib/app-url.js");
-  const appBaseUrl = getAppBaseUrl();
+  const appBaseUrl = getAppBaseUrl(req);
   const rsvpUrl = eventSlug ? `${appBaseUrl}/e/${eventSlug}` : "#";
 
   // Extract speaker / topic from additionalContext heuristically

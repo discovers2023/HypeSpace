@@ -184,7 +184,7 @@ router.post("/organizations/:orgId/events/:eventId/launch", async (req, res): Pr
   }
 
   // Determine the base URL for RSVP links in campaign emails
-  const appBaseUrl = getAppBaseUrl();
+  const appBaseUrl = getAppBaseUrl(req);
 
   // Look up verified sending domain for this org (so emails come from their domain)
   const [sendingDomain] = await db.select().from(sendingDomainsTable)
@@ -337,7 +337,7 @@ router.post("/organizations/:orgId/events/:eventId/bulk-email", async (req, res)
     ? { name: sendingDomain.fromName, email: sendingDomain.fromEmail }
     : undefined;
 
-  const appBaseUrl = getAppBaseUrl();
+  const appBaseUrl = getAppBaseUrl(req);
   const eventDate = event.startDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
   const now = new Date();
