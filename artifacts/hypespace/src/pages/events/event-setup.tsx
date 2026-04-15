@@ -38,11 +38,17 @@ import {
   MapPin,
   Video,
   Clock,
+  Bell,
+  BellRing,
+  Plus,
+  X,
 } from "lucide-react";
 import {
   useGetEvent,
   useListGuests,
   useListCampaigns,
+  useListReminders,
+  useCreateReminder,
   useAddGuest,
   useRemoveGuest,
   useAiGenerateCampaign,
@@ -65,6 +71,7 @@ const STEPS = [
   { key: "campaign", label: "Design Campaign", icon: Mail },
   { key: "test", label: "Test Email", icon: Send },
   { key: "guests", label: "Add Guests", icon: Users },
+  { key: "reminders", label: "Set Reminders", icon: Bell },
   { key: "review", label: "Review & Launch", icon: Rocket },
 ] as const;
 
@@ -177,6 +184,7 @@ export default function EventSetup() {
   const { data: event, isLoading: isEventLoading } = useGetEvent(ORG_ID, eventId);
   const { data: guests } = useListGuests(ORG_ID, eventId);
   const { data: campaigns } = useListCampaigns(ORG_ID, { eventId } as any);
+  const { data: reminders } = useListReminders(ORG_ID, eventId);
   const { data: org } = useGetOrganization(1);
 
   const hasCampaign = (campaigns?.length ?? 0) > 0;
@@ -195,7 +203,7 @@ export default function EventSetup() {
       let resumeStep: StepKey = "campaign";
       if (!hasCampaign) resumeStep = "campaign";
       else if (!hasGuests) resumeStep = "guests";
-      else resumeStep = "review";
+      else resumeStep = "reminders";
       setCurrentStep(resumeStep);
     }
     setHasResumed(true);
@@ -299,11 +307,15 @@ export default function EventSetup() {
         {currentStep === "guests" && (
           <GuestsStep eventId={eventId} guests={guests} onComplete={goNext} onBack={goBack} />
         )}
+        {currentStep === "reminders" && (
+          <RemindersStep eventId={eventId} event={event} reminders={reminders} onComplete={goNext} onBack={goBack} />
+        )}
         {currentStep === "review" && (
           <ReviewStep
             event={event}
             campaigns={campaigns}
             guests={guests}
+            reminders={reminders}
             eventId={eventId}
             onBack={goBack}
           />
@@ -987,19 +999,311 @@ function GuestsStep({
 }
 
 // =====================================================================
-// Step 4: Review & Launch
+// Step 4: Set up Reminders
+// =====================================================================
+
+const REMINDER_PRESETS = [
+  {
+    label: "1 week before",
+    offsetHours: 168,
+    icon: "📅",
+    defaultSubject: (title: string) => `Reminder: ${title} is next week`,
+    defaultMessage: (title: string, date: string, location: string) =>
+      `Hi there!\n\nJust a friendly reminder that ${title} is coming up next week.\n\n📅 ${date}\n📍 ${location}\n\nWe're looking forward to seeing you there! If you have any questions, reply to this email.\n\nSee you soon!`,
+  },
+  {
+    label: "3 days before",
+    offsetHours: 72,
+    icon: "📣",
+    defaultSubject: (title: string) => `${title} is in 3 days — see you there!`,
+    defaultMessage: (title: string, date: string, location: string) =>
+      `Hi there!\n\n${title} is just 3 days away. We can't wait to see you!\n\n📅 ${date}\n📍 ${location}\n\nHave any last-minute questions? Just reply to this email.\n\nSee you soon!`,
+  },
+  {
+    label: "1 day before",
+    offsetHours: 24,
+    icon: "🔔",
+    defaultSubject: (title: string) => `Tomorrow: ${title} — don't forget!`,
+    defaultMessage: (title: string, date: string, location: string) =>
+      `Hi there!\n\nThis is your reminder that ${title} is tomorrow!\n\n📅 ${date}\n📍 ${location}\n\nSee you tomorrow!`,
+  },
+  {
+    label: "2 hours before",
+    offsetHours: 2,
+    icon: "⚡",
+    defaultSubject: (title: string) => `${title} starts in 2 hours!`,
+    defaultMessage: (title: string, date: string, location: string) =>
+      `Hi there!\n\n${title} is starting in just 2 hours — we hope you're on your way!\n\n📅 ${date}\n📍 ${location}\n\nSee you soon!`,
+  },
+];
+
+function RemindersStep({
+  eventId,
+  event,
+  reminders,
+  onComplete,
+  onBack,
+}: {
+  eventId: number;
+  event: any;
+  reminders: any[] | undefined;
+  onComplete: () => void;
+  onBack: () => void;
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const createReminder = useCreateReminder();
+  const [adding, setAdding] = useState<number | null>(null); // preset index being added
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [isDeleting, setIsDeleting] = useState<number | null>(null);
+
+  const eventDate = event?.startDate
+    ? format(parseISO(event.startDate), "MMM d, yyyy 'at' h:mm a")
+    : "TBD";
+  const eventLocation =
+    event?.type === "remote" ? "Online" : event?.location || "TBD";
+
+  const openPreset = (idx: number) => {
+    const preset = REMINDER_PRESETS[idx];
+    setSubject(preset.defaultSubject(event?.title || "the event"));
+    setMessage(preset.defaultMessage(event?.title || "the event", eventDate, eventLocation));
+    setAdding(idx);
+  };
+
+  const cancelAdd = () => {
+    setAdding(null);
+    setSubject("");
+    setMessage("");
+  };
+
+  const saveReminder = () => {
+    if (adding === null) return;
+    const preset = REMINDER_PRESETS[adding];
+    createReminder.mutate(
+      {
+        orgId: ORG_ID,
+        eventId,
+        createReminderBody: {
+          type: "before_event",
+          offsetHours: preset.offsetHours,
+          subject: subject.trim() || preset.defaultSubject(event?.title || "the event"),
+          message: message.trim() || preset.defaultMessage(event?.title || "the event", eventDate, eventLocation),
+        },
+      },
+      {
+        onSuccess: () => {
+          toast({ title: "Reminder saved!" });
+          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/events/${eventId}/reminders`] });
+          cancelAdd();
+        },
+        onError: (err) => {
+          toast({ title: "Failed to save reminder", description: err.message, variant: "destructive" });
+        },
+      },
+    );
+  };
+
+  const deleteReminder = async (reminderId: number) => {
+    setIsDeleting(reminderId);
+    try {
+      await fetch(`${BASE}/api/organizations/${ORG_ID}/events/${eventId}/reminders/${reminderId}`, {
+        method: "DELETE",
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/events/${eventId}/reminders`] });
+      toast({ title: "Reminder removed" });
+    } catch {
+      toast({ title: "Failed to remove reminder", variant: "destructive" });
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
+  const existingOffsets = new Set((reminders ?? []).map((r: any) => r.offsetHours));
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent/10 text-accent text-[11px] font-semibold uppercase tracking-wider mb-2">
+          <BellRing className="h-3 w-3" />
+          Automated Reminders
+        </div>
+        <h2 className="text-xl font-bold mb-1">Set up event reminders</h2>
+        <p className="text-muted-foreground text-sm">
+          Automatically email your guests before the event. Pick one or several — you can always send them manually too.
+        </p>
+      </div>
+
+      {/* Existing reminders */}
+      {(reminders ?? []).length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Scheduled Reminders</h3>
+          <div className="space-y-2">
+            {(reminders ?? []).map((r: any) => {
+              const preset = REMINDER_PRESETS.find((p) => p.offsetHours === r.offsetHours);
+              return (
+                <div key={r.id} className="flex items-center gap-3 p-4 rounded-xl border bg-card">
+                  <div className="h-10 w-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0 text-lg">
+                    {preset?.icon ?? "🔔"}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">{r.subject}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {r.offsetHours >= 24
+                        ? `${r.offsetHours / 24} day${r.offsetHours / 24 !== 1 ? "s" : ""} before event`
+                        : `${r.offsetHours} hour${r.offsetHours !== 1 ? "s" : ""} before event`}
+                      {r.status === "sent" && (
+                        <span className="ml-2 text-green-600 font-medium">· Sent</span>
+                      )}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isDeleting === r.id}
+                    onClick={() => deleteReminder(r.id)}
+                    className="text-muted-foreground hover:text-destructive transition-colors p-1 rounded"
+                  >
+                    {isDeleting === r.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <X className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Preset picker */}
+      {adding === null && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Add a Reminder</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {REMINDER_PRESETS.map((preset, idx) => {
+              const already = existingOffsets.has(preset.offsetHours);
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  disabled={already}
+                  onClick={() => openPreset(idx)}
+                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border text-center transition-all ${
+                    already
+                      ? "border-green-200 bg-green-50 text-green-700 cursor-not-allowed opacity-70"
+                      : "border-border bg-card hover:border-accent hover:bg-accent/5 cursor-pointer"
+                  }`}
+                >
+                  <span className="text-2xl">{preset.icon}</span>
+                  <span className="text-xs font-semibold leading-tight">{preset.label}</span>
+                  {already && (
+                    <span className="text-[10px] text-green-600 flex items-center gap-1">
+                      <Check className="h-3 w-3" />Added
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Edit form for selected preset */}
+      {adding !== null && (
+        <Card className="border-accent/30 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <span className="text-xl">{REMINDER_PRESETS[adding].icon}</span>
+                {REMINDER_PRESETS[adding].label} reminder
+              </CardTitle>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={cancelAdd}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <CardDescription>Customize the subject and message before saving.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Subject</label>
+              <Input
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder="Email subject line"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Message</label>
+              <Textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                className="resize-none min-h-[160px] font-mono text-sm"
+                placeholder="Email body..."
+              />
+            </div>
+          </CardContent>
+          <CardFooter className="bg-muted/30 border-t flex justify-end gap-2 p-4">
+            <Button variant="outline" size="sm" onClick={cancelAdd}>Cancel</Button>
+            <Button
+              size="sm"
+              className="bg-accent hover:bg-accent/90 text-white"
+              onClick={saveReminder}
+              disabled={createReminder.isPending}
+            >
+              {createReminder.isPending ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</>
+              ) : (
+                <><Plus className="h-4 w-4 mr-1" />Add Reminder</>
+              )}
+            </Button>
+          </CardFooter>
+        </Card>
+      )}
+
+      {/* Info note */}
+      {adding === null && (
+        <div className="p-4 bg-muted/40 rounded-xl text-sm text-muted-foreground flex items-start gap-2.5 border border-border/60">
+          <Bell className="h-4 w-4 text-accent shrink-0 mt-0.5" />
+          <span>
+            Reminders are sent automatically based on the timing above. You can also trigger any reminder manually from the event detail page at any time.
+          </span>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between pt-2 border-t">
+        <Button variant="outline" onClick={onBack}>
+          <ArrowLeft className="h-4 w-4 mr-2" />Back
+        </Button>
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" className="text-muted-foreground" onClick={onComplete}>
+            Skip this step <ArrowRight className="h-4 w-4 ml-1" />
+          </Button>
+          <Button className="bg-primary hover:bg-primary/90 text-white" onClick={onComplete}>
+            Continue <ArrowRight className="h-4 w-4 ml-1" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =====================================================================
+// Step 5: Review & Launch
 // =====================================================================
 
 function ReviewStep({
   event,
   campaigns,
   guests,
+  reminders,
   eventId,
   onBack,
 }: {
   event: any;
   campaigns: any;
   guests: any;
+  reminders: any[] | undefined;
   eventId: number;
   onBack: () => void;
 }) {
@@ -1100,6 +1404,37 @@ function ReviewStep({
                 <AlertCircle className="h-5 w-5 text-red-500 ml-auto shrink-0" />
               )}
             </div>
+          </div>
+
+          {/* Reminders summary */}
+          <div className="space-y-3">
+            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Reminders</h3>
+            {(reminders ?? []).length > 0 ? (
+              <div className="space-y-2">
+                {(reminders ?? []).map((r: any) => {
+                  const preset = REMINDER_PRESETS.find((p) => p.offsetHours === r.offsetHours);
+                  return (
+                    <div key={r.id} className="p-3 bg-muted/30 rounded-xl flex items-center gap-3">
+                      <span className="text-base">{preset?.icon ?? "🔔"}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{r.subject}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {r.offsetHours >= 24
+                            ? `${r.offsetHours / 24} day${r.offsetHours / 24 !== 1 ? "s" : ""} before`
+                            : `${r.offsetHours} hour${r.offsetHours !== 1 ? "s" : ""} before`}
+                        </p>
+                      </div>
+                      <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="p-4 bg-muted/20 rounded-xl text-sm text-muted-foreground flex items-center gap-2">
+                <Bell className="h-4 w-4" />
+                No reminders set up — you can add them after launch from the event page.
+              </div>
+            )}
           </div>
 
           {/* What happens on launch */}

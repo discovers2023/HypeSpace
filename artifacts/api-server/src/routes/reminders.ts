@@ -91,4 +91,13 @@ router.post("/organizations/:orgId/events/:eventId/reminders/:reminderId/send", 
   res.json({ ...formatReminder(updated), recipientCount: eligible.length });
 });
 
+router.delete("/organizations/:orgId/events/:eventId/reminders/:reminderId", async (req, res): Promise<void> => {
+  const rawEventId = Array.isArray(req.params.eventId) ? req.params.eventId[0] : req.params.eventId;
+  const rawReminderId = Array.isArray(req.params.reminderId) ? req.params.reminderId[0] : req.params.reminderId;
+  const eventId = parseInt(rawEventId, 10);
+  const reminderId = parseInt(rawReminderId, 10);
+  await db.delete(remindersTable).where(and(eq(remindersTable.id, reminderId), eq(remindersTable.eventId, eventId)));
+  res.sendStatus(204);
+});
+
 export default router;
