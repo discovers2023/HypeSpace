@@ -27,8 +27,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Save, Send, Trash2, AlertTriangle, Code2, Type,
-  Paintbrush, Loader2, Eye, TestTube, Lock, Sparkles,
+  Paintbrush, Loader2, Eye, TestTube, Lock, Sparkles, ChevronDown, ChevronUp,
 } from "lucide-react";
+import { CampaignSuggestionList } from "@/components/campaign-suggestion-list";
+import { DEFAULT_SUGGESTIONS } from "@/lib/campaign-suggestions";
 
 // ─── Regex-based extraction / patching for the AI template ───────────────────
 // These patterns are safe to use on both AI-generated AND hand-edited HTML.
@@ -103,6 +105,7 @@ export default function CampaignEdit() {
   const [testEmail, setTestEmail] = useState("");
   const [testSending, setTestSending] = useState(false);
   const [showTestInput, setShowTestInput] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(true);
 
   // Visual editor fields — extracted from the template
   const [bodyIntro, setBodyIntro] = useState("");
@@ -525,6 +528,39 @@ export default function CampaignEdit() {
 
               </form>
             </Form>
+
+            {/* AI Suggestions Panel */}
+            {!isSent && (
+              <div className="bg-card border rounded-xl overflow-hidden">
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/30 transition-colors"
+                  onClick={() => setShowSuggestions((v) => !v)}
+                >
+                  <span className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    AI Suggestions
+                    <span className="text-xs text-muted-foreground font-normal">— click any to apply</span>
+                  </span>
+                  {showSuggestions
+                    ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                    : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                </button>
+                {showSuggestions && (
+                  <div className="px-4 pb-4">
+                    <CampaignSuggestionList
+                      suggestions={DEFAULT_SUGGESTIONS}
+                      html={form.watch("htmlContent") ?? ""}
+                      onApply={(newHtml) => {
+                        form.setValue("htmlContent", newHtml, { shouldDirty: true });
+                        setBodyIntro(extractBodyIntro(newHtml));
+                      }}
+                      compact
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* RIGHT — live preview */}

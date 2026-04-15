@@ -6,7 +6,8 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAiGenerateCampaign, useListEvents, useCreateCampaign, useGetOrganization } from "@workspace/api-client-react";
-import { ArrowLeft, Sparkles, Wand2, Mail, Check, AlertCircle } from "lucide-react";
+import { ArrowLeft, Sparkles, Wand2, Mail } from "lucide-react";
+import { CampaignSuggestionList } from "@/components/campaign-suggestion-list";
 import {
   Form,
   FormControl,
@@ -348,18 +349,19 @@ export default function CampaignAi() {
                     </div>
                   </CardContent>
                   <CardFooter className="bg-muted/30 flex flex-col items-start p-6">
-                    <h4 className="text-sm font-semibold mb-3 flex items-center">
-                      <AlertCircle className="h-4 w-4 mr-2 text-accent" />
-                      AI Suggestions
+                    <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      AI Suggestions — click to apply
                     </h4>
-                    <ul className="space-y-2 w-full">
-                      {generatedResult.suggestions.map((suggestion, i) => (
-                        <li key={i} className="text-sm text-muted-foreground flex items-start">
-                          <Check className="h-4 w-4 mr-2 text-green-500 shrink-0 mt-0.5" />
-                          <span>{suggestion}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    <div className="w-full">
+                      <CampaignSuggestionList
+                        suggestions={generatedResult.suggestions}
+                        html={generatedResult.htmlContent}
+                        onApply={(newHtml) =>
+                          setGeneratedResult((prev) => prev ? { ...prev, htmlContent: newHtml } : prev)
+                        }
+                      />
+                    </div>
                   </CardFooter>
                 </Card>
               </div>

@@ -63,6 +63,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { CSVImportModal } from "@/components/csv-import-modal";
 import { GHLImportModal } from "@/components/ghl-import-modal";
+import { CampaignSuggestionList } from "@/components/campaign-suggestion-list";
 
 const ORG_ID = 1;
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -550,17 +551,17 @@ function CampaignStep({
               {generated.suggestions && generated.suggestions.length > 0 && (
                 <div className="bg-gradient-to-r from-primary/5 to-accent/5 border-t p-5">
                   <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-accent" />
-                    Tips to improve your invite
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    AI Suggestions — click to apply
                   </h4>
-                  <ul className="space-y-2">
-                    {generated.suggestions.map((suggestion, i) => (
-                      <li key={i} className="text-xs text-muted-foreground flex items-start">
-                        <Check className="h-3.5 w-3.5 mr-2 text-green-500 shrink-0 mt-0.5" />
-                        <span>{suggestion}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <CampaignSuggestionList
+                    suggestions={generated.suggestions}
+                    html={generated.htmlContent}
+                    onApply={(newHtml) =>
+                      setGenerated((prev) => prev ? { ...prev, htmlContent: newHtml } : prev)
+                    }
+                    compact
+                  />
                 </div>
               )}
 
