@@ -68,18 +68,18 @@
 
 | REQ | Phase | Status |
 |-----|-------|--------|
-| SEC-01 | — | Pending |
-| SEC-02 | — | Pending |
-| SEC-03 | — | Pending |
-| SEC-04 | — | Pending |
-| SEC-05 | — | Pending |
-| ORG-01 | — | Pending |
-| ORG-02 | — | Pending |
-| ORG-03 | — | Pending |
-| CAMP-01 | — | Pending |
-| CAMP-02 | — | Pending |
-| CAMP-03 | — | Pending |
-| CAMP-04 | — | Pending |
-| QUAL-01 | — | Pending |
-| QUAL-02 | — | Pending |
-| QUAL-03 | — | Pending |
+| SEC-01 | Phase 1 | Pending |
+| SEC-02 | Phase 1 | Pending |
+| SEC-03 | Phase 1 | Pending |
+| SEC-04 | Phase 1 | Pending |
+| SEC-05 | Phase 1 | Pending |
+| ORG-01 | Phase 2 | Pending |
+| ORG-02 | Phase 2 | Pending |
+| ORG-03 | Phase 2 | Pending |
+| CAMP-01 | Phase 3 | Pending |
+| CAMP-02 | Phase 3 | Pending |
+| CAMP-03 | Phase 3 | Pending |
+| CAMP-04 | Phase 3 | Pending |
+| QUAL-01 | Phase 3 | Pending |
+| QUAL-02 | Phase 3 | Pending |
+| QUAL-03 | Phase 3 | Pending |
