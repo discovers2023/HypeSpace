@@ -12,6 +12,6 @@ export type OrganizationPlan =
 export const OrganizationPlan = {
   free: "free",
   starter: "starter",
-  professional: "professional",
-  enterprise: "enterprise",
+  growth: "growth",
+  agency: "agency",
 } as const;
