@@ -35,12 +35,13 @@ import { EventCreationModal } from "@/components/events/event-creation-modal";
 
 const ORG_ID = 1;
 
-type FilterTab = "all" | "upcoming" | "drafts" | "past";
+type FilterTab = "all" | "upcoming" | "drafts" | "cancelled" | "past";
 
 const TABS: { key: FilterTab; label: string }[] = [
   { key: "all", label: "All Events" },
   { key: "upcoming", label: "Upcoming" },
   { key: "drafts", label: "Drafts" },
+  { key: "cancelled", label: "Cancelled" },
   { key: "past", label: "Past" },
 ];
 
@@ -113,15 +114,17 @@ export default function EventList() {
     if (!matchesSearch) return false;
     const start = event.startDate ? parseISO(event.startDate) : null;
     if (activeTab === "drafts") return event.status === "draft";
-    if (activeTab === "upcoming") return event.status !== "draft" && (start ? isFuture(start) : true);
+    if (activeTab === "cancelled") return event.status === "cancelled";
+    if (activeTab === "upcoming") return event.status !== "draft" && event.status !== "cancelled" && (start ? isFuture(start) : true);
     if (activeTab === "past") return event.status === "completed" || (start ? isPast(start) : false);
     return true;
   });
 
   const counts = {
     all: (events ?? []).length,
-    upcoming: (events ?? []).filter((e) => e.status !== "draft" && (e.startDate ? isFuture(parseISO(e.startDate)) : true)).length,
+    upcoming: (events ?? []).filter((e) => e.status !== "draft" && e.status !== "cancelled" && (e.startDate ? isFuture(parseISO(e.startDate)) : true)).length,
     drafts: (events ?? []).filter((e) => e.status === "draft").length,
+    cancelled: (events ?? []).filter((e) => e.status === "cancelled").length,
     past: (events ?? []).filter((e) => e.status === "completed" || (e.startDate ? isPast(parseISO(e.startDate)) : false)).length,
   };
 

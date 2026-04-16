@@ -563,7 +563,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Campaign"
-    put:
+    patch:
       operationId: updateCampaign
       tags: [campaigns]
       summary: Update a campaign

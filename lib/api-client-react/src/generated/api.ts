@@ -2122,7 +2122,7 @@ export const updateCampaign = async (
 ): Promise<Campaign> => {
   return customFetch<Campaign>(getUpdateCampaignUrl(orgId, campaignId), {
     ...options,
-    method: "PUT",
+    method: "PATCH",
     headers: { "Content-Type": "application/json", ...options?.headers },
     body: JSON.stringify(updateCampaignBody),
   });
