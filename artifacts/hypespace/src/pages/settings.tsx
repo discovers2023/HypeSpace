@@ -2108,30 +2108,77 @@ function usagePercent(current: number, max: number | null): number {
   return Math.min(100, Math.round((current / max) * 100));
 }
 function BillingTab({ orgId }: { orgId: number }) {
+  const { toast } = useToast();
   const [plansList, setPlansList] = useState<PlanLimits[]>([]);
   const [usage, setUsage] = useState<OrgUsage | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedPlan, setSelectedPlan] = useState<PlanLimits | null>(null);
+  const [changingPlan, setChangingPlan] = useState(false);
+  const [violations, setViolations] = useState<string[]>([]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [p, u] = await Promise.all([
+        fetch("/api/plans").then((r) => r.json()),
+        fetch(`/api/organizations/${orgId}/usage`).then((r) => r.json()),
+      ]);
+      setPlansList(p.plans ?? []);
+      setUsage(u);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      try {
-        const [p, u] = await Promise.all([
-          fetch("/api/plans").then((r) => r.json()),
-          fetch(`/api/organizations/${orgId}/usage`).then((r) => r.json()),
-        ]);
-        if (cancelled) return;
-        setPlansList(p.plans ?? []);
-        setUsage(u);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
+    fetchData().then(() => { if (cancelled) { /* noop */ } });
     return () => { cancelled = true; };
   }, [orgId]);
+
+  const PLAN_ORDER = ["free", "starter", "growth", "agency"];
+
+  const isUpgrade = (from: string, to: string) => {
+    return PLAN_ORDER.indexOf(to) > PLAN_ORDER.indexOf(from);
+  };
+
+  const onSelectPlan = (plan: PlanLimits) => {
+    setViolations([]);
+    setSelectedPlan(plan);
+  };
+
+  const onConfirmChange = async () => {
+    if (!selectedPlan) return;
+    setChangingPlan(true);
+    setViolations([]);
+    try {
+      const res = await fetch(`/api/organizations/${orgId}/plan`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: selectedPlan.key }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: `Plan changed to ${selectedPlan.name}!` });
+        setSelectedPlan(null);
+        await fetchData();
+      } else if (res.status === 422 && data.violations) {
+        setViolations(data.violations);
+      } else {
+        toast({ title: "Failed to change plan", description: data.error ?? "Please try again.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setChangingPlan(false);
+    }
+  };
 
   if (loading) return <Skeleton className="h-64 w-full" />;
 
   const current = usage?.plan;
+  const upgrading = selectedPlan && current ? isUpgrade(current.key, selectedPlan.key) : true;
+
   return (
     <>
       <Card>
@@ -2156,7 +2203,6 @@ function BillingTab({ orgId }: { orgId: number }) {
                   {current.key === "agency" && "Unlimited events and users for agencies."}
                 </p>
               </div>
-              <Button variant="outline" className="mt-4 sm:mt-0">Manage Plan</Button>
             </div>
           )}
 
@@ -2180,29 +2226,70 @@ function BillingTab({ orgId }: { orgId: number }) {
             {plansList.map((p) => {
               const isCurrent = current?.key === p.key;
               const highlight = p.key === "growth";
+              const isUp = current ? isUpgrade(current.key, p.key) : false;
               return (
-                <div key={p.key} className={`p-4 rounded-lg border relative flex flex-col ${highlight ? "border-primary bg-primary/5 ring-1 ring-primary/20" : ""}`}>
-                  {highlight && <Badge className="bg-primary text-white text-xs absolute -top-2 right-3">Popular</Badge>}
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="font-semibold">{p.name}</span>
-                  </div>
-                  <div className="text-2xl font-bold mb-1">
+                <div key={p.key} className={`p-5 rounded-xl border-2 relative flex flex-col transition-all ${
+                  isCurrent ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                  : highlight ? "border-primary/50 bg-primary/[0.02]"
+                  : "border-border hover:border-primary/30"
+                }`}>
+                  {highlight && !isCurrent && <Badge className="bg-primary text-white text-xs absolute -top-2.5 right-3">Popular</Badge>}
+                  {isCurrent && <Badge className="bg-green-600 text-white text-xs absolute -top-2.5 right-3">Current</Badge>}
+                  <span className="font-semibold text-base mb-1">{p.name}</span>
+                  <div className="text-3xl font-bold mb-1">
                     {p.priceMonthly === 0 ? "Free" : `$${p.priceMonthly}`}
                     {p.priceMonthly > 0 && <span className="text-sm font-normal text-muted-foreground">/mo</span>}
                   </div>
-                  <ul className="text-xs text-muted-foreground space-y-1 mt-3 mb-4 flex-1">
-                    <li>✓ {formatLimit(p.events)} event{p.events === 1 ? "" : "s"}</li>
-                    <li>✓ {formatLimit(p.attendeesPerEvent)} attendees per event</li>
-                    <li>✓ {formatLimit(p.users)} user{p.users === 1 ? "" : "s"}</li>
-                    <li>✓ AI campaigns, social scheduling</li>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    {p.key === "free" && "For trying out the platform"}
+                    {p.key === "starter" && "For small teams & solo operators"}
+                    {p.key === "growth" && "For growing organizations"}
+                    {p.key === "agency" && "For agencies managing many clients"}
+                  </p>
+                  <ul className="text-sm text-muted-foreground space-y-2 mb-5 flex-1">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                      {formatLimit(p.events)} event{p.events === 1 ? "" : "s"}
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                      {formatLimit(p.attendeesPerEvent)} attendees / event
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                      {formatLimit(p.users)} team member{p.users === 1 ? "" : "s"}
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className={`h-4 w-4 shrink-0 ${p.key === "free" ? "text-muted-foreground/40" : "text-green-500"}`} />
+                      <span className={p.key === "free" ? "line-through text-muted-foreground/50" : ""}>
+                        AI campaigns & bulk email
+                      </span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                      Social scheduling
+                    </li>
+                    {(p.key === "growth" || p.key === "agency") && (
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                        Priority support
+                      </li>
+                    )}
+                    {p.key === "agency" && (
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                        Custom sending domains
+                      </li>
+                    )}
                   </ul>
                   <Button
                     size="sm"
-                    variant={isCurrent ? "outline" : highlight ? "default" : "outline"}
-                    className={`w-full ${!isCurrent && highlight ? "bg-primary hover:bg-primary/90 text-white border-0" : ""}`}
+                    variant={isCurrent ? "outline" : isUp ? "default" : "outline"}
+                    className={`w-full ${!isCurrent && isUp ? "bg-primary hover:bg-primary/90 text-white border-0" : ""}`}
                     disabled={isCurrent}
+                    onClick={() => onSelectPlan(p)}
                   >
-                    {isCurrent ? "Current plan" : p.priceMonthly === 0 ? "Downgrade" : "Upgrade"}
+                    {isCurrent ? "Current plan" : isUp ? "Upgrade" : "Downgrade"}
                   </Button>
                 </div>
               );
@@ -2210,6 +2297,89 @@ function BillingTab({ orgId }: { orgId: number }) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Plan change confirmation dialog */}
+      <Dialog open={!!selectedPlan} onOpenChange={(o) => { if (!o) { setSelectedPlan(null); setViolations([]); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {upgrading ? "Upgrade" : "Downgrade"} to {selectedPlan?.name}
+            </DialogTitle>
+            <DialogDescription>
+              {upgrading
+                ? `You'll get more capacity and features with the ${selectedPlan?.name} plan.`
+                : `Downgrading may limit your access to some features.`}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedPlan && current && (
+            <div className="space-y-4">
+              {/* Comparison */}
+              <div className="grid grid-cols-3 gap-2 text-sm">
+                <div className="font-medium text-muted-foreground"></div>
+                <div className="font-semibold text-center">{current.name}</div>
+                <div className="font-semibold text-center text-primary">{selectedPlan.name}</div>
+
+                <div className="text-muted-foreground">Events</div>
+                <div className="text-center">{formatLimit(current.events)}</div>
+                <div className={`text-center font-medium ${upgrading ? "text-green-600" : "text-amber-600"}`}>{formatLimit(selectedPlan.events)}</div>
+
+                <div className="text-muted-foreground">Attendees/event</div>
+                <div className="text-center">{formatLimit(current.attendeesPerEvent)}</div>
+                <div className={`text-center font-medium ${upgrading ? "text-green-600" : "text-amber-600"}`}>{formatLimit(selectedPlan.attendeesPerEvent)}</div>
+
+                <div className="text-muted-foreground">Team members</div>
+                <div className="text-center">{formatLimit(current.users)}</div>
+                <div className={`text-center font-medium ${upgrading ? "text-green-600" : "text-amber-600"}`}>{formatLimit(selectedPlan.users)}</div>
+
+                <div className="text-muted-foreground">Campaigns</div>
+                <div className="text-center">{current.key === "free" ? "No" : "Yes"}</div>
+                <div className={`text-center font-medium ${selectedPlan.key === "free" ? "text-amber-600" : "text-green-600"}`}>
+                  {selectedPlan.key === "free" ? "No" : "Yes"}
+                </div>
+
+                <div className="text-muted-foreground">Price</div>
+                <div className="text-center">{current.priceMonthly === 0 ? "Free" : `$${current.priceMonthly}/mo`}</div>
+                <div className="text-center font-semibold text-primary">{selectedPlan.priceMonthly === 0 ? "Free" : `$${selectedPlan.priceMonthly}/mo`}</div>
+              </div>
+
+              {/* Downgrade violations */}
+              {violations.length > 0 && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-1.5">
+                  <p className="text-sm font-semibold text-destructive">Cannot downgrade — usage exceeds limits:</p>
+                  {violations.map((v, i) => (
+                    <p key={i} className="text-xs text-destructive/80 flex items-start gap-1.5">
+                      <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      {v}
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              {!upgrading && violations.length === 0 && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-sm text-amber-700">
+                    Downgrading will reduce your plan limits. If your current usage fits, the change takes effect immediately.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => { setSelectedPlan(null); setViolations([]); }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={onConfirmChange}
+              disabled={changingPlan || violations.length > 0}
+              className={upgrading ? "bg-primary hover:bg-primary/90 text-white" : "bg-amber-600 hover:bg-amber-700 text-white"}
+            >
+              {changingPlan ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Processing...</> : upgrading ? `Upgrade to ${selectedPlan?.name}` : `Downgrade to ${selectedPlan?.name}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
