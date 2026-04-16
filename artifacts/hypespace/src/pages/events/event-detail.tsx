@@ -245,6 +245,7 @@ export default function EventDetail() {
   const [testEmailSent, setTestEmailSent] = useState(false);
   const [sendingReminderId, setSendingReminderId] = useState<number | null>(null);
   const [isDeleteEventOpen, setIsDeleteEventOpen] = useState(false);
+  const [isCancelEventOpen, setIsCancelEventOpen] = useState(false);
   const [isNewReminderOpen, setIsNewReminderOpen] = useState(false);
   const [newReminderType, setNewReminderType] = useState<"before_event" | "after_event" | "custom">(
     "before_event",
@@ -873,6 +874,15 @@ export default function EventDetail() {
                   Duplicate Event
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
+                {event.status !== "cancelled" && event.status !== "completed" && (
+                  <DropdownMenuItem
+                    className="text-amber-600 focus:text-amber-600"
+                    onClick={() => setIsCancelEventOpen(true)}
+                  >
+                    <XCircle className="mr-2 h-4 w-4" />
+                    Cancel Event
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
                   onClick={() => setIsDeleteEventOpen(true)}
@@ -2461,6 +2471,47 @@ export default function EventDetail() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Cancel Event Confirmation */}
+      <AlertDialog open={isCancelEventOpen} onOpenChange={setIsCancelEventOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel this event?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{event?.title}</strong> will be marked as cancelled. Guests will see the
+              cancelled status on the event page, and the event stops accepting RSVPs. You can
+              still delete it afterward, or re-publish it by editing the event.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep event</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                updateEvent.mutate(
+                  { orgId: ORG_ID, eventId, data: { status: "cancelled" } },
+                  {
+                    onSuccess: () => {
+                      toast({ title: "Event cancelled" });
+                      setIsCancelEventOpen(false);
+                    },
+                    onError: (err) => {
+                      toast({
+                        title: "Failed to cancel event",
+                        description: err.message,
+                        variant: "destructive",
+                      });
+                    },
+                  },
+                );
+              }}
+              disabled={updateEvent.isPending}
+              className="bg-amber-600 text-white hover:bg-amber-700"
+            >
+              {updateEvent.isPending ? "Cancelling..." : "Cancel Event"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Event Confirmation */}
       <AlertDialog open={isDeleteEventOpen} onOpenChange={setIsDeleteEventOpen}>
