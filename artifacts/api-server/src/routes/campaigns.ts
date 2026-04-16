@@ -50,6 +50,12 @@ router.post("/organizations/:orgId/campaigns", async (req, res): Promise<void> =
   const parsed = CreateCampaignBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
+  if (parsed.data.eventId) {
+    const [ev] = await db.select({ id: eventsTable.id }).from(eventsTable)
+      .where(and(eq(eventsTable.id, parsed.data.eventId), eq(eventsTable.organizationId, orgId)));
+    if (!ev) { res.status(404).json({ error: "Event not found in this organization" }); return; }
+  }
+
   const insertData: Record<string, unknown> = { ...parsed.data, organizationId: orgId };
   if (parsed.data.scheduledAt) insertData.scheduledAt = new Date(parsed.data.scheduledAt);
 
