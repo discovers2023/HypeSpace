@@ -31,7 +31,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Random RSVP tokens (SEC-04) + published-only public events (SEC-05)
+- [x] 01-01-PLAN.md — Random RSVP tokens (SEC-04) + published-only public events (SEC-05)
 - [ ] 01-02-PLAN.md — Session middleware + auth guard on all /organizations/* routes + CSRF protection (SEC-01, SEC-03)
 - [ ] 01-03-PLAN.md — Email verification on registration, login blocks unverified accounts (SEC-02)
 
@@ -66,6 +66,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Security Hardening | 0/3 | Not started | - |
+| 1. Security Hardening | 1/3 | In progress | - |
 | 2. Multi-Organization | 0/TBD | Not started | - |
 | 3. Campaign & Quality | 0/TBD | Not started | - |
