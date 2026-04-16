@@ -1217,7 +1217,7 @@ export default function EventDetail() {
                 <Badge className="bg-green-500 text-white text-xs border-0">Live</Badge>
               </div>
               <p className="text-xs text-green-700">
-                Invitations have been sent. You can still: <strong>add/remove guests</strong>, <strong>update location or meeting link</strong>, <strong>send reminders</strong>, or <strong>cancel the event</strong>. Campaign email content is locked.
+                Invitations have been sent. You can still: <strong>edit all event details</strong>, <strong>add/remove guests</strong>, <strong>send reminders</strong>, or <strong>cancel the event</strong>.
               </p>
             </div>
           </div>
