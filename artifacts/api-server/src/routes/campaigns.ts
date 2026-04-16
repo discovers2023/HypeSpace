@@ -545,7 +545,10 @@ router.post("/organizations/:orgId/campaigns/ai-generate", async (req, res): Pro
             </td>
           </tr>
 
-          <!-- INFO CARDS: LOCATION + TYPE -->
+          <!-- SPEAKER / TOPIC HIGHLIGHT (conditional) -->
+          ${speakerBlock || topicBlock ? `<tr><td style="padding:0 40px 8px;">${speakerBlock}${topicBlock}</td></tr>` : ""}
+
+          <!-- INFO CARDS: LOCATION + DATE/TIME -->
           <tr>
             <td style="padding:0 40px 32px;">
               <table width="100%" cellpadding="0" cellspacing="0">
@@ -557,17 +560,14 @@ router.post("/organizations/:orgId/campaigns/ai-generate", async (req, res): Pro
                   </td>
                   <td width="4%"></td>
                   <td style="${detailCellStyle}">
-                    <span style="display:inline-block;background:#fff7ed;color:#c2410c;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:8px;">🕐 Time</span>
-                    <p style="${infoValueStyle}">${eventTime || "Time TBD"}</p>
-                    <p style="${infoSubStyle}">${eventDate || "Date TBD"}</p>
+                    <span style="display:inline-block;background:#fff7ed;color:#c2410c;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:8px;">📅 Date & Time</span>
+                    <p style="${infoValueStyle}">${eventDate || "Date TBD"}</p>
+                    <p style="${infoSubStyle}">${eventTime || "Time TBD"}</p>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
-
-          <!-- SPEAKER / TOPIC HIGHLIGHT (conditional) -->
-          ${speakerBlock || topicBlock ? `<tr><td style="padding:0 40px 8px;">${speakerBlock}${topicBlock}</td></tr>` : ""}
 
           <!-- DESCRIPTION (if available) -->
           ${eventDescription ? `<tr><td style="padding:0 40px 32px;"><p style="margin:0;font-size:14px;color:#6b7280;line-height:1.8;background:#f9fafb;border-radius:10px;padding:16px 20px;">${eventDescription}</p></td></tr>` : ""}

@@ -27,7 +27,7 @@ import {
 import { format } from "date-fns";
 import {
   useCreateEvent, useAddGuest, useListGuests, useListCampaigns,
-  useAiGenerateCampaign, useCreateCampaign, useUpdateEvent, useGetOrganization,
+  useAiGenerateCampaign, useCreateCampaign, useUpdateCampaign, useUpdateEvent, useGetOrganization,
   type Organization, type AiGenerateCampaignBodyCampaignType,
   type AiGenerateCampaignBodyTone, type CampaignType,
 } from "@workspace/api-client-react";
@@ -692,11 +692,14 @@ function CampaignStep({ eventId, org }: { eventId: number; org: Organization | u
   const [context, setContext] = useState("");
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [editMode, setEditMode] = useState(false);
+  const [savedCampaignId, setSavedCampaignId] = useState<number | null>(null);
   const [generated, setGenerated] = useState<{
     subject: string; htmlContent: string; textContent: string; suggestions: string[];
   } | null>(null);
 
   const hasCampaign = (campaigns?.length ?? 0) > 0;
+
+  const updateCampaign = useUpdateCampaign();
 
   const onGenerate = () => {
     generateCampaign.mutate(
@@ -706,26 +709,42 @@ function CampaignStep({ eventId, org }: { eventId: number; org: Organization | u
           const branding = org ? { ...org } : { name: "HypeSpace Events" };
           const branded = applyBranding(result.htmlContent, branding);
           setGenerated({ ...result, htmlContent: branded });
-          createCampaign.mutate(
-            {
-              orgId: activeOrgId,
-              data: {
-                eventId,
-                name: `AI Campaign: ${result.subject.substring(0, 40)}`,
-                subject: result.subject,
-                type: campaignType as CampaignType,
-                htmlContent: branded,
-                textContent: result.textContent,
+
+          const campaignData = {
+            eventId,
+            name: `AI Campaign: ${result.subject.substring(0, 40)}`,
+            subject: result.subject,
+            type: campaignType as CampaignType,
+            htmlContent: branded,
+            textContent: result.textContent,
+          };
+
+          if (savedCampaignId) {
+            // Regeneration: update existing campaign
+            updateCampaign.mutate(
+              { orgId: activeOrgId, campaignId: savedCampaignId, data: campaignData },
+              {
+                onSuccess: () => {
+                  toast({ title: "Campaign regenerated & updated!" });
+                  queryClient.invalidateQueries({ queryKey: [`/api/organizations/${activeOrgId}/campaigns`] });
+                },
+                onError: (e) => toast({ title: "Regenerated, but failed to save", description: e.message, variant: "destructive" }),
               },
-            },
-            {
-              onSuccess: () => {
-                toast({ title: "Campaign generated & saved!" });
-                queryClient.invalidateQueries({ queryKey: [`/api/organizations/${activeOrgId}/campaigns`] });
+            );
+          } else {
+            // First generation: create new campaign
+            createCampaign.mutate(
+              { orgId: activeOrgId, data: campaignData },
+              {
+                onSuccess: (saved) => {
+                  setSavedCampaignId(saved.id);
+                  toast({ title: "Campaign generated & saved!" });
+                  queryClient.invalidateQueries({ queryKey: [`/api/organizations/${activeOrgId}/campaigns`] });
+                },
+                onError: (e) => toast({ title: "Generated, but failed to save", description: e.message, variant: "destructive" }),
               },
-              onError: (e) => toast({ title: "Generated, but failed to save", description: e.message, variant: "destructive" }),
-            },
-          );
+            );
+          }
         },
         onError: (e) => toast({ title: "Generation failed", description: e.message, variant: "destructive" }),
       },
