@@ -68,7 +68,7 @@ router.get("/organizations/:orgId/campaigns/:campaignId", async (req, res): Prom
   res.json(GetCampaignResponse.parse(formatCampaign(campaign)));
 });
 
-router.put("/organizations/:orgId/campaigns/:campaignId", async (req, res): Promise<void> => {
+router.patch("/organizations/:orgId/campaigns/:campaignId", async (req, res): Promise<void> => {
   const rawOrgId = Array.isArray(req.params.orgId) ? req.params.orgId[0] : req.params.orgId;
   const rawCampaignId = Array.isArray(req.params.campaignId) ? req.params.campaignId[0] : req.params.campaignId;
   const orgId = parseInt(rawOrgId, 10);
@@ -203,91 +203,174 @@ router.post("/organizations/:orgId/campaigns/ai-generate", async (req, res): Pro
   const appBaseUrl = getAppBaseUrl(req);
   const rsvpUrl = eventSlug ? `${appBaseUrl}/e/${eventSlug}` : "#";
 
+  const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
   // Extract speaker / topic from additionalContext heuristically
   const speakerMatch = additionalContext?.match(/speaker[:\-\s]+([^,.\n]+)/i);
   const topicMatch = additionalContext?.match(/topic[:\-\s]+([^,.\n]+)/i);
   const speakerName = speakerMatch ? speakerMatch[1].trim() : "";
   const topicName = topicMatch ? topicMatch[1].trim() : "";
 
-  const subjectMap: Record<string, Record<string, string>> = {
+  const subjectMap: Record<string, Record<string, string[]>> = {
     invitation: {
-      professional: `You're Invited: ${eventTitle}`,
-      friendly: `Hey! Join us for ${eventTitle} 🎉`,
-      formal: `Formal Invitation — ${eventTitle}`,
-      casual: `Come join us for ${eventTitle}!`,
-      urgent: `Last Chance: Reserve Your Spot for ${eventTitle}`,
+      professional: [`You're Invited: ${eventTitle}`, `Join Us at ${eventTitle}`, `Your Invitation to ${eventTitle}`, `${eventTitle} — You're on the List`],
+      friendly: [`Hey! Join us for ${eventTitle} 🎉`, `You're invited to ${eventTitle}! 🎊`, `Save your spot at ${eventTitle} 🙌`, `${eventTitle} — we'd love to see you there!`],
+      formal: [`Formal Invitation — ${eventTitle}`, `Cordial Invitation to ${eventTitle}`, `You Are Cordially Invited: ${eventTitle}`],
+      casual: [`Come join us for ${eventTitle}!`, `You + ${eventTitle} = a great time`, `Don't miss ${eventTitle}!`],
+      urgent: [`Last Chance: Reserve Your Spot for ${eventTitle}`, `⏳ Spots Running Out: ${eventTitle}`, `Final Call — ${eventTitle}`, `Don't Miss Out: ${eventTitle} Is Almost Full`],
     },
     reminder: {
-      professional: `Reminder: ${eventTitle} is Coming Up`,
-      friendly: `Don't forget — ${eventTitle} is almost here!`,
-      formal: `Event Reminder — ${eventTitle}`,
-      casual: `Quick reminder about ${eventTitle}`,
-      urgent: `⏰ Happening Soon: ${eventTitle}`,
+      professional: [`Reminder: ${eventTitle} is Coming Up`, `${eventTitle} — Just Around the Corner`, `Your Event Reminder: ${eventTitle}`],
+      friendly: [`Don't forget — ${eventTitle} is almost here!`, `${eventTitle} is coming up soon! 🗓️`, `Almost time for ${eventTitle}!`],
+      formal: [`Event Reminder — ${eventTitle}`, `Gentle Reminder: ${eventTitle}`, `${eventTitle} — Upcoming Event Notice`],
+      casual: [`Quick reminder about ${eventTitle}`, `Heads up — ${eventTitle} is soon!`, `${eventTitle} reminder 📋`],
+      urgent: [`⏰ Happening Soon: ${eventTitle}`, `${eventTitle} Starts Tomorrow!`, `RSVP Now — ${eventTitle} Is Almost Here`],
     },
     followup: {
-      professional: `Thank You for Attending ${eventTitle}`,
-      friendly: `Thanks for joining ${eventTitle}! Here's a recap`,
-      formal: `Post-Event Follow-Up — ${eventTitle}`,
-      casual: `Hope you had fun at ${eventTitle}!`,
-      urgent: `Action Required: ${eventTitle} Post-Event Survey`,
+      professional: [`Thank You for Attending ${eventTitle}`, `${eventTitle} — Post-Event Recap`, `Highlights from ${eventTitle}`],
+      friendly: [`Thanks for joining ${eventTitle}! Here's a recap`, `What a great event! ${eventTitle} highlights`, `${eventTitle} was awesome — here's the recap 🎉`],
+      formal: [`Post-Event Follow-Up — ${eventTitle}`, `${eventTitle} — Event Summary and Next Steps`, `Thank You for Your Participation: ${eventTitle}`],
+      casual: [`Hope you had fun at ${eventTitle}!`, `${eventTitle} recap — what a time!`, `Great seeing you at ${eventTitle}!`],
+      urgent: [`Action Required: ${eventTitle} Post-Event Survey`, `Your Feedback Matters: ${eventTitle}`, `Quick Survey: How Was ${eventTitle}?`],
     },
     announcement: {
-      professional: `Announcing: ${eventTitle}`,
-      friendly: `Big News — ${eventTitle} is happening!`,
-      formal: `Official Announcement — ${eventTitle}`,
-      casual: `New event alert: ${eventTitle}!`,
-      urgent: `Limited Spots: ${eventTitle}`,
+      professional: [`Announcing: ${eventTitle}`, `Introducing ${eventTitle}`, `Mark Your Calendar: ${eventTitle}`],
+      friendly: [`Big News — ${eventTitle} is happening!`, `Exciting announcement: ${eventTitle}! 🎊`, `Guess what? ${eventTitle} is here!`],
+      formal: [`Official Announcement — ${eventTitle}`, `${eventTitle} — Official Event Notice`, `We Are Pleased to Announce ${eventTitle}`],
+      casual: [`New event alert: ${eventTitle}!`, `Something exciting is coming: ${eventTitle}`, `${eventTitle} just dropped! 🎉`],
+      urgent: [`Limited Spots: ${eventTitle}`, `Act Fast — ${eventTitle} Won't Last`, `Register Now: ${eventTitle} Filling Up`],
     },
     custom: {
-      professional: `Important Update — ${eventTitle}`,
-      friendly: `A quick note about ${eventTitle}`,
-      formal: `Official Communication — ${eventTitle}`,
-      casual: `Hey, a quick update on ${eventTitle}`,
-      urgent: `Time-Sensitive: ${eventTitle}`,
+      professional: [`Important Update — ${eventTitle}`, `${eventTitle}: An Update for You`, `News About ${eventTitle}`],
+      friendly: [`A quick note about ${eventTitle}`, `${eventTitle} update for you! ✉️`, `Some news about ${eventTitle}`],
+      formal: [`Official Communication — ${eventTitle}`, `Re: ${eventTitle} — Important Update`, `${eventTitle} — Formal Notice`],
+      casual: [`Hey, a quick update on ${eventTitle}`, `Update on ${eventTitle} 👋`, `FYI — ${eventTitle} news`],
+      urgent: [`Time-Sensitive: ${eventTitle}`, `Urgent Update: ${eventTitle}`, `Action Needed: ${eventTitle}`],
     },
   };
 
-  const subject = subjectMap[campaignType]?.[tone] ?? `${eventTitle} — Event Communication`;
+  const subjectOptions = subjectMap[campaignType]?.[tone] ?? [`${eventTitle} — Event Communication`];
+  const subject = pick(subjectOptions);
 
-  const bodyIntroMap: Record<string, Record<string, string>> = {
+  const bodyIntroMap: Record<string, Record<string, string[]>> = {
     invitation: {
-      professional: `We are pleased to extend a personal invitation to you for <strong>${eventTitle}</strong>. This is an exceptional opportunity to connect, learn, and be part of something remarkable.`,
-      friendly: `We'd love to have you join us for <strong>${eventTitle}</strong>! It's going to be an amazing experience and we can't wait to see you there.`,
-      formal: `On behalf of the organizing committee, we cordially invite you to attend <strong>${eventTitle}</strong>. Your presence would be an honour.`,
-      casual: `Guess what? You're invited to <strong>${eventTitle}</strong> — it's going to be a great time and we'd love to have you there!`,
-      urgent: `Spots are filling up fast for <strong>${eventTitle}</strong>! Don't miss your chance to be part of this exclusive event.`,
+      professional: [
+        `We are pleased to extend a personal invitation to you for <strong>${eventTitle}</strong>. This is an exceptional opportunity to connect, learn, and be part of something remarkable.`,
+        `You are cordially invited to <strong>${eventTitle}</strong>. We've put together an outstanding program and would be honored to have you join us.`,
+        `It's our pleasure to invite you to <strong>${eventTitle}</strong> — an event designed to inspire, connect, and empower attendees like you.`,
+      ],
+      friendly: [
+        `We'd love to have you join us for <strong>${eventTitle}</strong>! It's going to be an amazing experience and we can't wait to see you there.`,
+        `Great news — <strong>${eventTitle}</strong> is happening and you're invited! We think you'll really enjoy this one.`,
+        `Hey there! We're putting together something special with <strong>${eventTitle}</strong>, and it wouldn't be the same without you.`,
+      ],
+      formal: [
+        `On behalf of the organizing committee, we cordially invite you to attend <strong>${eventTitle}</strong>. Your presence would be an honour.`,
+        `We have the honour of inviting you to <strong>${eventTitle}</strong>. This event represents a distinguished gathering of our community.`,
+      ],
+      casual: [
+        `Guess what? You're invited to <strong>${eventTitle}</strong> — it's going to be a great time and we'd love to have you there!`,
+        `You + <strong>${eventTitle}</strong> = an awesome time. Seriously, you should come!`,
+        `We've got something fun lined up — <strong>${eventTitle}</strong>! Come hang out with us.`,
+      ],
+      urgent: [
+        `Spots are filling up fast for <strong>${eventTitle}</strong>! Don't miss your chance to be part of this exclusive event.`,
+        `Registration for <strong>${eventTitle}</strong> is closing soon — secure your spot before it's too late!`,
+        `This is your final opportunity to join <strong>${eventTitle}</strong>. Seats are limited and going fast.`,
+      ],
     },
     reminder: {
-      professional: `This is a friendly reminder that <strong>${eventTitle}</strong> is coming up soon. Please review the details below and ensure you're prepared for the event.`,
-      friendly: `Just a heads-up — <strong>${eventTitle}</strong> is right around the corner! We're so excited to see you soon.`,
-      formal: `We wish to remind you of the forthcoming event, <strong>${eventTitle}</strong>. Please take note of the event details listed below.`,
-      casual: `Hey! Just wanted to remind you that <strong>${eventTitle}</strong> is almost here. Don't forget to mark your calendar!`,
-      urgent: `<strong>Time is running out!</strong> <strong>${eventTitle}</strong> is happening very soon. Please confirm your attendance immediately.`,
+      professional: [
+        `This is a friendly reminder that <strong>${eventTitle}</strong> is coming up soon. Please review the details below and ensure you're prepared for the event.`,
+        `We wanted to make sure <strong>${eventTitle}</strong> is on your calendar. Here's everything you need to know to prepare.`,
+      ],
+      friendly: [
+        `Just a heads-up — <strong>${eventTitle}</strong> is right around the corner! We're so excited to see you soon.`,
+        `Getting close to <strong>${eventTitle}</strong>! Here's a quick refresher on the details so you're all set.`,
+      ],
+      formal: [
+        `We wish to remind you of the forthcoming event, <strong>${eventTitle}</strong>. Please take note of the event details listed below.`,
+        `This correspondence serves as a formal reminder regarding <strong>${eventTitle}</strong>. Kindly review the details herein.`,
+      ],
+      casual: [
+        `Hey! Just wanted to remind you that <strong>${eventTitle}</strong> is almost here. Don't forget to mark your calendar!`,
+        `Psst — <strong>${eventTitle}</strong> is coming up! Here's the scoop so you don't miss it.`,
+      ],
+      urgent: [
+        `<strong>Time is running out!</strong> <strong>${eventTitle}</strong> is happening very soon. Please confirm your attendance immediately.`,
+        `<strong>${eventTitle}</strong> is right around the corner — make sure you're ready! Check the details below.`,
+      ],
     },
     followup: {
-      professional: `Thank you for your participation in <strong>${eventTitle}</strong>. We hope the experience was both valuable and enriching.`,
-      friendly: `It was so wonderful having you at <strong>${eventTitle}</strong>! We hope you had a fantastic time and took away some great memories.`,
-      formal: `We extend our sincere gratitude for your attendance at <strong>${eventTitle}</strong>. Your presence was greatly appreciated.`,
-      casual: `Thanks for coming to <strong>${eventTitle}</strong>! Hope you had a blast — we sure did!`,
-      urgent: `Thank you for attending <strong>${eventTitle}</strong>. We kindly request your immediate feedback to help us improve future events.`,
+      professional: [
+        `Thank you for your participation in <strong>${eventTitle}</strong>. We hope the experience was both valuable and enriching.`,
+        `We appreciate you taking the time to attend <strong>${eventTitle}</strong>. Your engagement made the event truly special.`,
+      ],
+      friendly: [
+        `It was so wonderful having you at <strong>${eventTitle}</strong>! We hope you had a fantastic time and took away some great memories.`,
+        `What an incredible event! Thank you for being part of <strong>${eventTitle}</strong> — we loved having you there.`,
+      ],
+      formal: [
+        `We extend our sincere gratitude for your attendance at <strong>${eventTitle}</strong>. Your presence was greatly appreciated.`,
+        `On behalf of the organizers, we wish to express our gratitude for your attendance at <strong>${eventTitle}</strong>.`,
+      ],
+      casual: [
+        `Thanks for coming to <strong>${eventTitle}</strong>! Hope you had a blast — we sure did!`,
+        `Hey! Just wanted to say thanks for showing up at <strong>${eventTitle}</strong> — it was a great time!`,
+      ],
+      urgent: [
+        `Thank you for attending <strong>${eventTitle}</strong>. We kindly request your immediate feedback to help us improve future events.`,
+        `We value your input! Please take a moment to share your thoughts on <strong>${eventTitle}</strong> — it only takes a minute.`,
+      ],
     },
     announcement: {
-      professional: `We are thrilled to announce <strong>${eventTitle}</strong> — a premier event that promises to deliver outstanding value and insights.`,
-      friendly: `We have some exciting news — <strong>${eventTitle}</strong> is officially happening and we'd love for you to be a part of it!`,
-      formal: `It is with great pleasure that we officially announce <strong>${eventTitle}</strong>. This event marks a significant occasion for our community.`,
-      casual: `Big news! <strong>${eventTitle}</strong> is happening and it's going to be epic. Read on for all the details!`,
-      urgent: `<strong>Limited spots available!</strong> We're announcing <strong>${eventTitle}</strong> — act now before it sells out.`,
+      professional: [
+        `We are thrilled to announce <strong>${eventTitle}</strong> — a premier event that promises to deliver outstanding value and insights.`,
+        `We're excited to share the details of <strong>${eventTitle}</strong>, an upcoming event that you won't want to miss.`,
+      ],
+      friendly: [
+        `We have some exciting news — <strong>${eventTitle}</strong> is officially happening and we'd love for you to be a part of it!`,
+        `Drumroll please... <strong>${eventTitle}</strong> is officially on! Here's everything you need to know.`,
+      ],
+      formal: [
+        `It is with great pleasure that we officially announce <strong>${eventTitle}</strong>. This event marks a significant occasion for our community.`,
+        `We are honoured to present <strong>${eventTitle}</strong> — an event of significance for all stakeholders.`,
+      ],
+      casual: [
+        `Big news! <strong>${eventTitle}</strong> is happening and it's going to be epic. Read on for all the details!`,
+        `Hey! We just launched <strong>${eventTitle}</strong> — check out the details and get on the list!`,
+      ],
+      urgent: [
+        `<strong>Limited spots available!</strong> We're announcing <strong>${eventTitle}</strong> — act now before it sells out.`,
+        `<strong>${eventTitle}</strong> just launched with limited capacity — register today before spots run out!`,
+      ],
     },
     custom: {
-      professional: `We are reaching out with an important update regarding <strong>${eventTitle}</strong>.`,
-      friendly: `Hey! We've got a message for you about <strong>${eventTitle}</strong> that we think you'll want to read.`,
-      formal: `Please find below an official communication pertaining to <strong>${eventTitle}</strong>.`,
-      casual: `Quick update for you about <strong>${eventTitle}</strong> — read on!`,
-      urgent: `<strong>Urgent:</strong> Please read this message about <strong>${eventTitle}</strong> right away.`,
+      professional: [
+        `We are reaching out with an important update regarding <strong>${eventTitle}</strong>.`,
+        `We have some important information to share about <strong>${eventTitle}</strong> that we think you'll find valuable.`,
+      ],
+      friendly: [
+        `Hey! We've got a message for you about <strong>${eventTitle}</strong> that we think you'll want to read.`,
+        `Quick note about <strong>${eventTitle}</strong> — we've got some updates to share!`,
+      ],
+      formal: [
+        `Please find below an official communication pertaining to <strong>${eventTitle}</strong>.`,
+        `This message contains important information regarding <strong>${eventTitle}</strong>. Please review carefully.`,
+      ],
+      casual: [
+        `Quick update for you about <strong>${eventTitle}</strong> — read on!`,
+        `Just wanted to fill you in on some <strong>${eventTitle}</strong> updates!`,
+      ],
+      urgent: [
+        `<strong>Urgent:</strong> Please read this message about <strong>${eventTitle}</strong> right away.`,
+        `<strong>Action required:</strong> Important update about <strong>${eventTitle}</strong> that needs your attention now.`,
+      ],
     },
   };
 
-  const bodyIntro = bodyIntroMap[campaignType]?.[tone] ?? `We're reaching out about <strong>${eventTitle}</strong>.`;
+  const bodyIntroOptions = bodyIntroMap[campaignType]?.[tone] ?? [`We're reaching out about <strong>${eventTitle}</strong>.`];
+  const bodyIntro = pick(bodyIntroOptions);
 
   const ctaLabelMap: Record<string, string> = {
     invitation: "Reserve My Spot",
