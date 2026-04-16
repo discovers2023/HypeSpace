@@ -43,8 +43,11 @@ Plans:
   1. After login, the frontend reads the active org from the session — not a hardcoded constant
   2. A user belonging to two orgs sees an org switcher in the navbar and can change active org
   3. Every API call includes the current org from session context, not a client-side override
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 2 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Enhance /auth/me to return user's orgs list and activeOrgId from team_members (ORG-01, ORG-03)
+- [ ] 02-02-PLAN.md — Fix auth-provider to load orgs from server; replace all ORG_ID=1 with useAuth(); add org switcher to sidebar (ORG-01, ORG-02, ORG-03)
 
 ### Phase 3: Campaign & Quality
 **Goal**: Organizers can schedule campaigns to send at a future time and see open/click analytics; the codebase ships clean with no TypeScript errors and consistent error handling
@@ -67,5 +70,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Security Hardening | 3/3 | Complete | 2026-04-15 |
-| 2. Multi-Organization | 0/TBD | Not started | - |
+| 2. Multi-Organization | 0/2 | Not started | - |
 | 3. Campaign & Quality | 0/TBD | Not started | - |
