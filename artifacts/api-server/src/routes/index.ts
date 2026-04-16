@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import rateLimit from "express-rate-limit";
 import healthRouter from "./health";
 import authRouter from "./auth";
@@ -35,6 +35,23 @@ const aiLimiter = rateLimit({
 
 router.use("/auth", authLimiter);
 router.use("/organizations/:orgId/campaigns/ai-generate", aiLimiter);
+
+// Auth guard: blocks all routes except auth, health, and public endpoints
+function requireAuth(req: Request, res: Response, next: NextFunction): void {
+  if (!req.session?.userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  next();
+}
+
+// Apply requireAuth to everything EXCEPT open paths
+// Open paths: /auth/* (login/register/logout/me), /healthz, /health, /public/*
+const openPaths = ["/auth/", "/healthz", "/health", "/public/"];
+router.use((req: Request, res: Response, next: NextFunction) => {
+  if (openPaths.some((p) => req.path.startsWith(p))) return next();
+  return requireAuth(req, res, next);
+});
 
 router.use(healthRouter);
 router.use(authRouter);
