@@ -8,12 +8,21 @@ import {
   Users,
   Settings,
   LogOut,
-  Menu
+  Menu,
+  Building2,
+  ChevronDown,
 } from "lucide-react";
 import logoSrc from "@assets/HS_logo_1775759732611.png";
 import iconSrc from "@assets/hs_icon_1775759732610.png";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useAuth } from "@/components/auth-provider";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -27,6 +36,37 @@ const navItems = [
 
 export function Sidebar() {
   const [location] = useLocation();
+  const { orgs, activeOrgId, switchOrg } = useAuth();
+  const activeOrg = orgs.find(o => o.id === activeOrgId) ?? orgs[0];
+
+  const OrgSwitcher = () => (
+    <>
+      {orgs.length > 0 && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium bg-muted/40 hover:bg-muted/70 transition-colors text-left">
+              <Building2 className="h-4 w-4 text-primary shrink-0" />
+              <span className="truncate flex-1">{activeOrg?.name ?? "Select org"}</span>
+              {orgs.length > 1 && <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+            </button>
+          </DropdownMenuTrigger>
+          {orgs.length > 1 && (
+            <DropdownMenuContent align="start" className="w-56">
+              {orgs.map(org => (
+                <DropdownMenuItem
+                  key={org.id}
+                  onClick={() => switchOrg(org.id)}
+                  className={org.id === activeOrgId ? "font-medium" : ""}
+                >
+                  {org.name}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          )}
+        </DropdownMenu>
+      )}
+    </>
+  );
 
   const NavLinks = () => (
     <div className="flex flex-col gap-1 w-full">
@@ -66,9 +106,12 @@ export function Sidebar() {
           </SheetTrigger>
           <SheetContent side="left" className="w-64 p-0">
             <div className="p-6 h-full flex flex-col">
-              <Link href="/dashboard" className="flex justify-center mb-8">
+              <Link href="/dashboard" className="flex justify-center mb-6">
                 <img src={logoSrc} alt="HypeSpace Logo" className="h-10 object-contain" />
               </Link>
+              <div className="mb-4">
+                <OrgSwitcher />
+              </div>
               <div className="flex-1">
                 <NavLinks />
               </div>
@@ -85,9 +128,13 @@ export function Sidebar() {
 
       {/* Desktop Sidebar */}
       <div className="hidden md:flex flex-col w-60 border-r border-border/50 bg-card/50 backdrop-blur-sm h-screen sticky top-0 p-5 z-40">
-        <Link href="/dashboard" className="flex justify-center mb-8 cursor-pointer">
+        <Link href="/dashboard" className="flex justify-center mb-6 cursor-pointer">
           <img src={logoSrc} alt="HypeSpace Logo" className="h-9 object-contain" />
         </Link>
+
+        <div className="mb-4">
+          <OrgSwitcher />
+        </div>
 
         <div className="flex-1">
           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Menu</p>

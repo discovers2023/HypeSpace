@@ -24,8 +24,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
+import { useAuth } from "@/components/auth-provider";
 
-const ORG_ID = 1;
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const STEPS = [
@@ -43,6 +43,7 @@ interface Props {
 }
 
 export function CampaignCreationModal({ open, onClose, eventId, eventTitle }: Props) {
+  const { activeOrgId } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
@@ -62,8 +63,8 @@ export function CampaignCreationModal({ open, onClose, eventId, eventTitle }: Pr
   // Recipients step state (lifted for send step wiring)
   const [recipientFilter, setRecipientFilter] = useState<"all" | "confirmed" | "invited" | "added">("all");
 
-  const { data: events } = useListEvents(ORG_ID);
-  const { data: guests } = useListGuests(ORG_ID, selectedEventId ?? 0);
+  const { data: events } = useListEvents(activeOrgId);
+  const { data: guests } = useListGuests(activeOrgId, selectedEventId ?? 0);
   const generateCampaign = useAiGenerateCampaign();
   const createCampaign = useCreateCampaign();
   const updateCampaign = useUpdateCampaign();
@@ -89,7 +90,7 @@ export function CampaignCreationModal({ open, onClose, eventId, eventTitle }: Pr
 
   const onGenerate = () => {
     generateCampaign.mutate(
-      { orgId: ORG_ID, data: { eventId: selectedEventId ?? null, campaignType, tone, additionalContext: context } },
+      { orgId: activeOrgId, data: { eventId: selectedEventId ?? null, campaignType, tone, additionalContext: context } },
       {
         onSuccess: (result) => {
           setGenerated({ subject: result.subject, htmlContent: result.htmlContent, textContent: result.textContent });
@@ -105,7 +106,7 @@ export function CampaignCreationModal({ open, onClose, eventId, eventTitle }: Pr
     return new Promise((resolve) => {
       createCampaign.mutate(
         {
-          orgId: ORG_ID,
+          orgId: activeOrgId,
           data: {
             eventId: selectedEventId ?? null,
             name: `Campaign: ${generated.subject.substring(0, 40)}`,
@@ -118,7 +119,7 @@ export function CampaignCreationModal({ open, onClose, eventId, eventTitle }: Pr
         {
           onSuccess: (c) => {
             setCampaignId(c.id);
-            queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/campaigns`] });
+            queryClient.invalidateQueries({ queryKey: [`/api/organizations/${activeOrgId}/campaigns`] });
             resolve(c.id);
           },
           onError: (e) => {
@@ -141,7 +142,7 @@ export function CampaignCreationModal({ open, onClose, eventId, eventTitle }: Pr
     } else {
       await new Promise<void>((resolve) => {
         updateCampaign.mutate(
-          { orgId: ORG_ID, campaignId, data: { subject: generated.subject, htmlContent: generated.htmlContent, textContent: generated.textContent } },
+          { orgId: activeOrgId, campaignId, data: { subject: generated.subject, htmlContent: generated.htmlContent, textContent: generated.textContent } },
           { onSuccess: () => resolve(), onError: () => resolve() },
         );
       });
@@ -492,6 +493,7 @@ function RecipientsStep({
 // Step 3: Test Email
 // ──────────────────────────────────────────────────
 function TestEmailStep({ campaignId }: { campaignId: number | null }) {
+  const { activeOrgId } = useAuth();
   const { toast } = useToast();
   const [testEmail, setTestEmail] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -501,7 +503,7 @@ function TestEmailStep({ campaignId }: { campaignId: number | null }) {
     if (!campaignId || !testEmail.includes("@")) return;
     setIsSending(true);
     try {
-      const res = await fetch(`${BASE}/api/organizations/${ORG_ID}/campaigns/${campaignId}/test-send`, {
+      const res = await fetch(`${BASE}/api/organizations/${activeOrgId}/campaigns/${campaignId}/test-send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ to: testEmail }),
@@ -577,6 +579,7 @@ function ScheduleSendStep({
   recipientCount: number;
   onSent: () => void;
 }) {
+  const { activeOrgId } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const updateCampaign = useUpdateCampaign();
@@ -587,7 +590,7 @@ function ScheduleSendStep({
   const [sent, setSent] = useState(false);
 
   // Fetch campaign to get subject/html/text for bulk-email
-  const { data: campaign } = useGetCampaign(ORG_ID, campaignId ?? 0, {
+  const { data: campaign } = useGetCampaign(activeOrgId, campaignId ?? 0, {
     query: { enabled: !!campaignId },
   });
 
@@ -598,11 +601,11 @@ function ScheduleSendStep({
     if (mode === "schedule" && scheduledDate) {
       const scheduledAt = new Date(`${scheduledDate}T${scheduledTime}`).toISOString();
       updateCampaign.mutate(
-        { orgId: ORG_ID, campaignId, data: { status: "scheduled", scheduledAt } },
+        { orgId: activeOrgId, campaignId, data: { status: "scheduled", scheduledAt } },
         {
           onSuccess: () => {
             toast({ title: "Campaign scheduled!", description: `Will send on ${format(new Date(`${scheduledDate}T${scheduledTime}`), "MMM d 'at' h:mm a")}` });
-            queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/campaigns`] });
+            queryClient.invalidateQueries({ queryKey: [`/api/organizations/${activeOrgId}/campaigns`] });
             setSent(true);
             setIsSending(false);
           },
@@ -616,7 +619,7 @@ function ScheduleSendStep({
       // Use bulk-email endpoint which correctly applies the recipient filter
       try {
         const segment = FILTER_TO_SEGMENT[recipientFilter];
-        const res = await fetch(`${BASE}/api/organizations/${ORG_ID}/events/${eventId}/bulk-email`, {
+        const res = await fetch(`${BASE}/api/organizations/${activeOrgId}/events/${eventId}/bulk-email`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -629,14 +632,14 @@ function ScheduleSendStep({
         });
         if (res.ok) {
           // Mark campaign as sent in the DB; surface failure so state stays consistent
-          const markRes = await fetch(`${BASE}/api/organizations/${ORG_ID}/campaigns/${campaignId}/send`, {
+          const markRes = await fetch(`${BASE}/api/organizations/${activeOrgId}/campaigns/${campaignId}/send`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
           }).catch(() => null);
           if (!markRes?.ok) {
             toast({ title: "Emails sent, but status update failed", description: "Refresh the campaigns list to see the latest status.", variant: "destructive" });
           }
-          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/campaigns`] });
+          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${activeOrgId}/campaigns`] });
           toast({ title: "Campaign sent!", description: `Delivered to ${recipientCount} ${recipientFilter !== "all" ? recipientFilter + " " : ""}guest${recipientCount !== 1 ? "s" : ""}.` });
           setSent(true);
         } else {
@@ -651,13 +654,13 @@ function ScheduleSendStep({
     } else {
       // Fallback: use campaign send endpoint when no event is linked
       try {
-        const res = await fetch(`${BASE}/api/organizations/${ORG_ID}/campaigns/${campaignId}/send`, {
+        const res = await fetch(`${BASE}/api/organizations/${activeOrgId}/campaigns/${campaignId}/send`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
         });
         if (res.ok) {
           toast({ title: "Campaign sent!" });
-          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/campaigns`] });
+          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${activeOrgId}/campaigns`] });
           setSent(true);
         } else {
           toast({ title: "Failed to send", variant: "destructive" });

@@ -130,12 +130,11 @@ import { GHLImportModal } from "@/components/ghl-import-modal";
 import { CSVImportModal } from "@/components/csv-import-modal";
 import { Progress } from "@/components/ui/progress";
 import { CampaignCreationModal } from "@/components/campaigns/campaign-creation-modal";
+import { useAuth } from "@/components/auth-provider";
 
 // ---------------------------------------------------------------------------
 // Constants & helpers
 // ---------------------------------------------------------------------------
-
-const ORG_ID = 1;
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
 
 const addGuestSchema = z.object({
@@ -183,6 +182,7 @@ const RECURRENCE_LABELS: Record<string, string> = {
 // ---------------------------------------------------------------------------
 
 export default function EventDetail() {
+  const { activeOrgId } = useAuth();
   const { id } = useParams<{ id: string }>();
   const eventId = parseInt(id || "0", 10);
   const { toast } = useToast();
@@ -193,27 +193,27 @@ export default function EventDetail() {
   const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
   // ── Data fetching ──────────────────────────────────────────────────────
-  const { data: event, isLoading: isEventLoading } = useGetEvent(ORG_ID, eventId, {
+  const { data: event, isLoading: isEventLoading } = useGetEvent(activeOrgId, eventId, {
     query: { enabled: !!eventId },
   });
   const { data: guests, isLoading: isGuestsLoading } = useListGuests(
-    ORG_ID,
+    activeOrgId,
     eventId,
     undefined,
     { query: { enabled: !!eventId } },
   );
   const { data: campaigns, isLoading: isCampaignsLoading } = useListCampaigns(
-    ORG_ID,
+    activeOrgId,
     { eventId },
     { query: { enabled: !!eventId } },
   );
   const { data: socialPosts, isLoading: isSocialLoading } = useListSocialPosts(
-    ORG_ID,
+    activeOrgId,
     { eventId },
     { query: { enabled: !!eventId } },
   );
   const { data: reminders, isLoading: isRemindersLoading } = useListReminders(
-    ORG_ID,
+    activeOrgId,
     eventId,
     { query: { enabled: !!eventId } },
   );
@@ -266,7 +266,7 @@ export default function EventDetail() {
 
   // ── Invalidation helpers ───────────────────────────────────────────────
   const invalidateGuests = () => {
-    const url = `/api/organizations/${ORG_ID}/events/${eventId}/guests`;
+    const url = `/api/organizations/${activeOrgId}/events/${eventId}/guests`;
     queryClient.invalidateQueries({
       predicate: (query) => {
         const key = query.queryKey;
@@ -274,13 +274,13 @@ export default function EventDetail() {
       },
     });
     queryClient.invalidateQueries({
-      queryKey: [`/api/organizations/${ORG_ID}/events/${eventId}`],
+      queryKey: [`/api/organizations/${activeOrgId}/events/${eventId}`],
     });
   };
 
   const invalidateEvent = () => {
     queryClient.invalidateQueries({
-      queryKey: [`/api/organizations/${ORG_ID}/events/${eventId}`],
+      queryKey: [`/api/organizations/${activeOrgId}/events/${eventId}`],
     });
   };
 
@@ -351,7 +351,7 @@ export default function EventDetail() {
     reader.onload = () => {
       const dataUrl = reader.result as string;
       updateEvent.mutate(
-        { orgId: ORG_ID, eventId, data: { coverImageUrl: dataUrl } },
+        { orgId: activeOrgId, eventId, data: { coverImageUrl: dataUrl } },
         {
           onSuccess: () => {
             toast({ title: "Cover image updated" });
@@ -383,7 +383,7 @@ export default function EventDetail() {
           (guestId) =>
             new Promise<void>((resolve, reject) => {
               removeGuest.mutate(
-                { orgId: ORG_ID, eventId, guestId },
+                { orgId: activeOrgId, eventId, guestId },
                 { onSuccess: () => resolve(), onError: reject },
               );
             }),
@@ -403,12 +403,12 @@ export default function EventDetail() {
   const onAddGuest = (data: AddGuestFormValues) => {
     const isAtCapacity = event?.capacity != null && (event.guestCount ?? 0) >= event.capacity;
     addGuest.mutate(
-      { orgId: ORG_ID, eventId, data },
+      { orgId: activeOrgId, eventId, data },
       {
         onSuccess: (newGuest) => {
           if (isAtCapacity) {
             updateGuest.mutate(
-              { orgId: ORG_ID, eventId, guestId: newGuest.id, data: { status: "waitlisted" } },
+              { orgId: activeOrgId, eventId, guestId: newGuest.id, data: { status: "waitlisted" } },
               {
                 onSuccess: () => {
                   toast({ title: "Event is at capacity — guest added to waitlist" });
@@ -437,14 +437,14 @@ export default function EventDetail() {
   const onRemoveGuest = () => {
     if (!guestToRemove) return;
     removeGuest.mutate(
-      { orgId: ORG_ID, eventId, guestId: guestToRemove.id },
+      { orgId: activeOrgId, eventId, guestId: guestToRemove.id },
       {
         onSuccess: () => {
           toast({ title: `${guestToRemove.name} removed from guest list` });
           const firstWaitlisted = guests?.find((g) => g.status === "waitlisted" && g.id !== guestToRemove.id);
           if (firstWaitlisted) {
             updateGuest.mutate(
-              { orgId: ORG_ID, eventId, guestId: firstWaitlisted.id, data: { status: "added" } },
+              { orgId: activeOrgId, eventId, guestId: firstWaitlisted.id, data: { status: "added" } },
               {
                 onSuccess: () => {
                   toast({ title: `${firstWaitlisted.name} promoted from waitlist` });
@@ -471,7 +471,7 @@ export default function EventDetail() {
     status: "added" | "invited" | "confirmed" | "maybe" | "declined" | "waitlisted",
   ) => {
     updateGuest.mutate(
-      { orgId: ORG_ID, eventId, guestId, data: { status } },
+      { orgId: activeOrgId, eventId, guestId, data: { status } },
       {
         onSuccess: () => {
           toast({ title: `Guest marked as ${status}` });
@@ -479,7 +479,7 @@ export default function EventDetail() {
             const firstWaitlisted = guests?.find((g) => g.status === "waitlisted" && g.id !== guestId);
             if (firstWaitlisted) {
               updateGuest.mutate(
-                { orgId: ORG_ID, eventId, guestId: firstWaitlisted.id, data: { status: "added" } },
+                { orgId: activeOrgId, eventId, guestId: firstWaitlisted.id, data: { status: "added" } },
                 {
                   onSuccess: () => {
                     toast({ title: `${firstWaitlisted.name} promoted from waitlist` });
@@ -503,7 +503,7 @@ export default function EventDetail() {
   const onLaunch = async () => {
     setIsLaunching(true);
     try {
-      const res = await fetch(`${BASE}/api/organizations/${ORG_ID}/events/${eventId}/launch`, {
+      const res = await fetch(`${BASE}/api/organizations/${activeOrgId}/events/${eventId}/launch`, {
         method: "POST",
       });
       const data = await res.json();
@@ -511,7 +511,7 @@ export default function EventDetail() {
       toast({ title: "Event launched!", description: `${data.guestsInvited} guests invited` });
       setIsLaunchOpen(false);
       invalidateGuests();
-      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/events/${eventId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${activeOrgId}/events/${eventId}`] });
       queryClient.invalidateQueries({
         predicate: (q) =>
           Array.isArray(q.queryKey) &&
@@ -541,7 +541,7 @@ export default function EventDetail() {
     if (!campaign) return;
     setIsSendingTest(true);
     try {
-      const res = await fetch(`${BASE}/api/organizations/${ORG_ID}/campaigns/${campaign.id}/test-send`, {
+      const res = await fetch(`${BASE}/api/organizations/${activeOrgId}/campaigns/${campaign.id}/test-send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ to: testEmailTo }),
@@ -573,7 +573,7 @@ export default function EventDetail() {
     setSendingReminderId(reminderId);
     try {
       const res = await fetch(
-        `${BASE}/api/organizations/${ORG_ID}/events/${eventId}/reminders/${reminderId}/send`,
+        `${BASE}/api/organizations/${activeOrgId}/events/${eventId}/reminders/${reminderId}/send`,
         { method: "POST" },
       );
       const data = await res.json();
@@ -601,7 +601,7 @@ export default function EventDetail() {
     if (!newReminderSubject.trim() || !newReminderMessage.trim() || isNaN(offsetHours)) return;
     createReminder.mutate(
       {
-        orgId: ORG_ID,
+        orgId: activeOrgId,
         eventId,
         data: {
           type: newReminderType,
@@ -676,7 +676,7 @@ export default function EventDetail() {
   const onDuplicateEvent = async () => {
     setIsDuplicating(true);
     try {
-      const res = await fetch(`${BASE}/api/organizations/${ORG_ID}/events/${eventId}/duplicate`, {
+      const res = await fetch(`${BASE}/api/organizations/${activeOrgId}/events/${eventId}/duplicate`, {
         method: "POST",
       });
       const data = await res.json();
@@ -696,7 +696,7 @@ export default function EventDetail() {
 
   const onCheckInGuest = (guestId: number) => {
     updateGuest.mutate(
-      { orgId: ORG_ID, eventId, guestId, data: { status: "attended" } },
+      { orgId: activeOrgId, eventId, guestId, data: { status: "attended" } },
       {
         onSuccess: () => {
           toast({ title: "Guest checked in!" });
@@ -717,7 +717,7 @@ export default function EventDetail() {
           (gId) =>
             new Promise<void>((resolve, reject) => {
               updateGuest.mutate(
-                { orgId: ORG_ID, eventId, guestId: gId, data: { status: "attended" } },
+                { orgId: activeOrgId, eventId, guestId: gId, data: { status: "attended" } },
                 { onSuccess: () => resolve(), onError: reject },
               );
             }),
@@ -877,7 +877,7 @@ export default function EventDetail() {
                   <DropdownMenuItem
                     className="text-green-600 focus:text-green-600"
                     onClick={() => updateEvent.mutate(
-                      { orgId: ORG_ID, eventId, data: { status: "published" } },
+                      { orgId: activeOrgId, eventId, data: { status: "published" } },
                       { onSuccess: () => toast({ title: "Event published!" }) },
                     )}
                   >
@@ -889,7 +889,7 @@ export default function EventDetail() {
                   <DropdownMenuItem
                     className="text-green-600 focus:text-green-600"
                     onClick={() => updateEvent.mutate(
-                      { orgId: ORG_ID, eventId, data: { status: "published" } },
+                      { orgId: activeOrgId, eventId, data: { status: "published" } },
                       { onSuccess: () => toast({ title: "Event republished!" }) },
                     )}
                   >
@@ -2195,7 +2195,7 @@ export default function EventDetail() {
 
           {/* ── Activity Feed Tab ───────────────────────────────────────── */}
           <TabsContent value="activity" className="space-y-4">
-            <ActivityFeedTab orgId={ORG_ID} eventId={eventId} />
+            <ActivityFeedTab orgId={activeOrgId} eventId={eventId} />
           </TabsContent>
         </Tabs>
       </div>
@@ -2228,7 +2228,7 @@ export default function EventDetail() {
 
       {/* CSV Import */}
       <CSVImportModal
-        orgId={ORG_ID}
+        orgId={activeOrgId}
         eventId={eventId}
         open={isCSVImportOpen}
         onClose={() => setIsCSVImportOpen(false)}
@@ -2236,7 +2236,7 @@ export default function EventDetail() {
 
       {/* GHL Import */}
       <GHLImportModal
-        orgId={ORG_ID}
+        orgId={activeOrgId}
         open={isGHLImportOpen}
         onClose={() => setIsGHLImportOpen(false)}
         initialEventId={eventId}
@@ -2512,7 +2512,7 @@ export default function EventDetail() {
             <AlertDialogAction
               onClick={() => {
                 updateEvent.mutate(
-                  { orgId: ORG_ID, eventId, data: { status: "cancelled" } },
+                  { orgId: activeOrgId, eventId, data: { status: "cancelled" } },
                   {
                     onSuccess: () => {
                       toast({ title: "Event cancelled" });
@@ -2552,7 +2552,7 @@ export default function EventDetail() {
             <AlertDialogAction
               onClick={() => {
                 deleteEvent.mutate(
-                  { orgId: ORG_ID, eventId },
+                  { orgId: activeOrgId, eventId },
                   {
                     onSuccess: () => {
                       toast({ title: "Event deleted" });
@@ -2581,7 +2581,7 @@ export default function EventDetail() {
         <BulkEmailDialog
           open={bulkEmail.open}
           onOpenChange={(o) => setBulkEmail((prev) => (prev ? { ...prev, open: o } : prev))}
-          orgId={ORG_ID}
+          orgId={activeOrgId}
           eventId={eventId}
           recipientLabel={bulkEmail.label}
           recipientCount={bulkEmail.count}
@@ -2589,8 +2589,8 @@ export default function EventDetail() {
           templates={campaigns?.filter((c) => c.eventId === eventId).map((c) => ({ id: c.id, name: c.name, subject: c.subject, htmlContent: c.htmlContent, textContent: c.textContent })) ?? []}
           onSent={() => {
             setSelectedGuests(new Set());
-            queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/campaigns`] });
-            queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/activity`] });
+            queryClient.invalidateQueries({ queryKey: [`/api/organizations/${activeOrgId}/campaigns`] });
+            queryClient.invalidateQueries({ queryKey: [`/api/organizations/${activeOrgId}/activity`] });
           }}
         />
       )}
@@ -2599,7 +2599,7 @@ export default function EventDetail() {
         open={isCreateCampaignOpen}
         onClose={() => {
           setIsCreateCampaignOpen(false);
-          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/campaigns`] });
+          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${activeOrgId}/campaigns`] });
         }}
         eventId={eventId}
       />

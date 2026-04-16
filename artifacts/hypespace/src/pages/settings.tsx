@@ -2409,7 +2409,7 @@ function UsageCard({ label, current, max }: { label: string; current: number; ma
 // --- Settings Page ---
 export default function Settings() {
   const { activeOrgId } = useAuth();
-  const orgId = activeOrgId ?? 1;
+  const orgId = activeOrgId;
   const [activeTab, setActiveTab] = useState<TabId>("general");
   const { data: org, isLoading } = useGetOrganization(orgId);
   const updateOrg = useUpdateOrganization();

@@ -244,11 +244,11 @@ export default function EventNew() {
     };
 
     createEvent.mutate(
-      { orgId: activeOrgId ?? 1, data: formattedData },
+      { orgId: activeOrgId, data: formattedData },
       {
         onSuccess: (newEvent) => {
           queryClient.invalidateQueries({ queryKey: ["/api/events"] });
-          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${activeOrgId ?? 1}/dashboard`] });
+          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${activeOrgId}/dashboard`] });
           if (mode === "draft") {
             toast({ title: "Draft saved!", description: "You can finish setup anytime." });
             setLocation(`/events/${newEvent.id}`);

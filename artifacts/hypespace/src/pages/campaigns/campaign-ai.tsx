@@ -23,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/components/auth-provider";
 const aiCampaignSchema = z.object({
   eventId: z.string().min(1, "Please select an event"),
   campaignType: z.enum(["invitation", "reminder", "followup", "announcement", "custom"]),
@@ -59,12 +60,13 @@ function applyBranding(html: string, branding: { primaryColor?: string | null; a
 }
 
 export default function CampaignAi() {
+  const { activeOrgId } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const generateCampaign = useAiGenerateCampaign();
   const createCampaign = useCreateCampaign();
-  const { data: events, isLoading: isEventsLoading } = useListEvents(1);
-  const { data: org } = useGetOrganization(1);
+  const { data: events, isLoading: isEventsLoading } = useListEvents(activeOrgId);
+  const { data: org } = useGetOrganization(activeOrgId);
   
   const [generatedResult, setGeneratedResult] = useState<{
     subject: string;
@@ -129,7 +131,7 @@ export default function CampaignAi() {
     
     createCampaign.mutate(
       {
-        orgId: 1,
+        orgId: activeOrgId,
         data: {
           eventId: generatedResult.selectedEventId,
           name: `AI Generated: ${generatedResult.subject.substring(0, 30)}...`,

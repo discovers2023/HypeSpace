@@ -83,7 +83,7 @@ type EditorTab = "visual" | "html" | "text";
 
 export default function CampaignEdit() {
   const { activeOrgId } = useAuth();
-  const orgId = activeOrgId ?? 1;
+  const orgId = activeOrgId;
   const [, params] = useRoute<{ id: string }>("/campaigns/:id/edit");
   const [, setLocation] = useLocation();
   const { toast } = useToast();

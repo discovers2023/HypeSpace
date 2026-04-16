@@ -24,8 +24,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { CampaignCreationModal } from "@/components/campaigns/campaign-creation-modal";
-
-const ORG_ID = 1;
+import { useAuth } from "@/components/auth-provider";
 
 type StatusFilter = "all" | "draft" | "scheduled" | "sent";
 
@@ -53,8 +52,9 @@ const TYPE_COLOR: Record<string, string> = {
 };
 
 export default function CampaignList() {
-  const { data: campaigns, isLoading } = useListCampaigns(ORG_ID);
-  const { data: events } = useListEvents(ORG_ID);
+  const { activeOrgId } = useAuth();
+  const { data: campaigns, isLoading } = useListCampaigns(activeOrgId);
+  const { data: events } = useListEvents(activeOrgId);
   const deleteCampaign = useDeleteCampaign();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -98,11 +98,11 @@ export default function CampaignList() {
   const handleDelete = () => {
     if (!campaignToDelete) return;
     deleteCampaign.mutate(
-      { orgId: ORG_ID, campaignId: campaignToDelete },
+      { orgId: activeOrgId, campaignId: campaignToDelete },
       {
         onSuccess: () => {
           toast({ title: "Campaign deleted" });
-          queryClient.invalidateQueries({ queryKey: ["/api/organizations", ORG_ID, "campaigns"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/organizations", activeOrgId, "campaigns"] });
           setCampaignToDelete(null);
         },
         onError: (err) => {

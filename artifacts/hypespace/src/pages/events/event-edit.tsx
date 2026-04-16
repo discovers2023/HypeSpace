@@ -38,8 +38,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-
-const ORG_ID = 1;
+import { useAuth } from "@/components/auth-provider";
 
 const eventSchema = z.object({
   title: z.string().min(2, "Title is required"),
@@ -117,6 +116,7 @@ const TYPES = [
 // Main Edit Page
 // ═══════════════════════════════════════════════════════════════════
 export default function EventEdit() {
+  const { activeOrgId } = useAuth();
   const { id } = useParams<{ id: string }>();
   const eventId = parseInt(id || "0", 10);
   const [, setLocation] = useLocation();
@@ -126,7 +126,7 @@ export default function EventEdit() {
   const [activeSection, setActiveSection] = useState<(typeof SECTIONS)[number]["key"]>("basics");
   const [isSaving, setIsSaving] = useState(false);
 
-  const { data: event, isLoading } = useGetEvent(ORG_ID, eventId);
+  const { data: event, isLoading } = useGetEvent(activeOrgId, eventId);
 
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventSchema),
@@ -189,12 +189,12 @@ export default function EventEdit() {
     };
 
     updateEvent.mutate(
-      { orgId: ORG_ID, eventId, data: payload },
+      { orgId: activeOrgId, eventId, data: payload },
       {
         onSuccess: () => {
           toast({ title: "Event updated!" });
-          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/events/${eventId}`] });
-          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/events`] });
+          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${activeOrgId}/events/${eventId}`] });
+          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${activeOrgId}/events`] });
           form.reset(data);
           setIsSaving(false);
         },

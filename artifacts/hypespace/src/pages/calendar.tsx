@@ -22,9 +22,9 @@ import {
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { EventCreationModal } from "@/components/events/event-creation-modal";
+import { useAuth } from "@/components/auth-provider";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-const ORG_ID = 1;
 
 type EventStatus = "draft" | "published" | "completed" | "cancelled";
 type CalendarView = "month" | "week" | "list";
@@ -103,6 +103,7 @@ function EventPopover({ event, onClose }: { event: CalendarEvent; onClose: () =>
 }
 
 export default function CalendarPage() {
+  const { activeOrgId } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<CalendarView>("month");
   const [showExternal, setShowExternal] = useState(true);
@@ -110,13 +111,13 @@ export default function CalendarPage() {
   const [prefillDate, setPrefillDate] = useState<Date | undefined>(undefined);
   const [popoverEvent, setPopoverEvent] = useState<CalendarEvent | null>(null);
 
-  const { data: events, isLoading: eventsLoading } = useListEvents(ORG_ID);
-  const { data: campaigns } = useListCampaigns(ORG_ID);
+  const { data: events, isLoading: eventsLoading } = useListEvents(activeOrgId);
+  const { data: campaigns } = useListCampaigns(activeOrgId);
 
   const { data: integrations } = useQuery<any[]>({
-    queryKey: ["integrations", ORG_ID],
+    queryKey: ["integrations", activeOrgId],
     queryFn: async () => {
-      const res = await fetch(`${BASE}/api/organizations/${ORG_ID}/integrations`);
+      const res = await fetch(`${BASE}/api/organizations/${activeOrgId}/integrations`);
       return res.json();
     },
   });
@@ -126,12 +127,12 @@ export default function CalendarPage() {
   }, [integrations]);
 
   const { data: externalData, isLoading: externalLoading } = useQuery<{ events: CalendarEvent[]; errors: any[] }>({
-    queryKey: ["calendar-events", ORG_ID, currentDate.getFullYear(), currentDate.getMonth() + 1],
+    queryKey: ["calendar-events", activeOrgId, currentDate.getFullYear(), currentDate.getMonth() + 1],
     enabled: connectedCalendars.length > 0 && showExternal,
     queryFn: async () => {
       const year = currentDate.getFullYear();
       const month = currentDate.getMonth() + 1;
-      const res = await fetch(`${BASE}/api/organizations/${ORG_ID}/calendar/events?year=${year}&month=${month}`);
+      const res = await fetch(`${BASE}/api/organizations/${activeOrgId}/calendar/events?year=${year}&month=${month}`);
       if (!res.ok) throw new Error("Failed to fetch calendar events");
       const data = await res.json();
       return {

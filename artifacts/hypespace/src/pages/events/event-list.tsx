@@ -32,8 +32,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { EventCreationModal } from "@/components/events/event-creation-modal";
-
-const ORG_ID = 1;
+import { useAuth } from "@/components/auth-provider";
 
 type FilterTab = "all" | "upcoming" | "drafts" | "cancelled" | "past";
 
@@ -88,8 +87,9 @@ const statusStyle = (status: string) => {
 };
 
 export default function EventList() {
-  const { data: events, isLoading } = useListEvents(ORG_ID);
-  const { data: allCampaigns } = useListCampaigns(ORG_ID);
+  const { activeOrgId } = useAuth();
+  const { data: events, isLoading } = useListEvents(activeOrgId);
+  const { data: allCampaigns } = useListCampaigns(activeOrgId);
   const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
@@ -131,11 +131,11 @@ export default function EventList() {
   const handleDelete = () => {
     if (!eventToDelete) return;
     deleteEvent.mutate(
-      { orgId: ORG_ID, eventId: eventToDelete },
+      { orgId: activeOrgId, eventId: eventToDelete },
       {
         onSuccess: () => {
           toast({ title: "Event deleted" });
-          queryClient.invalidateQueries({ queryKey: ["/api/organizations", ORG_ID, "events"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/organizations", activeOrgId, "events"] });
           setEventToDelete(null);
         },
         onError: (error) => {
@@ -150,7 +150,7 @@ export default function EventList() {
     setCloningId(event.id);
     createEvent.mutate(
       {
-        orgId: ORG_ID,
+        orgId: activeOrgId,
         data: {
           title: `${event.title} (Copy)`,
           description: event.description,
@@ -168,7 +168,7 @@ export default function EventList() {
       {
         onSuccess: (newEvent) => {
           toast({ title: "Event cloned!", description: "A draft copy has been created." });
-          queryClient.invalidateQueries({ queryKey: ["/api/organizations", ORG_ID, "events"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/organizations", activeOrgId, "events"] });
           setCloningId(null);
           setLocation(`/events/${newEvent.id}`);
         },
@@ -186,11 +186,11 @@ export default function EventList() {
       return;
     }
     addGuest.mutate(
-      { orgId: ORG_ID, eventId: addGuestEventId, data: { name: addGuestName, email: addGuestEmail, company: addGuestCompany || null } },
+      { orgId: activeOrgId, eventId: addGuestEventId, data: { name: addGuestName, email: addGuestEmail, company: addGuestCompany || null } },
       {
         onSuccess: () => {
           toast({ title: "Guest added!", description: `${addGuestName} added successfully.` });
-          queryClient.invalidateQueries({ queryKey: ["/api/organizations", ORG_ID, "events"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/organizations", activeOrgId, "events"] });
           setAddGuestEventId(null);
           setAddGuestName("");
           setAddGuestEmail("");

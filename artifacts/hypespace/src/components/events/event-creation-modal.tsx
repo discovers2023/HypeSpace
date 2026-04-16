@@ -36,8 +36,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { TimezonePicker } from "@/components/timezone-picker";
 import { CoverImagePicker } from "@/components/cover-image-picker";
 import { CSVImportModal } from "@/components/csv-import-modal";
+import { useAuth } from "@/components/auth-provider";
 
-const ORG_ID = 1;
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const STEPS = [
@@ -110,11 +110,12 @@ interface Props {
 }
 
 export function EventCreationModal({ open, onClose, prefillDate, onEventCreated }: Props) {
+  const { activeOrgId } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const createEvent = useCreateEvent();
   const updateEvent = useUpdateEvent();
-  const { data: org } = useGetOrganization(ORG_ID);
+  const { data: org } = useGetOrganization(activeOrgId);
 
   const [stepIndex, setStepIndex] = useState(0);
   const [direction, setDirection] = useState(1);
@@ -170,7 +171,7 @@ export function EventCreationModal({ open, onClose, prefillDate, onEventCreated 
     if (createdEventId) {
       return new Promise((resolve) => {
         updateEvent.mutate(
-          { orgId: ORG_ID, eventId: createdEventId, data: payload },
+          { orgId: activeOrgId, eventId: createdEventId, data: payload },
           {
             onSuccess: () => resolve({ id: createdEventId }),
             onError: (err) => resolve({ id: null, error: err as Error }),
@@ -180,12 +181,12 @@ export function EventCreationModal({ open, onClose, prefillDate, onEventCreated 
     }
     return new Promise((resolve) => {
       createEvent.mutate(
-        { orgId: ORG_ID, data: payload },
+        { orgId: activeOrgId, data: payload },
         {
           onSuccess: (ev) => {
             setCreatedEventId(ev.id);
             queryClient.invalidateQueries({ queryKey: ["/api/events"] });
-            queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/dashboard`] });
+            queryClient.invalidateQueries({ queryKey: [`/api/organizations/${activeOrgId}/dashboard`] });
             resolve({ id: ev.id });
           },
           onError: (err) => resolve({ id: null, error: err as Error }),
@@ -581,21 +582,22 @@ function DetailsStep({ form, eventType }: { form: UseFormReturn<EventFormValues>
 // Step 2: Add Guests
 // ──────────────────────────────────────────────────
 function GuestsStep({ eventId }: { eventId: number }) {
+  const { activeOrgId } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const addGuestMutation = useAddGuest();
-  const { data: guests } = useListGuests(ORG_ID, eventId);
+  const { data: guests } = useListGuests(activeOrgId, eventId);
   const [isCSVOpen, setIsCSVOpen] = useState(false);
 
   const form = useForm<AddGuestForm>({ resolver: zodResolver(addGuestSchema), defaultValues: { name: "", email: "", company: "" } });
 
   const onAddGuest = (data: AddGuestForm) => {
     addGuestMutation.mutate(
-      { orgId: ORG_ID, eventId, data },
+      { orgId: activeOrgId, eventId, data },
       {
         onSuccess: () => {
           toast({ title: "Guest added!" });
-          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/events/${eventId}/guests`] });
+          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${activeOrgId}/events/${eventId}/guests`] });
           form.reset();
         },
         onError: (e) => toast({ title: "Failed to add guest", description: e.message, variant: "destructive" }),
@@ -663,9 +665,9 @@ function GuestsStep({ eventId }: { eventId: number }) {
         open={isCSVOpen}
         onClose={() => setIsCSVOpen(false)}
         eventId={eventId}
-        orgId={ORG_ID}
+        orgId={activeOrgId}
         onSuccess={() => {
-          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/events/${eventId}/guests`] });
+          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${activeOrgId}/events/${eventId}/guests`] });
           setIsCSVOpen(false);
         }}
       />
@@ -677,11 +679,12 @@ function GuestsStep({ eventId }: { eventId: number }) {
 // Step 3: Design Campaign
 // ──────────────────────────────────────────────────
 function CampaignStep({ eventId, org }: { eventId: number; org: Organization | undefined }) {
+  const { activeOrgId } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const generateCampaign = useAiGenerateCampaign();
   const createCampaign = useCreateCampaign();
-  const { data: allCampaigns } = useListCampaigns(ORG_ID);
+  const { data: allCampaigns } = useListCampaigns(activeOrgId);
   const campaigns = allCampaigns?.filter((c) => c.eventId === eventId);
 
   const [campaignType, setCampaignType] = useState<AiGenerateCampaignBodyCampaignType>("invitation");
@@ -697,7 +700,7 @@ function CampaignStep({ eventId, org }: { eventId: number; org: Organization | u
 
   const onGenerate = () => {
     generateCampaign.mutate(
-      { orgId: ORG_ID, data: { eventId, campaignType, tone, additionalContext: context } },
+      { orgId: activeOrgId, data: { eventId, campaignType, tone, additionalContext: context } },
       {
         onSuccess: (result) => {
           const branding = org ? { ...org } : { name: "HypeSpace Events" };
@@ -705,7 +708,7 @@ function CampaignStep({ eventId, org }: { eventId: number; org: Organization | u
           setGenerated({ ...result, htmlContent: branded });
           createCampaign.mutate(
             {
-              orgId: ORG_ID,
+              orgId: activeOrgId,
               data: {
                 eventId,
                 name: `AI Campaign: ${result.subject.substring(0, 40)}`,
@@ -718,7 +721,7 @@ function CampaignStep({ eventId, org }: { eventId: number; org: Organization | u
             {
               onSuccess: () => {
                 toast({ title: "Campaign generated & saved!" });
-                queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/campaigns`] });
+                queryClient.invalidateQueries({ queryKey: [`/api/organizations/${activeOrgId}/campaigns`] });
               },
               onError: (e) => toast({ title: "Generated, but failed to save", description: e.message, variant: "destructive" }),
             },
@@ -733,7 +736,7 @@ function CampaignStep({ eventId, org }: { eventId: number; org: Organization | u
     if (!generated) return;
     createCampaign.mutate(
       {
-        orgId: ORG_ID,
+        orgId: activeOrgId,
         data: {
           eventId,
           name: `AI Campaign: ${generated.subject.substring(0, 40)}`,
@@ -746,7 +749,7 @@ function CampaignStep({ eventId, org }: { eventId: number; org: Organization | u
       {
         onSuccess: () => {
           toast({ title: "Campaign saved!" });
-          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/campaigns`] });
+          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${activeOrgId}/campaigns`] });
         },
         onError: (e) => toast({ title: "Failed to save", description: e.message, variant: "destructive" }),
       },
@@ -867,8 +870,9 @@ function CampaignStep({ eventId, org }: { eventId: number; org: Organization | u
 // Step 4: Test Email
 // ──────────────────────────────────────────────────
 function TestEmailStep({ eventId }: { eventId: number }) {
+  const { activeOrgId } = useAuth();
   const { toast } = useToast();
-  const { data: allCampaigns } = useListCampaigns(ORG_ID);
+  const { data: allCampaigns } = useListCampaigns(activeOrgId);
   const campaigns = allCampaigns?.filter((c) => c.eventId === eventId);
   const [testEmail, setTestEmail] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -880,7 +884,7 @@ function TestEmailStep({ eventId }: { eventId: number }) {
     if (!campaign || !testEmail.includes("@")) return;
     setIsSending(true);
     try {
-      const res = await fetch(`${BASE}/api/organizations/${ORG_ID}/campaigns/${campaign.id}/test-send`, {
+      const res = await fetch(`${BASE}/api/organizations/${activeOrgId}/campaigns/${campaign.id}/test-send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ to: testEmail }),
@@ -953,9 +957,10 @@ function TestEmailStep({ eventId }: { eventId: number }) {
 // Step 5: Review & Launch
 // ──────────────────────────────────────────────────
 function ReviewStep({ eventId, form, onLaunched }: { eventId: number; form: UseFormReturn<EventFormValues>; onLaunched: () => void }) {
+  const { activeOrgId } = useAuth();
   const { toast } = useToast();
-  const { data: guests } = useListGuests(ORG_ID, eventId);
-  const { data: allCampaigns } = useListCampaigns(ORG_ID);
+  const { data: guests } = useListGuests(activeOrgId, eventId);
+  const { data: allCampaigns } = useListCampaigns(activeOrgId);
   const campaigns = allCampaigns?.filter((c) => c.eventId === eventId);
   const updateEvent = useUpdateEvent();
   const [isLaunching, setIsLaunching] = useState(false);
@@ -971,12 +976,12 @@ function ReviewStep({ eventId, form, onLaunched }: { eventId: number; form: UseF
     setIsLaunching(true);
     try {
       const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-      const res = await fetch(`${BASE}/api/organizations/${ORG_ID}/events/${eventId}/launch`, {
+      const res = await fetch(`${BASE}/api/organizations/${activeOrgId}/events/${eventId}/launch`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
       if (res.ok) {
-        updateEvent.mutate({ orgId: ORG_ID, eventId, data: { status: "published" } });
+        updateEvent.mutate({ orgId: activeOrgId, eventId, data: { status: "published" } });
         toast({ title: "Event launched!", description: "Invitations are being sent." });
         setLaunched(true);
       } else {

@@ -64,8 +64,7 @@ import { format, parseISO } from "date-fns";
 import { CSVImportModal } from "@/components/csv-import-modal";
 import { GHLImportModal } from "@/components/ghl-import-modal";
 import { CampaignSuggestionList } from "@/components/campaign-suggestion-list";
-
-const ORG_ID = 1;
+import { useAuth } from "@/components/auth-provider";
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const STEPS = [
@@ -171,6 +170,7 @@ function StepIndicator({
 // =====================================================================
 
 export default function EventSetup() {
+  const { activeOrgId } = useAuth();
   const { id } = useParams<{ id: string }>();
   const eventId = parseInt(id || "0", 10);
   const [, setLocation] = useLocation();
@@ -182,10 +182,10 @@ export default function EventSetup() {
   const [hasResumed, setHasResumed] = useState(false);
 
   // ── Data fetching ─────────────────────────────────────────────────
-  const { data: event, isLoading: isEventLoading } = useGetEvent(ORG_ID, eventId);
-  const { data: guests } = useListGuests(ORG_ID, eventId);
-  const { data: campaigns } = useListCampaigns(ORG_ID, { eventId } as any);
-  const { data: reminders } = useListReminders(ORG_ID, eventId);
+  const { data: event, isLoading: isEventLoading } = useGetEvent(activeOrgId, eventId);
+  const { data: guests } = useListGuests(activeOrgId, eventId);
+  const { data: campaigns } = useListCampaigns(activeOrgId, { eventId } as any);
+  const { data: reminders } = useListReminders(activeOrgId, eventId);
   const { data: org } = useGetOrganization(1);
 
   const hasCampaign = (campaigns?.length ?? 0) > 0;
@@ -344,6 +344,7 @@ function CampaignStep({
   onComplete: () => void;
 }) {
   const hasCampaign = (campaigns?.length ?? 0) > 0;
+  const { activeOrgId } = useAuth();
   const { toast } = useToast();
   const generateCampaign = useAiGenerateCampaign();
   const createCampaign = useCreateCampaign();
@@ -363,7 +364,7 @@ function CampaignStep({
   const onGenerate = () => {
     generateCampaign.mutate(
       {
-        orgId: ORG_ID,
+        orgId: activeOrgId,
         data: {
           eventId,
           campaignType: campaignType as any,
@@ -393,7 +394,7 @@ function CampaignStep({
     if (!generated) return;
     createCampaign.mutate(
       {
-        orgId: ORG_ID,
+        orgId: activeOrgId,
         data: {
           eventId,
           name: `AI Generated: ${generated.subject.substring(0, 30)}...`,
@@ -406,7 +407,7 @@ function CampaignStep({
       {
         onSuccess: () => {
           toast({ title: "Campaign saved!" });
-          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/campaigns`] });
+          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${activeOrgId}/campaigns`] });
           onComplete();
         },
         onError: (err) => {
@@ -642,6 +643,7 @@ function TestEmailStep({
   onComplete: () => void;
   onBack: () => void;
 }) {
+  const { activeOrgId } = useAuth();
   const { toast } = useToast();
   const [testEmail, setTestEmail] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -654,7 +656,7 @@ function TestEmailStep({
     setIsSending(true);
     try {
       const res = await fetch(
-        `${BASE}/api/organizations/${ORG_ID}/campaigns/${campaign.id}/test-send`,
+        `${BASE}/api/organizations/${activeOrgId}/campaigns/${campaign.id}/test-send`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -768,6 +770,7 @@ function GuestsStep({
   onComplete: () => void;
   onBack: () => void;
 }) {
+  const { activeOrgId } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const addGuest = useAddGuest();
@@ -782,7 +785,7 @@ function GuestsStep({
   });
 
   const invalidateGuests = () => {
-    const url = `/api/organizations/${ORG_ID}/events/${eventId}/guests`;
+    const url = `/api/organizations/${activeOrgId}/events/${eventId}/guests`;
     queryClient.invalidateQueries({
       predicate: (query) => {
         const key = query.queryKey;
@@ -805,7 +808,7 @@ function GuestsStep({
 
   const onAddGuest = (data: AddGuestForm) => {
     addGuest.mutate(
-      { orgId: ORG_ID, eventId, data },
+      { orgId: activeOrgId, eventId, data },
       {
         onSuccess: () => {
           toast({ title: `${data.name} added` });
@@ -821,7 +824,7 @@ function GuestsStep({
 
   const onRemoveGuest = (guestId: number) => {
     removeGuest.mutate(
-      { orgId: ORG_ID, eventId, guestId },
+      { orgId: activeOrgId, eventId, guestId },
       {
         onSuccess: () => {
           toast({ title: "Guest removed" });
@@ -983,7 +986,7 @@ function GuestsStep({
           setIsCSVOpen(false);
         }}
         eventId={eventId}
-        orgId={ORG_ID}
+        orgId={activeOrgId}
       />
 
       <GHLImportModal
@@ -992,7 +995,7 @@ function GuestsStep({
           invalidateGuests();
           setIsGHLOpen(false);
         }}
-        orgId={ORG_ID}
+        orgId={activeOrgId}
         initialEventId={eventId}
       />
     </div>
@@ -1051,6 +1054,7 @@ function RemindersStep({
   onComplete: () => void;
   onBack: () => void;
 }) {
+  const { activeOrgId } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const createReminder = useCreateReminder();
@@ -1083,7 +1087,7 @@ function RemindersStep({
     const preset = REMINDER_PRESETS[adding];
     createReminder.mutate(
       {
-        orgId: ORG_ID,
+        orgId: activeOrgId,
         eventId,
         createReminderBody: {
           type: "before_event",
@@ -1095,7 +1099,7 @@ function RemindersStep({
       {
         onSuccess: () => {
           toast({ title: "Reminder saved!" });
-          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/events/${eventId}/reminders`] });
+          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${activeOrgId}/events/${eventId}/reminders`] });
           cancelAdd();
         },
         onError: (err) => {
@@ -1108,10 +1112,10 @@ function RemindersStep({
   const deleteReminder = async (reminderId: number) => {
     setIsDeleting(reminderId);
     try {
-      await fetch(`${BASE}/api/organizations/${ORG_ID}/events/${eventId}/reminders/${reminderId}`, {
+      await fetch(`${BASE}/api/organizations/${activeOrgId}/events/${eventId}/reminders/${reminderId}`, {
         method: "DELETE",
       });
-      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/events/${eventId}/reminders`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${activeOrgId}/events/${eventId}/reminders`] });
       toast({ title: "Reminder removed" });
     } catch {
       toast({ title: "Failed to remove reminder", variant: "destructive" });
@@ -1308,6 +1312,7 @@ function ReviewStep({
   eventId: number;
   onBack: () => void;
 }) {
+  const { activeOrgId } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -1320,14 +1325,14 @@ function ReviewStep({
   const onLaunch = async () => {
     setIsLaunching(true);
     try {
-      const res = await fetch(`${BASE}/api/organizations/${ORG_ID}/events/${eventId}/launch`, {
+      const res = await fetch(`${BASE}/api/organizations/${activeOrgId}/events/${eventId}/launch`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
       const body = await res.json();
       if (res.ok) {
         toast({ title: "Event launched!", description: `${body.guestsInvited} guests invited.` });
-        queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/events/${eventId}`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/organizations/${activeOrgId}/events/${eventId}`] });
         setLocation(`/events/${eventId}`);
       } else {
         toast({ title: "Launch failed", description: body.error || "Unknown error", variant: "destructive" });
