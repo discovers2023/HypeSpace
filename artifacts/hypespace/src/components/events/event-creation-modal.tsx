@@ -89,12 +89,16 @@ const addGuestSchema = z.object({
 });
 type AddGuestForm = z.infer<typeof addGuestSchema>;
 
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 function applyBranding(html: string, branding: { name: string; primaryColor?: string; accentColor?: string }) {
   let out = html;
-  const primary = branding.primaryColor || "#7C3AED";
-  const accent = branding.accentColor || "#EA580C";
+  const primary = (branding.primaryColor || "#7C3AED").replace(/[^#a-fA-F0-9]/g, "");
+  const accent = (branding.accentColor || "#EA580C").replace(/[^#a-fA-F0-9]/g, "");
   out = out.replace(/#7C3AED/g, primary).replace(/#EA580C/g, accent);
-  out = out.replace(/HypeSpace Events/g, branding.name);
+  out = out.replace(/HypeSpace Events/g, escapeHtml(branding.name));
   return out;
 }
 

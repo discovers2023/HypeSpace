@@ -4,6 +4,20 @@ import { eq, and, avg } from "drizzle-orm";
 import { getPlan } from "../lib/plans";
 import { sendEmail } from "../lib/email";
 import { getAppBaseUrl } from "../lib/app-url";
+import sanitizeHtml from "sanitize-html";
+
+const sanitizeOpts: sanitizeHtml.IOptions = {
+  allowedTags: sanitizeHtml.defaults.allowedTags.concat(["img", "style", "head", "meta", "link", "center", "font"]),
+  allowedAttributes: {
+    ...sanitizeHtml.defaults.allowedAttributes,
+    "*": ["style", "class", "id", "width", "height", "align", "valign", "bgcolor", "cellpadding", "cellspacing", "border"],
+    img: ["src", "alt", "width", "height", "style"],
+    a: ["href", "target", "style", "class"],
+    td: ["style", "width", "height", "align", "valign", "bgcolor", "colspan", "rowspan"],
+    table: ["style", "width", "cellpadding", "cellspacing", "border", "align", "bgcolor"],
+  },
+  allowedSchemes: ["http", "https", "mailto"],
+};
 import {
   ListCampaignsResponse,
   CreateCampaignBody,
@@ -58,6 +72,9 @@ router.post("/organizations/:orgId/campaigns", async (req, res): Promise<void> =
 
   const insertData: Record<string, unknown> = { ...parsed.data, organizationId: orgId };
   if (parsed.data.scheduledAt) insertData.scheduledAt = new Date(parsed.data.scheduledAt);
+  if (typeof insertData.htmlContent === "string") {
+    insertData.htmlContent = sanitizeHtml(insertData.htmlContent as string, sanitizeOpts);
+  }
 
   const [campaign] = await db.insert(campaignsTable).values(insertData as Parameters<typeof campaignsTable.$inferInsert>[0]).returning();
   res.status(201).json(GetCampaignResponse.parse(formatCampaign(campaign)));
@@ -84,6 +101,9 @@ router.patch("/organizations/:orgId/campaigns/:campaignId", async (req, res): Pr
 
   const updateData: Record<string, unknown> = { ...parsed.data };
   if (parsed.data.scheduledAt) updateData.scheduledAt = new Date(parsed.data.scheduledAt);
+  if (typeof updateData.htmlContent === "string") {
+    updateData.htmlContent = sanitizeHtml(updateData.htmlContent as string, sanitizeOpts);
+  }
 
   const [campaign] = await db.update(campaignsTable).set(updateData)
     .where(and(eq(campaignsTable.id, campaignId), eq(campaignsTable.organizationId, orgId)))

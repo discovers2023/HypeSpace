@@ -21,6 +21,7 @@
     "nodemailer": "^8.0.5",
     "pino": "^9",
     "pino-http": "^10",
+    "sanitize-html": "^2.17.3",
     "zod": "catalog:"
   },
   "devDependencies": {
@@ -30,6 +31,7 @@
     "@types/express": "^5.0.6",
     "@types/node": "catalog:",
     "@types/nodemailer": "^8.0.0",
+    "@types/sanitize-html": "^2.16.1",
     "cross-env": "^7.0.3",
     "esbuild": "^0.27.3",
     "esbuild-plugin-pino": "^2.3.3",
