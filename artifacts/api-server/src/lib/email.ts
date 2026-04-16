@@ -4,6 +4,10 @@ import { eq, and } from "drizzle-orm";
 
 let testAccountPromise: Promise<nodemailer.SentMessageInfo> | null = null;
 
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 type SmtpConfig = {
   host: string;
   port: number;
@@ -52,6 +56,7 @@ async function getTransporter(orgId?: number) {
           host: orgSmtp.host,
           port: orgSmtp.port,
           secure: orgSmtp.port === 465,
+          requireTLS: orgSmtp.port !== 465,
           auth: { user: orgSmtp.user, pass: orgSmtp.pass },
         }),
         from: `"${orgSmtp.fromName}" <${orgSmtp.fromEmail}>`,
@@ -70,7 +75,7 @@ async function getTransporter(orgId?: number) {
 
   if (host && user && pass) {
     return {
-      transporter: nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } }),
+      transporter: nodemailer.createTransport({ host, port, secure: port === 465, requireTLS: port !== 465, auth: { user, pass } }),
       from: `"${fromName}" <${fromEmail}>`,
       preview: false,
     };
@@ -112,7 +117,7 @@ export async function sendInviteEmail(opts: {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>You're invited to ${opts.orgName} on HypeSpace</title>
+  <title>You're invited to ${escapeHtml(opts.orgName)} on HypeSpace</title>
 </head>
 <body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:40px 0;">
@@ -131,16 +136,16 @@ export async function sendInviteEmail(opts: {
             <td style="padding:40px;">
               <h2 style="margin:0 0 8px;color:#1a0533;font-size:22px;font-weight:700;">You've been invited!</h2>
               <p style="margin:0 0 24px;color:#555;font-size:15px;line-height:1.6;">
-                <strong style="color:#1a0533;">${opts.inviterName}</strong> has invited you to join
-                <strong style="color:#1a0533;">${opts.orgName}</strong> on HypeSpace as a <strong style="color:#F97316;">${roleLabel}</strong>.
+                <strong style="color:#1a0533;">${escapeHtml(opts.inviterName)}</strong> has invited you to join
+                <strong style="color:#1a0533;">${escapeHtml(opts.orgName)}</strong> on HypeSpace as a <strong style="color:#F97316;">${escapeHtml(roleLabel)}</strong>.
               </p>
 
               <table width="100%" cellpadding="0" cellspacing="0" style="background:#fdf5ff;border:1px solid #e8d5f5;border-radius:8px;margin:0 0 28px;">
                 <tr>
                   <td style="padding:20px 24px;">
                     <p style="margin:0 0 4px;color:#888;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Invited as</p>
-                    <p style="margin:0;color:#1a0533;font-size:16px;font-weight:600;">${opts.toName}</p>
-                    <p style="margin:2px 0 0;color:#888;font-size:14px;">${opts.toEmail}</p>
+                    <p style="margin:0;color:#1a0533;font-size:16px;font-weight:600;">${escapeHtml(opts.toName)}</p>
+                    <p style="margin:2px 0 0;color:#888;font-size:14px;">${escapeHtml(opts.toEmail)}</p>
                   </td>
                 </tr>
               </table>
