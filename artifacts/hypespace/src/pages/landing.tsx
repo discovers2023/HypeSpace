@@ -639,41 +639,55 @@ function ComparisonSection() {
    ───────────────────────────────────────────────────────── */
 const plans = [
   {
-    name: "Starter",
+    name: "Free",
     price: "$0",
-    desc: "For trying HypeSpace out",
+    desc: "Try HypeSpace out",
     features: [
-      "3 events per month",
-      "Up to 100 guests",
-      "Basic event pages",
-      "Email notifications",
+      "1 active event",
+      "Up to 20 guests per event",
+      "1 team member",
+      "Event pages & RSVP",
       "Community support",
     ],
   },
   {
-    name: "Growth",
-    price: "$29",
+    name: "Starter",
+    price: "$49",
     period: "/mo",
-    desc: "For active small businesses",
+    desc: "For small teams & solo operators",
+    features: [
+      "3 active events",
+      "Up to 100 guests per event",
+      "3 team members",
+      "AI campaign builder",
+      "Bulk email & social scheduling",
+      "Email support",
+    ],
+  },
+  {
+    name: "Growth",
+    price: "$149",
+    period: "/mo",
+    desc: "For growing organizations",
     popular: true,
     features: [
-      "Unlimited events",
-      "Up to 2,000 guests",
-      "Campaign builder",
-      "Referral tracking",
+      "15 active events",
+      "Up to 500 guests per event",
+      "10 team members",
+      "AI campaigns & bulk email",
       "CRM integrations",
       "Priority support",
     ],
   },
   {
-    name: "Business",
-    price: "$79",
+    name: "Agency",
+    price: "$399",
     period: "/mo",
-    desc: "For scaling operations",
+    desc: "For agencies managing clients",
     features: [
-      "Everything in Growth",
-      "Unlimited guests",
-      "Custom branding",
+      "Unlimited events & team members",
+      "Up to 2,000 guests per event",
+      "Custom sending domains",
       "Advanced analytics",
       "API access",
       "Dedicated account manager",
@@ -701,7 +715,7 @@ function PricingSection() {
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-3 gap-5">
+        <div className="grid md:grid-cols-4 gap-5">
           {plans.map((plan, i) => (
             <motion.div
               key={i}
@@ -837,7 +851,7 @@ function FAQSection() {
     },
     {
       q: "How much does HypeSpace cost?",
-      a: "HypeSpace offers a free Starter plan with up to 3 events per month and 100 guests. Paid plans start at $29/month for unlimited events and advanced features like campaign tools and CRM integrations.",
+      a: "HypeSpace offers a free plan with 1 active event and up to 20 guests. Paid plans start at $49/month (Starter) with AI campaign tools, bulk email, and up to 3 active events. Growth ($149/mo) and Agency ($399/mo) tiers scale from there.",
     },
     {
       q: "Do I need technical skills to use HypeSpace?",
