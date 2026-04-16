@@ -30,6 +30,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Save, Send, Trash2, AlertTriangle, Code2, Type,
   Paintbrush, Loader2, Eye, TestTube, Lock, Sparkles, ChevronDown, ChevronUp, BarChart2,
+  CalendarClock, X,
 } from "lucide-react";
 import { CampaignSuggestionList } from "@/components/campaign-suggestion-list";
 import { DEFAULT_SUGGESTIONS } from "@/lib/campaign-suggestions";
@@ -74,6 +75,7 @@ const editSchema = z.object({
   subject: z.string().min(1, "Subject line is required").max(200),
   htmlContent: z.string().max(200_000).optional().default(""),
   textContent: z.string().max(50_000).optional().default(""),
+  scheduledAt: z.string().optional().default(""),
 });
 
 type EditFormValues = z.infer<typeof editSchema>;
@@ -122,7 +124,7 @@ export default function CampaignEdit() {
 
   const form = useForm<EditFormValues>({
     resolver: zodResolver(editSchema),
-    defaultValues: { name: "", subject: "", htmlContent: "", textContent: "" },
+    defaultValues: { name: "", subject: "", htmlContent: "", textContent: "", scheduledAt: "" },
   });
 
   // Populate form + visual fields when campaign loads
@@ -133,6 +135,7 @@ export default function CampaignEdit() {
       subject: campaign.subject,
       htmlContent: campaign.htmlContent ?? "",
       textContent: campaign.textContent ?? "",
+      scheduledAt: campaign.scheduledAt ? new Date(campaign.scheduledAt).toISOString().slice(0, 16) : "",
     });
     const html = campaign.htmlContent ?? "";
     setBodyIntro(extractBodyIntro(html));
@@ -222,6 +225,53 @@ export default function CampaignEdit() {
     setConfirmDelete(false);
   };
 
+  const onSchedule = form.handleSubmit((data) => {
+    if (!data.scheduledAt) {
+      toast({ title: "Pick a date/time first", variant: "destructive" });
+      return;
+    }
+    const dt = new Date(data.scheduledAt);
+    if (dt <= new Date()) {
+      toast({ title: "Scheduled time must be in the future", variant: "destructive" });
+      return;
+    }
+    // Sync visual editor fields into htmlContent before reading final values
+    syncVisualToForm();
+    const finalHtml = editorTab === "visual"
+      ? (() => {
+          let h = data.htmlContent ?? "";
+          if (bodyIntro) h = patchBodyIntro(h, bodyIntro);
+          if (ctaLabel) h = patchCtaLabel(h, ctaLabel);
+          return h;
+        })()
+      : data.htmlContent;
+    updateCampaign.mutate(
+      { orgId, campaignId, data: { ...data, htmlContent: finalHtml, scheduledAt: dt.toISOString(), status: "scheduled" } },
+      {
+        onSuccess: () => {
+          toast({ title: "Campaign scheduled", description: `Will send ${dt.toLocaleString()}` });
+          queryClient.invalidateQueries({ queryKey: ["/api/organizations", orgId, "campaigns"] });
+          form.reset({ ...data, htmlContent: finalHtml, scheduledAt: new Date(data.scheduledAt!).toISOString().slice(0, 16) });
+        },
+        onError: (err) => toast({ title: "Schedule failed", description: err.message, variant: "destructive" }),
+      }
+    );
+  });
+
+  const onClearSchedule = () => {
+    updateCampaign.mutate(
+      { orgId, campaignId, data: { scheduledAt: null, status: "draft" } },
+      {
+        onSuccess: () => {
+          toast({ title: "Schedule cleared", description: "Campaign returned to draft." });
+          queryClient.invalidateQueries({ queryKey: ["/api/organizations", orgId, "campaigns"] });
+          form.setValue("scheduledAt", "");
+        },
+        onError: (err) => toast({ title: "Clear schedule failed", description: err.message, variant: "destructive" }),
+      }
+    );
+  };
+
   const onTestSend = async () => {
     if (!testEmail || !testEmail.includes("@")) {
       toast({ title: "Enter a valid email address", variant: "destructive" });
@@ -289,6 +339,7 @@ export default function CampaignEdit() {
   }
 
   const isSent = campaign.status === "sent";
+  const isScheduled = campaign.status === "scheduled";
   const isBusy = updateCampaign.isPending || sendCampaign.isPending;
 
   // Unsubscribe tracking: count guests whose notes contain "unsubscribed"
@@ -327,7 +378,9 @@ export default function CampaignEdit() {
                   variant="outline"
                   className={isSent
                     ? "bg-green-50 text-green-700 border-green-200"
-                    : "bg-amber-50 text-amber-700 border-amber-200"}
+                    : isScheduled
+                      ? "bg-blue-50 text-blue-700 border-blue-200"
+                      : "bg-amber-50 text-amber-700 border-amber-200"}
                 >
                   {campaign.status}
                 </Badge>
@@ -384,6 +437,7 @@ export default function CampaignEdit() {
               <Send className="h-4 w-4 mr-1.5" />
               {isSent ? "Already sent" : "Save & send"}
             </Button>
+
           </div>
         </div>
 
@@ -394,6 +448,17 @@ export default function CampaignEdit() {
             <div className="text-sm">
               <p className="font-medium text-amber-800">This campaign has already been sent</p>
               <p className="text-amber-700 mt-0.5">Content is read-only. You can still view the preview on the right.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Scheduled info banner */}
+        {isScheduled && campaign.scheduledAt && (
+          <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-200">
+            <CalendarClock className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+            <div className="text-sm flex-1">
+              <p className="font-medium text-blue-800">This campaign is scheduled to send on {new Date(campaign.scheduledAt).toLocaleString()}</p>
+              <p className="text-blue-700 mt-0.5">Edit and re-schedule or send immediately.</p>
             </div>
           </div>
         )}
@@ -427,6 +492,50 @@ export default function CampaignEdit() {
                       <FormMessage />
                     </FormItem>
                   )} />
+                </div>
+
+                {/* Schedule send */}
+                <div className="bg-card border rounded-xl p-4 flex flex-col gap-3">
+                  <div className="flex items-center gap-2">
+                    <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Schedule send</span>
+                  </div>
+
+                  {isScheduled && campaign.scheduledAt ? (
+                    <div className="flex items-center justify-between gap-2 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2">
+                      <p className="text-sm text-blue-700 font-medium">
+                        Scheduled for {new Date(campaign.scheduledAt).toLocaleString()}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={onClearSchedule}
+                        disabled={isBusy}
+                        className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 border border-blue-300 rounded px-2 py-0.5"
+                      >
+                        <X className="h-3 w-3" />
+                        Clear
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        type="datetime-local"
+                        className="flex-1 h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+                        disabled={isSent || isBusy}
+                        {...form.register("scheduledAt")}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={onSchedule}
+                        disabled={isSent || isBusy}
+                      >
+                        <CalendarClock className="h-4 w-4 mr-1.5" />
+                        Schedule
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Editor tabs */}

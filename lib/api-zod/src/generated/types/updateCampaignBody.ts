@@ -12,4 +12,5 @@ export interface UpdateCampaignBody {
   htmlContent?: string | null;
   textContent?: string | null;
   scheduledAt?: string | null;
+  status?: 'draft' | 'scheduled' | 'sent' | 'failed';
 }

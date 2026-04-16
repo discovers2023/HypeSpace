@@ -578,6 +578,7 @@ export const UpdateCampaignBody = zod.object({
   htmlContent: zod.string().nullish(),
   textContent: zod.string().nullish(),
   scheduledAt: zod.string().nullish(),
+  status: zod.enum(["draft", "scheduled", "sent", "failed"]).optional(),
 });
 
 export const UpdateCampaignResponse = zod.object({

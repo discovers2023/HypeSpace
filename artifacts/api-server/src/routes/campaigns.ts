@@ -123,7 +123,20 @@ router.patch("/organizations/:orgId/campaigns/:campaignId", async (req, res): Pr
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
   const updateData: Record<string, unknown> = { ...parsed.data };
-  if (parsed.data.scheduledAt) updateData.scheduledAt = new Date(parsed.data.scheduledAt);
+  if (parsed.data.scheduledAt) {
+    const scheduledDate = new Date(parsed.data.scheduledAt);
+    if (isNaN(scheduledDate.getTime())) {
+      res.status(400).json({ error: "Invalid scheduledAt date" });
+      return;
+    }
+    const oneYearFromNow = new Date();
+    oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+    if (scheduledDate > oneYearFromNow) {
+      res.status(400).json({ error: "scheduledAt cannot be more than 1 year in the future" });
+      return;
+    }
+    updateData.scheduledAt = scheduledDate;
+  }
   if (typeof updateData.htmlContent === "string") {
     updateData.htmlContent = sanitizeHtml(updateData.htmlContent as string, sanitizeOpts);
   }
