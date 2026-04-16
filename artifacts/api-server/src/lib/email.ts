@@ -201,6 +201,78 @@ export async function sendInviteEmail(opts: {
   return info;
 }
 
+export async function sendVerificationEmail(
+  to: string,
+  name: string,
+  token: string,
+): Promise<void> {
+  const baseUrl = process.env.APP_BASE_URL ?? "http://localhost:5173";
+  const verifyUrl = `${baseUrl}/verify-email?token=${encodeURIComponent(token)}`;
+  await sendEmail({
+    to,
+    toName: name,
+    subject: "Verify your HypeSpace email address",
+    html: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Verify your HypeSpace email</title>
+</head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background:linear-gradient(135deg,#F97316,#7C3AED);padding:36px 40px;text-align:center;">
+              <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;letter-spacing:-0.5px;">HypeSpace</h1>
+              <p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:14px;">Event Management Platform</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:40px;">
+              <h2 style="margin:0 0 8px;color:#1a0533;font-size:22px;font-weight:700;">Verify your email address</h2>
+              <p style="margin:0 0 24px;color:#555;font-size:15px;line-height:1.6;">
+                Hi ${escapeHtml(name)}, thanks for signing up! Click the button below to verify your email and activate your account.
+              </p>
+              <table cellpadding="0" cellspacing="0" style="margin:0 0 28px;">
+                <tr>
+                  <td style="border-radius:8px;background:linear-gradient(135deg,#F97316,#7C3AED);">
+                    <a href="${verifyUrl}" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;border-radius:8px;">
+                      Verify Email Address →
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0 0 12px;color:#aaa;font-size:13px;line-height:1.5;">
+                Or copy and paste this link into your browser:
+              </p>
+              <p style="margin:0 0 24px;color:#7C3AED;font-size:13px;word-break:break-all;">
+                <a href="${verifyUrl}" style="color:#7C3AED;">${verifyUrl}</a>
+              </p>
+              <p style="margin:0;color:#aaa;font-size:13px;line-height:1.5;">
+                This link expires in 24 hours. If you didn't register for HypeSpace, you can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#f9f9f9;border-top:1px solid #eee;padding:20px 40px;text-align:center;">
+              <p style="margin:0;color:#bbb;font-size:12px;">© ${new Date().getFullYear()} HypeSpace. All rights reserved.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `,
+    text: `Hi ${name},\n\nPlease verify your email address to activate your HypeSpace account:\n\n${verifyUrl}\n\nThis link expires in 24 hours. If you didn't register for HypeSpace, you can ignore this email.`,
+  });
+}
+
 export async function sendEmail(opts: {
   to: string;
   toName?: string;

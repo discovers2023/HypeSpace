@@ -3,7 +3,9 @@ import { db, usersTable, organizationsTable, teamMembersTable } from "@workspace
 import { eq } from "drizzle-orm";
 import { GetMeResponse } from "@workspace/api-zod";
 import bcrypt from "bcryptjs";
+import crypto from "node:crypto";
 import type { CsrfTokenGenerator } from "csrf-csrf";
+import { sendVerificationEmail } from "../lib/email";
 
 const router: IRouter = Router();
 
@@ -55,6 +57,15 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   const passwordMatch = await bcrypt.compare(password, user.passwordHash);
   if (!passwordMatch) {
     res.status(401).json({ error: "INVALID_CREDENTIALS" });
+    return;
+  }
+
+  // Block unverified accounts (SEC-02)
+  if (!user.emailVerified) {
+    res.status(403).json({
+      error: "EMAIL_NOT_VERIFIED",
+      message: "Please verify your email address before logging in. Check your inbox for the verification link.",
+    });
     return;
   }
 
@@ -125,13 +136,79 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     role: "owner",
   });
 
+  // Generate verification token and send verification email (SEC-02)
+  const verificationToken = crypto.randomBytes(32).toString("hex");
+  await db.update(usersTable)
+    .set({ emailVerificationToken: verificationToken })
+    .where(eq(usersTable.id, newUser.id));
+
+  // Best-effort: don't fail registration if email delivery fails
+  try {
+    await sendVerificationEmail(newUser.email, newUser.name, verificationToken);
+  } catch (err) {
+    req.log.error({ err }, "Failed to send verification email — user registered but unverified");
+  }
+
   res.status(201).json({
     id: newUser.id,
     email: newUser.email,
     name: newUser.name,
     avatarUrl: newUser.avatarUrl ?? null,
     createdAt: newUser.createdAt.toISOString(),
+    emailVerified: false,
+    message: "Registration successful. Please check your email to verify your account.",
   });
+});
+
+// GET /auth/verify/:token — verifies email and redirects to login
+router.get("/auth/verify/:token", async (req, res): Promise<void> => {
+  const { token } = req.params;
+  if (!token || typeof token !== "string") {
+    res.status(400).json({ error: "Invalid verification token" });
+    return;
+  }
+
+  const [user] = await db.select().from(usersTable)
+    .where(eq(usersTable.emailVerificationToken, token));
+
+  if (!user) {
+    res.status(400).json({ error: "Invalid or expired verification token" });
+    return;
+  }
+
+  await db.update(usersTable)
+    .set({ emailVerified: true, emailVerificationToken: null })
+    .where(eq(usersTable.id, user.id));
+
+  // Redirect to login page with success indicator
+  const baseUrl = process.env.APP_BASE_URL ?? "http://localhost:5173";
+  res.redirect(`${baseUrl}/login?verified=true`);
+});
+
+// POST /auth/resend-verification — resend verification email (rate-limited by authLimiter in index.ts)
+router.post("/auth/resend-verification", async (req, res): Promise<void> => {
+  const { email } = req.body ?? {};
+  if (!email || !isValidEmail(email)) {
+    res.status(400).json({ error: "INVALID_INPUT" });
+    return;
+  }
+
+  // Always return same response regardless of whether user exists — prevents email enumeration (T-03-03)
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase()));
+
+  if (user && !user.emailVerified) {
+    const token = crypto.randomBytes(32).toString("hex");
+    await db.update(usersTable)
+      .set({ emailVerificationToken: token })
+      .where(eq(usersTable.id, user.id));
+    try {
+      await sendVerificationEmail(user.email, user.name, token);
+    } catch (err) {
+      req.log.error({ err }, "Failed to resend verification email");
+    }
+  }
+
+  res.json({ message: "If that email is registered and unverified, a new verification link has been sent." });
 });
 
 export default router;
