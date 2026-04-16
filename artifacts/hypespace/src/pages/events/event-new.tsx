@@ -248,7 +248,7 @@ export default function EventNew() {
       {
         onSuccess: (newEvent) => {
           queryClient.invalidateQueries({ queryKey: ["/api/events"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${activeOrgId ?? 1}/dashboard`] });
           if (mode === "draft") {
             toast({ title: "Draft saved!", description: "You can finish setup anytime." });
             setLocation(`/events/${newEvent.id}`);

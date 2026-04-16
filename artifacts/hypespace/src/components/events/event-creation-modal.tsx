@@ -181,7 +181,7 @@ export function EventCreationModal({ open, onClose, prefillDate, onEventCreated 
           onSuccess: (ev) => {
             setCreatedEventId(ev.id);
             queryClient.invalidateQueries({ queryKey: ["/api/events"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+            queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/dashboard`] });
             resolve({ id: ev.id });
           },
           onError: (err) => resolve({ id: null, error: err as Error }),
