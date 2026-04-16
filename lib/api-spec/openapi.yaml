@@ -921,7 +921,7 @@ components:
           nullable: true
         plan:
           type: string
-          enum: [free, starter, professional, enterprise]
+          enum: [free, starter, growth, agency]
         ownerId:
           type: integer
         memberCount:
