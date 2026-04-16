@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, usersTable, organizationsTable, teamMembersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 import { GetMeResponse } from "@workspace/api-zod";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
@@ -25,6 +25,29 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
+
+  // Query org memberships for this user (ordered by join date ascending)
+  const memberships = await db
+    .select({
+      orgId: organizationsTable.id,
+      orgName: organizationsTable.name,
+      orgSlug: organizationsTable.slug,
+      joinedAt: teamMembersTable.createdAt,
+    })
+    .from(teamMembersTable)
+    .innerJoin(organizationsTable, eq(teamMembersTable.organizationId, organizationsTable.id))
+    .where(eq(teamMembersTable.userId, userId))
+    .orderBy(asc(teamMembersTable.createdAt));
+
+  // A user with no org membership cannot operate — return 401
+  if (memberships.length === 0) {
+    res.status(401).json({ error: "No organization access" });
+    return;
+  }
+
+  const orgs = memberships.map(m => ({ id: m.orgId, name: m.orgName, slug: m.orgSlug }));
+  const activeOrgId = orgs[0].id;
+
   // Issue a fresh CSRF token on each /me call (lets frontend refresh token after page reload)
   const generateCsrfToken = req.app.locals.generateCsrfToken as CsrfTokenGenerator | undefined;
   const csrfToken = generateCsrfToken ? generateCsrfToken(req, res) : undefined;
@@ -36,6 +59,8 @@ router.get("/auth/me", async (req, res): Promise<void> => {
       avatarUrl: user.avatarUrl,
       createdAt: user.createdAt.toISOString(),
     }),
+    orgs,
+    activeOrgId,
     ...(csrfToken !== undefined ? { csrfToken } : {}),
   });
 });
