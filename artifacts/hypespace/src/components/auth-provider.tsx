@@ -9,6 +9,8 @@ type User = {
   username: string;
 };
 
+type OrgSummary = { id: number; name: string; slug: string };
+
 type ImpersonationState = {
   isImpersonating: boolean;
   originalOrgId: number | null;
@@ -16,11 +18,13 @@ type ImpersonationState = {
 
 type AuthContextType = {
   user: User | null;
+  orgs: OrgSummary[];
   activeOrgId: number;
   impersonation: ImpersonationState;
   isLoading: boolean;
-  login: (user: User) => void;
+  login: (user: User, orgs: OrgSummary[], activeOrgId: number) => void;
   logout: () => void;
+  switchOrg: (orgId: number) => void;
   startImpersonation: (targetOrgId: number) => void;
   stopImpersonation: () => void;
 };
@@ -30,75 +34,84 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
-  
-  // Defaulting to 1 to match existing hardcoded pattern before proper login flow is ready
-  const [activeOrgId, setActiveOrgId] = useState<number>(1);
+  const [orgs, setOrgs] = useState<OrgSummary[]>([]);
+
+  // 0 signals "not yet loaded" — consumers will wait for a real value
+  const [activeOrgId, setActiveOrgId] = useState<number>(0);
   const [impersonation, setImpersonation] = useState<ImpersonationState>({
     isImpersonating: false,
     originalOrgId: null,
   });
 
-  // Mocking auth check for resolving the UI while api-server is down securely
   const { data: authData, isLoading } = useQuery({
     queryKey: ["auth_status"],
     queryFn: async () => {
-      try {
-        const res = await fetch(`${BASE}/api/user`);
-        if (!res.ok) throw new Error("Not authenticated");
-        return res.json();
-      } catch (e) {
-        return null;
-      }
+      const res = await fetch(`${BASE}/api/auth/me`);
+      if (!res.ok) return null;
+      return res.json();
     },
     // Prevent retries on 401s
     retry: false,
   });
 
   useEffect(() => {
-    if (authData?.user) {
-      setUser(authData.user);
-      // In a real app we would get the orgId from the user's default organization
+    if (authData) {
+      setUser({ id: authData.id, email: authData.email, username: authData.name });
+      setOrgs(authData.orgs ?? []);
       if (!impersonation.isImpersonating) {
-        setActiveOrgId(authData.user.defaultOrgId || 1);
+        setActiveOrgId(authData.activeOrgId ?? 0);
       }
+      // Store CSRF token if returned
+      if (authData.csrfToken) {
+        (window as Window & { __csrfToken?: string }).__csrfToken = authData.csrfToken;
+      }
+    } else {
+      setUser(null);
+      setOrgs([]);
     }
   }, [authData, impersonation.isImpersonating]);
 
-  const login = (newUser: User) => {
+  const login = (newUser: User, newOrgs: OrgSummary[], newActiveOrgId: number) => {
     setUser(newUser);
-    // Again, defaulting to 1 unless the user has a designated defaultOrgId
-    setActiveOrgId(1);
+    setOrgs(newOrgs);
+    setActiveOrgId(newActiveOrgId);
     queryClient.invalidateQueries();
   };
 
   const logout = () => {
     setUser(null);
+    setOrgs([]);
     setImpersonation({ isImpersonating: false, originalOrgId: null });
+    queryClient.clear();
+  };
+
+  const switchOrg = (orgId: number) => {
+    setActiveOrgId(orgId);
     queryClient.clear();
   };
 
   const startImpersonation = (targetOrgId: number) => {
     if (!user) return; // Must be logged in
-    
+
     setImpersonation({
       isImpersonating: true,
       originalOrgId: activeOrgId,
     });
     setActiveOrgId(targetOrgId);
-    
+
     // Clear all queries since we are shifting contexts
     queryClient.clear();
   };
 
   const stopImpersonation = () => {
     if (!impersonation.isImpersonating || !impersonation.originalOrgId) return;
-    
+
     setActiveOrgId(impersonation.originalOrgId);
     setImpersonation({
       isImpersonating: false,
       originalOrgId: null,
     });
-    
+
     // Clear all queries to refetch your original data
     queryClient.clear();
   };
@@ -107,11 +120,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
+        orgs,
         activeOrgId,
         impersonation,
         isLoading,
         login,
         logout,
+        switchOrg,
         startImpersonation,
         stopImpersonation,
       }}
