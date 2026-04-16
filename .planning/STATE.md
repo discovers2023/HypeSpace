@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 01-security-hardening plan 03 (email verification — SEC-02 closed)
-last_updated: "2026-04-15T00:00:00.000Z"
-last_activity: 2026-04-15
+status: verifying
+stopped_at: Completed 02-multi-organization plan 01 (enhance /auth/me with orgs + activeOrgId — ORG-01 backend done)
+last_updated: "2026-04-16T21:07:18.075Z"
+last_activity: 2026-04-16
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
-  percent: 100
+  total_plans: 5
+  completed_plans: 4
+  percent: 80
 ---
 
 # Project State
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-04-16)
 
 Phase: 1 of 3 (Security Hardening) — COMPLETE
 Plan: 3 of 3 in current phase — all plans done
-Status: Phase 1 complete; ready to start Phase 2
-Last activity: 2026-04-15
+Status: Phase complete — ready for verification
+Last activity: 2026-04-16
 
 Progress: [███░░░░░░░] 33%
 
@@ -54,6 +54,7 @@ Progress: [███░░░░░░░] 33%
 *Updated after each plan completion*
 | Phase 01-security-hardening P02 | 2m | 2 tasks | 5 files |
 | Phase 01-security-hardening P03 | 15m | 2 tasks | 3 files |
+| Phase 02-multi-organization P01 | 5m | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,9 @@ Recent decisions affecting current work:
 - 01-03: Registration succeeds even if verification email fails — user can resend via /auth/resend-verification
 - 01-03: POST /auth/resend-verification always returns same response to prevent email enumeration (T-03-03)
 - 01-03: Verification token cleared on first use (set to NULL) preventing replay (T-03-05)
+- [Phase 02-multi-organization]: Return 401 (not empty array) when user has no org membership — user without org cannot operate on the platform
+- [Phase 02-multi-organization]: activeOrgId derived server-side from first team_members.createdAt — client cannot influence ordering
+- [Phase 02-multi-organization]: orgs/activeOrgId spread outside GetMeResponse.parse() — same pattern as csrfToken, avoids mutating shared api-zod schema
 
 ### Pending Todos
 
@@ -91,6 +95,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-15T00:00:00.000Z
-Stopped at: Completed 01-security-hardening plan 03 (email verification — SEC-02 closed). Phase 1 complete.
+Last session: 2026-04-16T21:07:18.071Z
+Stopped at: Completed 02-multi-organization plan 01 (enhance /auth/me with orgs + activeOrgId — ORG-01 backend done)
 Resume file: None

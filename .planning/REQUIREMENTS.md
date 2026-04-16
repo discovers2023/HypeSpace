@@ -15,9 +15,9 @@
 
 ### Multi-Organization
 
-- [ ] **ORG-01**: Frontend reads org from auth context instead of hardcoded ORG_ID=1
+- [x] **ORG-01**: Frontend reads org from auth context instead of hardcoded ORG_ID=1
 - [ ] **ORG-02**: Org switcher in navbar for users belonging to multiple organizations
-- [ ] **ORG-03**: All API calls pass the current org from auth context
+- [x] **ORG-03**: All API calls pass the current org from auth context
 
 ### Campaign Enhancements
 
@@ -73,9 +73,9 @@
 | SEC-03 | Phase 1 | Complete |
 | SEC-04 | Phase 1 | Complete |
 | SEC-05 | Phase 1 | Complete |
-| ORG-01 | Phase 2 | Pending |
+| ORG-01 | Phase 2 | Complete |
 | ORG-02 | Phase 2 | Pending |
-| ORG-03 | Phase 2 | Pending |
+| ORG-03 | Phase 2 | Complete |
 | CAMP-01 | Phase 3 | Pending |
 | CAMP-02 | Phase 3 | Pending |
 | CAMP-03 | Phase 3 | Pending |
