@@ -31,6 +31,29 @@ import {
 
 const router: IRouter = Router();
 
+/**
+ * Injects a tracking pixel and rewrites href links for click tracking.
+ * Called just before sendEmail() so the stored htmlContent is never mutated.
+ */
+export function injectTracking(html: string, campaignId: number, baseUrl: string): string {
+  // 1. Rewrite all <a href="..."> links to go through the click tracker
+  //    Exclude unsubscribe links (href="#") and mailto links
+  const rewritten = html.replace(
+    /(<a\s[^>]*href=["'])(?!#|mailto:)(https?:\/\/[^"']+)(["'])/gi,
+    (_, pre, url, post) => {
+      const tracked = `${baseUrl}/api/track/click/${campaignId}?url=${encodeURIComponent(url)}`;
+      return `${pre}${tracked}${post}`;
+    }
+  );
+
+  // 2. Inject tracking pixel just before </body>
+  const pixel = `<img src="${baseUrl}/api/track/open/${campaignId}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;" />`;
+  if (rewritten.includes("</body>")) {
+    return rewritten.replace("</body>", `${pixel}\n</body>`);
+  }
+  return rewritten + pixel;
+}
+
 function formatCampaign(c: typeof campaignsTable.$inferSelect) {
   return {
     id: c.id,
@@ -154,6 +177,24 @@ router.post("/organizations/:orgId/campaigns/:campaignId/send", async (req, res)
     description: `${campaign.name} was sent to ${campaign.recipientCount} recipients`,
     entityId: campaign.id,
     entityType: "campaign",
+  });
+
+  // Deliver the email with tracking injected
+  const appBaseUrl = getAppBaseUrl(req);
+  const trackedHtml = injectTracking(
+    campaign.htmlContent ?? `<p>${campaign.textContent ?? ""}</p>`,
+    campaignId,
+    appBaseUrl
+  );
+  await sendEmail({
+    to: "broadcast@placeholder", // broadcast placeholder — per-guest iteration is v2
+    subject: campaign.subject,
+    html: trackedHtml,
+    text: campaign.textContent ?? undefined,
+    orgId,
+  }).catch((err) => {
+    // Log but do not fail the response — campaign is already marked sent
+    console.error("Send email error:", err);
   });
 
   res.json(SendCampaignResponse.parse(formatCampaign(campaign)));
