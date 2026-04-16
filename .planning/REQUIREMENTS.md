@@ -23,8 +23,8 @@
 
 - [ ] **CAMP-01**: User can schedule a campaign to send at a future date/time
 - [ ] **CAMP-02**: Scheduled campaigns auto-send at the specified time
-- [ ] **CAMP-03**: Campaign tracks open rate via tracking pixel
-- [ ] **CAMP-04**: Campaign tracks click rate via redirect links
+- [x] **CAMP-03**: Campaign tracks open rate via tracking pixel
+- [x] **CAMP-04**: Campaign tracks click rate via redirect links
 
 ### Code Quality
 
@@ -78,8 +78,8 @@
 | ORG-03 | Phase 2 | Complete |
 | CAMP-01 | Phase 3 | Pending |
 | CAMP-02 | Phase 3 | Pending |
-| CAMP-03 | Phase 3 | Pending |
-| CAMP-04 | Phase 3 | Pending |
+| CAMP-03 | Phase 3 | Complete |
+| CAMP-04 | Phase 3 | Complete |
 | QUAL-01 | Phase 3 | Pending |
 | QUAL-02 | Phase 3 | Pending |
 | QUAL-03 | Phase 3 | Pending |

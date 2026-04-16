@@ -63,7 +63,7 @@ Plans:
 
 Plans:
 - [ ] 03-01-PLAN.md — Schedule send UI (datetime picker + Schedule button) + server scheduler loop (CAMP-01, CAMP-02)
-- [ ] 03-02-PLAN.md — Tracking pixel + click redirect endpoints + HTML injection at send time (CAMP-03, CAMP-04)
+- [x] 03-02-PLAN.md — Tracking pixel + click redirect endpoints + HTML injection at send time (CAMP-03, CAMP-04)
 - [ ] 03-03-PLAN.md — Fix all TypeScript errors, normalize API error shapes, verify frontend toasts (QUAL-01, QUAL-02, QUAL-03)
 
 ## Progress
@@ -75,4 +75,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|----------------|--------|-----------|
 | 1. Security Hardening | 3/3 | Complete | 2026-04-15 |
 | 2. Multi-Organization | 1/2 | In Progress|  |
-| 3. Campaign & Quality | 0/3 | Not started | - |
+| 3. Campaign & Quality | 1/3 | In Progress | - |
