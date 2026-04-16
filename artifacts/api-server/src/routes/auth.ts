@@ -236,4 +236,56 @@ router.post("/auth/resend-verification", async (req, res): Promise<void> => {
   res.json({ message: "If that email is registered and unverified, a new verification link has been sent." });
 });
 
+// PATCH /auth/profile — update current user's name and avatar
+router.patch("/auth/profile", async (req, res): Promise<void> => {
+  const userId = req.session?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const { name, avatarUrl } = req.body ?? {};
+  const updates: Record<string, string> = {};
+  if (typeof name === "string" && name.trim().length >= 2) updates.name = name.trim();
+  if (typeof avatarUrl === "string") updates.avatarUrl = avatarUrl;
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: "Nothing to update" });
+    return;
+  }
+
+  const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, userId)).returning();
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+
+  res.json({
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    avatarUrl: user.avatarUrl ?? null,
+  });
+});
+
+// POST /auth/change-password — change current user's password
+router.post("/auth/change-password", async (req, res): Promise<void> => {
+  const userId = req.session?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const { currentPassword, newPassword } = req.body ?? {};
+  if (!currentPassword || !newPassword || newPassword.length < 8) {
+    res.status(400).json({ error: "Current password required and new password must be at least 8 characters" });
+    return;
+  }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+
+  const match = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!match) {
+    res.status(401).json({ error: "Current password is incorrect" });
+    return;
+  }
+
+  const newHash = await bcrypt.hash(newPassword, 12);
+  await db.update(usersTable).set({ passwordHash: newHash }).where(eq(usersTable.id, userId));
+
+  res.json({ message: "Password updated successfully" });
+});
+
 export default router;

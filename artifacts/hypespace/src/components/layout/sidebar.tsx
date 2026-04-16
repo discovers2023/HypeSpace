@@ -7,6 +7,7 @@ import {
   Share2,
   Users,
   Settings,
+  UserCircle,
   LogOut,
   Menu,
   Building2,
@@ -32,6 +33,7 @@ const navItems = [
   { href: "/social", label: "Social Posts", icon: Share2 },
   { href: "/team", label: "Team", icon: Users },
   { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/profile", label: "Account", icon: UserCircle },
 ];
 
 export function Sidebar() {
