@@ -49,7 +49,7 @@ function requireAuth(req: Request, res: Response, next: NextFunction): void {
 // Apply requireAuth to everything EXCEPT open paths
 // Open paths: /auth/* (login/register/logout/me), /healthz, /health, /public/*, /track/*
 // Tracking endpoints are unauthenticated by design — email clients load them without sessions
-const openPaths = ["/auth/", "/healthz", "/health", "/public/", "/track/"];
+const openPaths = ["/auth/", "/healthz", "/health", "/public/", "/track/", "/plans"];
 router.use((req: Request, res: Response, next: NextFunction) => {
   if (openPaths.some((p) => req.path.startsWith(p))) return next();
   return requireAuth(req, res, next);

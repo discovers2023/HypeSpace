@@ -109,7 +109,18 @@ app.use((req, res, next) => {
 
 app.use("/api", router);
 
-// Public routes are also under /api since the Vite proxy forwards /api/* to the server
-// The public endpoints are registered in the events router as /public/events/:slug
+// JSON 404 catch-all (prevents Express default HTML error pages)
+app.use((_req, res) => {
+  res.status(404).json({ error: "Not found" });
+});
+
+// Global error handler — returns JSON for all errors including CSRF failures
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  if (err.message?.includes("csrf") || err.message?.includes("CSRF")) {
+    res.status(403).json({ error: "CSRF token invalid or missing" });
+    return;
+  }
+  res.status(500).json({ error: err.message || "Internal server error" });
+});
 
 export default app;
