@@ -9,6 +9,10 @@ import {
 
 const router: IRouter = Router();
 
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 function formatReminder(r: typeof remindersTable.$inferSelect) {
   return {
     id: r.id,
@@ -74,8 +78,8 @@ router.post("/organizations/:orgId/events/:eventId/reminders/:reminderId/send", 
       toName: guest.name,
       subject: reminder.subject,
       html: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
-        <h2 style="color:#1a0533;">${reminder.subject}</h2>
-        <p style="color:#4a4a6a;line-height:1.7;white-space:pre-wrap;">${reminder.message}</p>
+        <h2 style="color:#1a0533;">${escapeHtml(reminder.subject)}</h2>
+        <p style="color:#4a4a6a;line-height:1.7;white-space:pre-wrap;">${escapeHtml(reminder.message)}</p>
       </div>`,
       text: reminder.message,
       orgId,
