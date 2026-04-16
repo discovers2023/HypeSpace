@@ -14,6 +14,7 @@ import integrationsRouter from "./integrations";
 import sendingDomainsRouter from "./sending-domains";
 import plansRouter from "./plans";
 import emailProviderRouter from "./email-provider";
+import adminRouter from "./admin";
 import trackingRouter from "./tracking";
 
 const router: IRouter = Router();
@@ -49,7 +50,7 @@ function requireAuth(req: Request, res: Response, next: NextFunction): void {
 // Apply requireAuth to everything EXCEPT open paths
 // Open paths: /auth/* (login/register/logout/me), /healthz, /health, /public/*, /track/*
 // Tracking endpoints are unauthenticated by design — email clients load them without sessions
-const openPaths = ["/auth/", "/healthz", "/health", "/public/", "/track/", "/plans"];
+const openPaths = ["/auth/", "/healthz", "/health", "/public/", "/track/", "/plans", "/admin/"];
 router.use((req: Request, res: Response, next: NextFunction) => {
   if (openPaths.some((p) => req.path.startsWith(p))) return next();
   return requireAuth(req, res, next);
@@ -70,5 +71,6 @@ router.use(sendingDomainsRouter);
 router.use(plansRouter);
 router.use(emailProviderRouter);
 router.use("/track", trackingRouter);
+router.use(adminRouter);
 
 export default router;

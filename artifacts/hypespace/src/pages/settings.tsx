@@ -1576,8 +1576,10 @@ function EmailSendingTab({ orgId }: { orgId: number }) {
     queryKey: ["sending-domains", orgId],
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/organizations/${orgId}/sending-domains`);
+      if (!res.ok) return [];
       return res.json();
     },
+    retry: false,
   });
 
   const onAdd = async () => {
