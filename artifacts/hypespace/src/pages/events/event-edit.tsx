@@ -234,16 +234,16 @@ export default function EventEdit() {
   return (
     <AppLayout>
       <div className="max-w-4xl mx-auto flex flex-col gap-6 pb-12">
-        {/* Publish lock banner */}
+        {/* Published notice */}
         {isPublished && (
-          <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800">
+          <div className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-blue-800">
             <Lock className="h-4 w-4 shrink-0" />
             <div className="flex-1 text-sm">
-              <span className="font-semibold">This event is published.</span>{" "}
-              Core fields are locked to protect registrants. To make structural changes, unpublish the event first from the event detail page.
+              <span className="font-semibold">This event is live.</span>{" "}
+              Changes you make here will update the public event page immediately. Guests who already received invitations won't be automatically notified of changes.
             </div>
             <Link href={`/events/${eventId}`}>
-              <Button variant="outline" size="sm" className="shrink-0 border-amber-300 text-amber-800 hover:bg-amber-100">View Event</Button>
+              <Button variant="outline" size="sm" className="shrink-0 border-blue-300 text-blue-800 hover:bg-blue-100">View Event</Button>
             </Link>
           </div>
         )}
@@ -318,10 +318,10 @@ export default function EventEdit() {
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2 }}
                 >
-                  {activeSection === "basics" && <BasicsSection form={form} isLocked={isPublished} />}
-                  {activeSection === "when" && <WhenSection form={form} isLocked={isPublished} />}
+                  {activeSection === "basics" && <BasicsSection form={form} />}
+                  {activeSection === "when" && <WhenSection form={form} />}
                   {activeSection === "where" && <WhereSection form={form} eventType={eventType} />}
-                  {activeSection === "details" && <DetailsSection form={form} isLocked={isPublished} />}
+                  {activeSection === "details" && <DetailsSection form={form} />}
                 </motion.div>
               </AnimatePresence>
             </form>
@@ -384,18 +384,12 @@ export default function EventEdit() {
 // Sections (reused from event-new but without validation navigation)
 // ═══════════════════════════════════════════════════════════════════
 
-function BasicsSection({ form, isLocked }: { form: UseFormReturn<EventFormValues>; isLocked?: boolean }) {
+function BasicsSection({ form }: { form: UseFormReturn<EventFormValues> }) {
   const selectedType = form.watch("type");
   const selectedCategory = form.watch("category");
 
   return (
     <div className="space-y-6">
-      {isLocked && (
-        <p className="text-xs text-amber-700 flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-          <Lock className="h-3 w-3 shrink-0" />
-          Title, event type, and category are locked. Only venue location and online link can still be updated.
-        </p>
-      )}
       <FormField
         control={form.control}
         name="title"
@@ -406,7 +400,6 @@ function BasicsSection({ form, isLocked }: { form: UseFormReturn<EventFormValues
               <Input
                 placeholder="Annual Tech Conference 2026"
                 className="text-lg h-14 font-medium"
-                disabled={isLocked}
                 {...field}
               />
             </FormControl>
@@ -418,7 +411,6 @@ function BasicsSection({ form, isLocked }: { form: UseFormReturn<EventFormValues
       <div>
         <label className="text-sm font-semibold mb-3 block">Event Type</label>
         <div className="grid grid-cols-3 gap-3 relative">
-          {isLocked && <div className="absolute inset-0 bg-background/50 rounded-xl z-10 cursor-not-allowed" />}
           {TYPES.map((type) => {
             const Icon = type.icon;
             const isActive = selectedType === type.value;
@@ -426,13 +418,13 @@ function BasicsSection({ form, isLocked }: { form: UseFormReturn<EventFormValues
               <motion.button
                 key={type.value}
                 type="button"
-                whileTap={{ scale: isLocked ? 1 : 0.97 }}
-                onClick={() => !isLocked && form.setValue("type", type.value, { shouldDirty: true })}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => form.setValue("type", type.value, { shouldDirty: true })}
                 className={`p-4 rounded-xl border-2 text-left transition-all ${
                   isActive
                     ? "border-primary bg-primary/5 shadow-md shadow-primary/10"
                     : "border-border hover:border-primary/30 bg-card"
-                } ${isLocked ? "opacity-60 cursor-not-allowed" : ""}`}
+                }`}
               >
                 <div className={`h-10 w-10 rounded-xl flex items-center justify-center mb-3 ${
                   isActive ? "bg-primary text-white" : "bg-muted text-muted-foreground"
@@ -456,13 +448,13 @@ function BasicsSection({ form, isLocked }: { form: UseFormReturn<EventFormValues
               <motion.button
                 key={cat.value}
                 type="button"
-                whileTap={{ scale: isLocked ? 1 : 0.96 }}
-                onClick={() => !isLocked && form.setValue("category", cat.value, { shouldDirty: true })}
+                whileTap={{ scale: 0.96 }}
+                onClick={() => form.setValue("category", cat.value, { shouldDirty: true })}
                 className={`px-4 py-2 rounded-full border text-sm font-medium transition-all flex items-center gap-2 ${
                   isActive
                     ? "bg-primary text-white border-primary shadow-md shadow-primary/20"
                     : "bg-card border-border hover:border-primary/40"
-                } ${isLocked ? "opacity-60 cursor-not-allowed" : ""}`}
+                }`}
               >
                 <span>{cat.emoji}</span>
                 <span>{cat.label}</span>
@@ -475,17 +467,11 @@ function BasicsSection({ form, isLocked }: { form: UseFormReturn<EventFormValues
   );
 }
 
-function WhenSection({ form, isLocked }: { form: UseFormReturn<EventFormValues>; isLocked?: boolean }) {
+function WhenSection({ form }: { form: UseFormReturn<EventFormValues> }) {
   return (
     <div className="space-y-6">
-      {isLocked && (
-        <p className="text-xs text-amber-700 flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-          <Lock className="h-3 w-3 shrink-0" />
-          Dates and timezone are locked while the event is published.
-        </p>
-      )}
       <div className="grid md:grid-cols-2 gap-5">
-        <div className={`p-5 rounded-xl bg-primary/5 border border-primary/10 ${isLocked ? "opacity-70" : ""}`}>
+        <div className="p-5 rounded-xl bg-primary/5 border border-primary/10">
           <div className="flex items-center gap-2 mb-4">
             <div className="h-8 w-8 rounded-lg bg-primary/15 flex items-center justify-center">
               <CalendarIcon className="h-4 w-4 text-primary" />
@@ -502,8 +488,7 @@ function WhenSection({ form, isLocked }: { form: UseFormReturn<EventFormValues>;
                     <FormControl>
                       <Button
                         variant={"outline"}
-                        disabled={isLocked}
-                        className={cn("w-full justify-start text-left font-normal bg-card", !field.value && "text-muted-foreground")}
+                                                className={cn("w-full justify-start text-left font-normal bg-card", !field.value && "text-muted-foreground")}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
                         {field.value ? format(field.value, "EEE, MMM d, yyyy") : "Pick a date"}
@@ -520,11 +505,11 @@ function WhenSection({ form, isLocked }: { form: UseFormReturn<EventFormValues>;
           />
           <div className="relative">
             <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary pointer-events-none" />
-            <Input type="time" className="pl-9 bg-card" disabled={isLocked} {...form.register("startTime")} />
+            <Input type="time" className="pl-9 bg-card" disabled={false} {...form.register("startTime")} />
           </div>
         </div>
 
-        <div className={`p-5 rounded-xl bg-accent/5 border border-accent/10 ${isLocked ? "opacity-70" : ""}`}>
+        <div className="p-5 rounded-xl bg-accent/5 border border-accent/10">
           <div className="flex items-center gap-2 mb-4">
             <div className="h-8 w-8 rounded-lg bg-accent/15 flex items-center justify-center">
               <CalendarIcon className="h-4 w-4 text-accent" />
@@ -541,8 +526,7 @@ function WhenSection({ form, isLocked }: { form: UseFormReturn<EventFormValues>;
                     <FormControl>
                       <Button
                         variant={"outline"}
-                        disabled={isLocked}
-                        className={cn("w-full justify-start text-left font-normal bg-card", !field.value && "text-muted-foreground")}
+                                                className={cn("w-full justify-start text-left font-normal bg-card", !field.value && "text-muted-foreground")}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4 text-accent" />
                         {field.value ? format(field.value, "EEE, MMM d, yyyy") : "Pick a date"}
@@ -559,7 +543,7 @@ function WhenSection({ form, isLocked }: { form: UseFormReturn<EventFormValues>;
           />
           <div className="relative">
             <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-accent pointer-events-none" />
-            <Input type="time" className="pl-9 bg-card" disabled={isLocked} {...form.register("endTime")} />
+            <Input type="time" className="pl-9 bg-card" disabled={false} {...form.register("endTime")} />
           </div>
         </div>
       </div>
@@ -574,7 +558,7 @@ function WhenSection({ form, isLocked }: { form: UseFormReturn<EventFormValues>;
               Timezone
             </FormLabel>
             <FormControl>
-              <div className={isLocked ? "pointer-events-none opacity-60" : ""}>
+              <div>
                 <TimezonePicker
                   value={field.value}
                   onChange={(tz) => form.setValue("timezone", tz, { shouldDirty: true })}
@@ -635,20 +619,14 @@ function WhereSection({ form, eventType }: { form: UseFormReturn<EventFormValues
   );
 }
 
-function DetailsSection({ form, isLocked }: { form: UseFormReturn<EventFormValues>; isLocked?: boolean }) {
+function DetailsSection({ form }: { form: UseFormReturn<EventFormValues> }) {
   const coverUrl = form.watch("coverImageUrl");
 
   return (
     <div className="space-y-6">
-      {isLocked && (
-        <p className="text-xs text-amber-700 flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-          <Lock className="h-3 w-3 shrink-0" />
-          Cover image, description, and capacity are locked while the event is published.
-        </p>
-      )}
       <div>
         <label className="text-sm font-semibold mb-2 block">Cover Image</label>
-        <div className={isLocked ? "pointer-events-none opacity-60" : ""}>
+        <div>
           <CoverImagePicker
             value={coverUrl}
             onChange={(url) => form.setValue("coverImageUrl", url, { shouldDirty: true })}
@@ -663,8 +641,7 @@ function DetailsSection({ form, isLocked }: { form: UseFormReturn<EventFormValue
           <FormItem>
             <div className="flex items-center justify-between mb-1.5">
               <FormLabel className="text-sm font-semibold">Description</FormLabel>
-              {!isLocked && (
-                <AIDescriptionButton
+              <AIDescriptionButton
                   context={{
                     title: form.watch("title"),
                     type: form.watch("type"),
@@ -674,10 +651,9 @@ function DetailsSection({ form, isLocked }: { form: UseFormReturn<EventFormValue
                   }}
                   onGenerated={(desc) => form.setValue("description", desc, { shouldDirty: true })}
                 />
-              )}
             </div>
             <FormControl>
-              <Textarea placeholder="What's this event about?" className="min-h-[120px] resize-none" disabled={isLocked} {...field} />
+              <Textarea placeholder="What's this event about?" className="min-h-[120px] resize-none" disabled={false} {...field} />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -694,7 +670,7 @@ function DetailsSection({ form, isLocked }: { form: UseFormReturn<EventFormValue
               Capacity
             </FormLabel>
             <FormControl>
-              <Input placeholder="Leave blank for unlimited" type="number" className="h-12" disabled={isLocked} {...field} />
+              <Input placeholder="Leave blank for unlimited" type="number" className="h-12" disabled={false} {...field} />
             </FormControl>
             <FormMessage />
           </FormItem>
