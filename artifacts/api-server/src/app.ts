@@ -92,9 +92,17 @@ const { generateCsrfToken, doubleCsrfProtection } = doubleCsrf({
 // Expose generateCsrfToken on app.locals so auth routes can issue it
 app.locals.generateCsrfToken = generateCsrfToken;
 
+// Ensure CSRF cookie is set on every response (not just login/me)
+// This way the browser always has the token before making mutations
+app.use((req, res, next) => {
+  if (!req.cookies?.["x-csrf-token"]) {
+    try { generateCsrfToken(req, res); } catch { /* first request before session */ }
+  }
+  next();
+});
+
 // Apply CSRF protection to all state-changing methods
-// Exclude: GET, HEAD, OPTIONS (safe methods), and /auth/login + /auth/register
-// (login/register are CSRF-safe because they don't operate on session state the attacker has)
+// Exclude: GET, HEAD, OPTIONS (safe methods), and auth/register/public endpoints
 app.use((req, res, next) => {
   const safeMethods = ["GET", "HEAD", "OPTIONS"];
   const csrfExempt = ["/api/auth/login", "/api/auth/register", "/api/public/"];
