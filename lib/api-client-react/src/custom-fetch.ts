@@ -358,6 +358,20 @@ export async function customFetch<T = unknown>(
     }
   }
 
+  // Always send session cookies (required for express-session auth)
+  if (!init.credentials) {
+    init.credentials = "include";
+  }
+
+  // Attach CSRF token for state-changing requests (read from double-submit cookie)
+  const mutationMethods = ["POST", "PUT", "PATCH", "DELETE"];
+  if (mutationMethods.includes(method) && !headers.has("x-csrf-token")) {
+    const csrfCookie = document.cookie.split("; ").find((c) => c.startsWith("x-csrf-token="));
+    if (csrfCookie) {
+      headers.set("x-csrf-token", decodeURIComponent(csrfCookie.split("=")[1]));
+    }
+  }
+
   const requestInfo = { method, url: resolveUrl(input) };
 
   const response = await fetch(input, { ...init, method, headers });

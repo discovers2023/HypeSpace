@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { data: authData, isLoading } = useQuery({
     queryKey: ["auth_status"],
     queryFn: async () => {
-      const res = await fetch(`${BASE}/api/auth/me`);
+      const res = await fetch(`${BASE}/api/auth/me`, { credentials: "include" });
       if (!res.ok) return null;
       return res.json();
     },
