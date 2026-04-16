@@ -201,7 +201,7 @@ router.post("/organizations/:orgId/events/:eventId/launch", async (req, res): Pr
       // can RSVP without filling the form. Handles both relative legacy links
       // (/e/slug) and the new absolute links (https://host/e/slug).
       const relGeneric = `/e/${event.slug}`;
-      const relPersonal = `${relGeneric}?t=${guest.id}`;
+      const relPersonal = `${relGeneric}?t=${guest.rsvpToken}`;
       const absGeneric = `${baseUrl}${relGeneric}`;
       const absPersonal = `${baseUrl}${relPersonal}`;
       const personalizedHtml = (campaign.htmlContent ?? "")
@@ -346,7 +346,7 @@ router.post("/organizations/:orgId/events/:eventId/bulk-email", async (req, res)
   let firstPreviewUrl: string | undefined;
 
   for (const guest of guests) {
-    const rsvpLink = `${appBaseUrl}/e/${event.slug}?t=${guest.id}`;
+    const rsvpLink = `${appBaseUrl}/e/${event.slug}?t=${guest.rsvpToken}`;
     const vars: Record<string, string> = {
       "guest.name": guest.name,
       "guest.email": guest.email,
@@ -403,19 +403,21 @@ router.post("/organizations/:orgId/events/:eventId/bulk-email", async (req, res)
 });
 
 // --- Public event endpoint (no auth) ---
+// SEC-05: only published events are visible publicly; drafts and cancelled events return 404.
 router.get("/public/events/:slug", async (req, res): Promise<void> => {
   const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
-  const [event] = await db.select().from(eventsTable).where(eq(eventsTable.slug, slug));
+  const [event] = await db.select().from(eventsTable)
+    .where(and(eq(eventsTable.slug, slug), eq(eventsTable.status, "published")));
   if (!event) { res.status(404).json({ error: "Event not found" }); return; }
 
-  // Return public-safe event data (no internal IDs exposed beyond what's needed)
+  // Return public-safe event data (no internal IDs exposed beyond what's needed).
+  // status field omitted — callers of a published-only endpoint don't need it.
   res.json({
     id: event.id,
     title: event.title,
     description: event.description ?? null,
     type: event.type,
     category: event.category,
-    status: event.status,
     startDate: event.startDate.toISOString(),
     endDate: event.endDate.toISOString(),
     timezone: event.timezone,
@@ -451,13 +453,13 @@ router.post("/public/events/:slug/rsvp", async (req, res): Promise<void> => {
   }
 
   // If guest token provided, update existing guest
+  // SEC-04: look up by rsvpToken (random hex string), not integer id.
   if (guestToken) {
-    const guestId = parseInt(guestToken, 10);
     const updateData: Record<string, unknown> = { status, respondedAt: new Date() };
     if (typeof optInFuture === "boolean") updateData.optInFuture = optInFuture;
     const [guest] = await db.update(guestsTable)
       .set(updateData)
-      .where(and(eq(guestsTable.id, guestId), eq(guestsTable.eventId, event.id)))
+      .where(and(eq(guestsTable.rsvpToken, guestToken), eq(guestsTable.eventId, event.id)))
       .returning();
     if (!guest) { res.status(404).json({ error: "Guest not found" }); return; }
 
