@@ -126,7 +126,7 @@ export default function TeamList() {
       {
         orgId: activeOrgId,
         memberId,
-        data: { role }
+        data: { role: role as "admin" | "manager" | "member" }
       },
       {
         onSuccess: () => {

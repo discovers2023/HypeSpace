@@ -212,11 +212,9 @@ export default function EventDetail() {
     { eventId },
     { query: { enabled: !!eventId } },
   );
-  const { data: reminders, isLoading: isRemindersLoading } = useListReminders(
-    activeOrgId,
-    eventId,
-    { query: { enabled: !!eventId } },
-  );
+  const remindersQuery = useListReminders(activeOrgId, eventId);
+  const reminders = remindersQuery.data;
+  const isRemindersLoading = remindersQuery.isLoading;
 
   // ── Mutations ──────────────────────────────────────────────────────────
   const addGuest = useAddGuest();
@@ -233,7 +231,8 @@ export default function EventDetail() {
   const [selectedGuests, setSelectedGuests] = useState<Set<number>>(new Set());
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<"all" | "yes" | "no" | "maybe" | "invited" | "not_responded" | "waitlisted">("all");
+  type StatusFilter = "all" | "yes" | "no" | "maybe" | "invited" | "not_responded" | "waitlisted";
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [bulkEmail, setBulkEmail] = useState<{ open: boolean; recipient: BulkRecipientMode; label: string; count: number } | null>(null);
   const [isCSVImportOpen, setIsCSVImportOpen] = useState(false);
   const [isGHLImportOpen, setIsGHLImportOpen] = useState(false);
@@ -305,7 +304,7 @@ export default function EventDetail() {
     all: guests?.length ?? 0,
     yes: guests?.filter((g) => g.status === "confirmed").length ?? 0,
     no: guests?.filter((g) => g.status === "declined").length ?? 0,
-    maybe: guests?.filter((g) => g.status === "maybe").length ?? 0,
+    maybe: guests?.filter((g) => (g.status as string) === "maybe").length ?? 0,
     invited: guests?.filter((g) => g.status === "invited").length ?? 0,
     not_responded: guests?.filter((g) => g.status === "invited" || g.status === "added").length ?? 0,
     waitlisted: guests?.filter((g) => g.status === "waitlisted").length ?? 0,
@@ -468,10 +467,10 @@ export default function EventDetail() {
 
   const onUpdateStatus = (
     guestId: number,
-    status: "added" | "invited" | "confirmed" | "maybe" | "declined" | "waitlisted",
+    status: string,
   ) => {
     updateGuest.mutate(
-      { orgId: activeOrgId, eventId, guestId, data: { status } },
+      { orgId: activeOrgId, eventId, guestId, data: { status: status as "added" | "invited" | "confirmed" | "declined" } },
       {
         onSuccess: () => {
           toast({ title: `Guest marked as ${status}` });
@@ -1381,7 +1380,7 @@ export default function EventDetail() {
 
             {/* Segment pills */}
             <div className="flex flex-wrap items-center gap-2">
-              {(["all", "yes", "maybe", "no", "invited", "not_responded", "waitlisted"] as const).map((s) => (
+              {(["all", "yes", "maybe", "no", "invited", "not_responded", "waitlisted"] as StatusFilter[]).map((s) => (
                 <Button
                   key={s}
                   type="button"
@@ -1403,7 +1402,7 @@ export default function EventDetail() {
                   disabled={segmentCounts[statusFilter] === 0}
                   onClick={() => setBulkEmail({
                     open: true,
-                    recipient: { mode: "segment", segment: statusFilter },
+                    recipient: { mode: "segment", segment: statusFilter as "yes" | "no" | "all" | "maybe" | "invited" | "not_responded" },
                     label: segmentLabels[statusFilter],
                     count: segmentCounts[statusFilter],
                   })}
@@ -1569,7 +1568,7 @@ export default function EventDetail() {
                               {guest.status === "invited" && (
                                 <Mail className="h-3 w-3 mr-1 inline" />
                               )}
-                              {guest.status === "maybe" && (
+                              {(guest.status as string) === "maybe" && (
                                 <Clock3 className="h-3 w-3 mr-1 inline" />
                               )}
                               {GUEST_STATUS_LABELS[guest.status] ?? guest.status}
@@ -1594,7 +1593,7 @@ export default function EventDetail() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-52">
-                                {(guest.status === "invited" || guest.status === "maybe") && (
+                                {(guest.status === "invited" || (guest.status as string) === "maybe") && (
                                   <DropdownMenuItem
                                     onClick={() => {
                                       onUpdateStatus(guest.id, "invited");
@@ -1617,7 +1616,7 @@ export default function EventDetail() {
                                     RSVP -- Yes
                                   </DropdownMenuItem>
                                 )}
-                                {guest.status !== "maybe" && (
+                                {(guest.status as string) !== "maybe" && (
                                   <DropdownMenuItem
                                     onClick={() => onUpdateStatus(guest.id, "maybe")}
                                   >
@@ -1716,7 +1715,7 @@ export default function EventDetail() {
                           <div className="flex-1 min-w-0">
                             <div className="font-medium flex items-center gap-2 truncate">
                               {campaign.subject}
-                              {isSent && <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" title="Campaign sent — content is locked" />}
+                              {isSent && <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
                             </div>
                             <div className="text-sm text-muted-foreground capitalize flex gap-2 mt-1">
                               <Badge variant="secondary" className="text-[10px]">
@@ -2008,7 +2007,7 @@ export default function EventDetail() {
             {(() => {
               const total = guests?.length ?? 0;
               const confirmed = guests?.filter((g) => g.status === "confirmed").length ?? 0;
-              const maybe = guests?.filter((g) => g.status === "maybe").length ?? 0;
+              const maybe = guests?.filter((g) => (g.status as string) === "maybe").length ?? 0;
               const declined = guests?.filter((g) => g.status === "declined").length ?? 0;
               const invited = guests?.filter((g) => g.status === "invited").length ?? 0;
               const added = guests?.filter((g) => g.status === "added").length ?? 0;

@@ -38,6 +38,11 @@ export interface Organization {
   memberCount: number;
   eventCount: number;
   createdAt: string;
+  primaryColor?: string | null;
+  accentColor?: string | null;
+  fromEmail?: string | null;
+  replyToEmail?: string | null;
+  emailFooterText?: string | null;
 }
 
 export interface CreateOrganizationBody {
@@ -50,6 +55,11 @@ export interface UpdateOrganizationBody {
   name?: string;
   description?: string | null;
   logoUrl?: string | null;
+  primaryColor?: string | null;
+  accentColor?: string | null;
+  fromEmail?: string | null;
+  replyToEmail?: string | null;
+  emailFooterText?: string | null;
 }
 
 export type TeamMemberRole =
@@ -371,6 +381,7 @@ export interface CreateCampaignBody {
 export interface UpdateCampaignBody {
   name?: string;
   subject?: string;
+  status?: string;
   htmlContent?: string | null;
   textContent?: string | null;
   scheduledAt?: string | null;

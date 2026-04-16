@@ -1089,7 +1089,7 @@ function RemindersStep({
       {
         orgId: activeOrgId,
         eventId,
-        createReminderBody: {
+        data: {
           type: "before_event",
           offsetHours: preset.offsetHours,
           subject: subject.trim() || preset.defaultSubject(event?.title || "the event"),

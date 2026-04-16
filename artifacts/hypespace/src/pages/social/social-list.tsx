@@ -95,7 +95,7 @@ export default function SocialList() {
   const handleDelete = () => {
     if (!postToDelete) return;
     
-    deletePost.mutate({ postId: postToDelete }, {
+    deletePost.mutate({ orgId: activeOrgId, postId: postToDelete }, {
       onSuccess: () => {
         toast({ title: "Post deleted successfully" });
         queryClient.invalidateQueries({ queryKey: ["/api/organizations", activeOrgId, "social-posts"] });
