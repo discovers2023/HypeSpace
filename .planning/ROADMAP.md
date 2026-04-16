@@ -59,8 +59,12 @@ Plans:
   3. The campaign detail page shows an open rate derived from a tracking pixel embedded in sent emails
   4. The campaign detail page shows a click rate derived from redirect links wrapping all URLs in sent emails
   5. The app compiles with zero TypeScript errors and all API errors display a consistent, actionable toast message
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 3 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Schedule send UI (datetime picker + Schedule button) + server scheduler loop (CAMP-01, CAMP-02)
+- [ ] 03-02-PLAN.md — Tracking pixel + click redirect endpoints + HTML injection at send time (CAMP-03, CAMP-04)
+- [ ] 03-03-PLAN.md — Fix all TypeScript errors, normalize API error shapes, verify frontend toasts (QUAL-01, QUAL-02, QUAL-03)
 
 ## Progress
 
@@ -71,4 +75,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|----------------|--------|-----------|
 | 1. Security Hardening | 3/3 | Complete | 2026-04-15 |
 | 2. Multi-Organization | 1/2 | In Progress|  |
-| 3. Campaign & Quality | 0/TBD | Not started | - |
+| 3. Campaign & Quality | 0/3 | Not started | - |
