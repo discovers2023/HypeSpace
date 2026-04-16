@@ -12,7 +12,7 @@ HypeSpace is a working MVP with identified security vulnerabilities, a hardcoded
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Security Hardening** - Close all P0 security vulnerabilities before any other work
+- [x] **Phase 1: Security Hardening** - Close all P0 security vulnerabilities before any other work
 - [ ] **Phase 2: Multi-Organization** - Remove hardcoded ORG_ID=1 and enable real multi-tenancy
 - [ ] **Phase 3: Campaign & Quality** - Deliver campaign scheduling/analytics and ship-ready code quality
 
@@ -33,7 +33,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 - [x] 01-01-PLAN.md — Random RSVP tokens (SEC-04) + published-only public events (SEC-05)
 - [x] 01-02-PLAN.md — Session middleware + auth guard on all /organizations/* routes + CSRF protection (SEC-01, SEC-03)
-- [ ] 01-03-PLAN.md — Email verification on registration, login blocks unverified accounts (SEC-02)
+- [x] 01-03-PLAN.md — Email verification on registration, login blocks unverified accounts (SEC-02)
 
 ### Phase 2: Multi-Organization
 **Goal**: Users who belong to one or more organizations see and operate on the correct org — no hardcoded defaults, no cross-org data leakage
@@ -66,6 +66,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Security Hardening | 2/3 | In Progress|  |
+| 1. Security Hardening | 3/3 | Complete | 2026-04-15 |
 | 2. Multi-Organization | 0/TBD | Not started | - |
 | 3. Campaign & Quality | 0/TBD | Not started | - |

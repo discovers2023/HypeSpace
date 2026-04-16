@@ -8,7 +8,7 @@
 ### Security
 
 - [x] **SEC-01**: All /api/organizations/* routes require authenticated session
-- [ ] **SEC-02**: Registration requires email verification before login is allowed
+- [x] **SEC-02**: Registration requires email verification before login is allowed
 - [x] **SEC-03**: CSRF protection via SameSite cookies + CSRF token on mutations
 - [x] **SEC-04**: RSVP uses crypto-random token per guest instead of sequential id
 - [x] **SEC-05**: Public event endpoints only return published events (filter drafts/cancelled)
@@ -69,7 +69,7 @@
 | REQ | Phase | Status |
 |-----|-------|--------|
 | SEC-01 | Phase 1 | Complete |
-| SEC-02 | Phase 1 | Pending |
+| SEC-02 | Phase 1 | Complete |
 | SEC-03 | Phase 1 | Complete |
 | SEC-04 | Phase 1 | Complete |
 | SEC-05 | Phase 1 | Complete |

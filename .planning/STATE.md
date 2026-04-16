@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-security-hardening plan 02 (session auth + CSRF + CORS)
-last_updated: "2026-04-16T20:48:16.913Z"
-last_activity: 2026-04-16
+stopped_at: Completed 01-security-hardening plan 03 (email verification — SEC-02 closed)
+last_updated: "2026-04-15T00:00:00.000Z"
+last_activity: 2026-04-15
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
-  percent: 67
+  completed_plans: 3
+  percent: 100
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-04-16)
 
 ## Current Position
 
-Phase: 1 of 3 (Security Hardening)
-Plan: 2 of 3 in current phase
-Status: Ready to execute
-Last activity: 2026-04-16
+Phase: 1 of 3 (Security Hardening) — COMPLETE
+Plan: 3 of 3 in current phase — all plans done
+Status: Phase 1 complete; ready to start Phase 2
+Last activity: 2026-04-15
 
-Progress: [█░░░░░░░░░] 11%
+Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [█░░░░░░░░░] 11%
 
 *Updated after each plan completion*
 | Phase 01-security-hardening P02 | 2m | 2 tasks | 5 files |
+| Phase 01-security-hardening P03 | 15m | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,9 @@ Recent decisions affecting current work:
 - 01-01: Remove status field from public event GET response — always "published" at that endpoint, exposing it hints at filter logic
 - [Phase 01-security-hardening]: Used csrf-csrf v4 double-submit pattern; getSessionIdentifier binds CSRF token to session ID
 - [Phase 01-security-hardening]: requireAuth applied globally in index.ts via path exclusion to automatically protect all future routes
+- 01-03: Registration succeeds even if verification email fails — user can resend via /auth/resend-verification
+- 01-03: POST /auth/resend-verification always returns same response to prevent email enumeration (T-03-03)
+- 01-03: Verification token cleared on first use (set to NULL) preventing replay (T-03-05)
 
 ### Pending Todos
 
@@ -87,6 +91,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-16T20:48:16.909Z
-Stopped at: Completed 01-security-hardening plan 02 (session auth + CSRF + CORS)
+Last session: 2026-04-15T00:00:00.000Z
+Stopped at: Completed 01-security-hardening plan 03 (email verification — SEC-02 closed). Phase 1 complete.
 Resume file: None
