@@ -28,7 +28,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Submitting a mutation from an external origin without a valid CSRF token is rejected
   4. An RSVP link contains a random token (not a sequential integer guest ID) that cannot be guessed
   5. A public event page only shows published events — drafts and cancelled events return 404
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Random RSVP tokens (SEC-04) + published-only public events (SEC-05)
+- [ ] 01-02-PLAN.md — Session middleware + auth guard on all /organizations/* routes + CSRF protection (SEC-01, SEC-03)
+- [ ] 01-03-PLAN.md — Email verification on registration, login blocks unverified accounts (SEC-02)
 
 ### Phase 2: Multi-Organization
 **Goal**: Users who belong to one or more organizations see and operate on the correct org — no hardcoded defaults, no cross-org data leakage
@@ -61,6 +66,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Security Hardening | 0/TBD | Not started | - |
+| 1. Security Hardening | 0/3 | Not started | - |
 | 2. Multi-Organization | 0/TBD | Not started | - |
 | 3. Campaign & Quality | 0/TBD | Not started | - |
