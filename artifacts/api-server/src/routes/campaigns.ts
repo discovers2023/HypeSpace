@@ -99,7 +99,7 @@ router.post("/organizations/:orgId/campaigns", async (req, res): Promise<void> =
     insertData.htmlContent = sanitizeHtml(insertData.htmlContent as string, sanitizeOpts);
   }
 
-  const [campaign] = await db.insert(campaignsTable).values(insertData as Parameters<typeof campaignsTable.$inferInsert>[0]).returning();
+  const [campaign] = await db.insert(campaignsTable).values(insertData as typeof campaignsTable.$inferInsert).returning();
   res.status(201).json(GetCampaignResponse.parse(formatCampaign(campaign)));
 });
 

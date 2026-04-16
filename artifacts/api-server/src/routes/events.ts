@@ -551,7 +551,7 @@ router.post("/organizations/:orgId/events/:eventId/duplicate", async (req, res):
       const now = new Date();
       const [{ c: activeCount }] = await db.select({ c: count() }).from(eventsTable)
         .where(and(eq(eventsTable.organizationId, orgId), gt(eventsTable.endDate, now)));
-      assertWithinLimit("events", activeCount, plan.limits);
+      assertWithinLimit(plan.key, "events", activeCount, plan.events, "active events");
     } catch (err) {
       if (err instanceof PlanLimitError) {
         res.status(402).json({ error: err.message, code: "PLAN_LIMIT" });

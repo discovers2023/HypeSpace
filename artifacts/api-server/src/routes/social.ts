@@ -42,7 +42,7 @@ router.post("/organizations/:orgId/social-posts", async (req, res): Promise<void
   const insertData: Record<string, unknown> = { ...parsed.data, organizationId: orgId };
   if (parsed.data.scheduledAt) insertData.scheduledAt = new Date(parsed.data.scheduledAt);
 
-  const [post] = await db.insert(socialPostsTable).values(insertData as Parameters<typeof socialPostsTable.$inferInsert>[0]).returning();
+  const [post] = await db.insert(socialPostsTable).values(insertData as typeof socialPostsTable.$inferInsert).returning();
   res.status(201).json(formatPost(post));
 });
 

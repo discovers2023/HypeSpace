@@ -135,7 +135,8 @@ router.post("/organizations/:orgId/integrations", async (req, res) => {
         .set({ status: "connected", accountName, accountId, metadata })
         .where(eq(integrationsTable.id, existing[0].id))
         .returning();
-      return res.json(updated);
+      res.json(updated);
+      return;
     }
 
     const [integration] = await db
@@ -322,7 +323,7 @@ async function createGHLContact(
     return null;
   }
 
-  return (await resp.json()).contact ?? null;
+  return ((await resp.json()) as Record<string, unknown>).contact ?? null;
 }
 
 /**
@@ -492,19 +493,22 @@ async function fetchIcalEvents(
 
   for (const key of Object.keys(data)) {
     const e = data[key];
-    if (e.type !== "VEVENT") continue;
+    if (!e || e.type !== "VEVENT") continue;
 
-    const start = e.start instanceof Date ? e.start : new Date(e.start as string);
-    const end = e.end instanceof Date ? e.end : (e.end ? new Date(e.end as string) : start);
+    // Cast to VEvent after the type guard so we can access VEvent-specific properties
+    const vevent = e as import("node-ical").VEvent;
+
+    const start = vevent.start instanceof Date ? vevent.start : new Date(vevent.start as string);
+    const end = vevent.end instanceof Date ? vevent.end : (vevent.end ? new Date(vevent.end as string) : start);
 
     // Only include events within the queried month range
     if (start > monthEnd || end < monthStart) continue;
 
-    const allDay = !(e.start as any)?.dateOnly === false || Boolean((e.start as any)?.dateOnly);
+    const allDay = !(vevent.start as any)?.dateOnly === false || Boolean((vevent.start as any)?.dateOnly);
 
     events.push({
-      id: e.uid || key,
-      title: e.summary || "(No title)",
+      id: vevent.uid || key,
+      title: (vevent.summary as string) || "(No title)",
       startDate: start.toISOString(),
       endDate: end.toISOString(),
       allDay,

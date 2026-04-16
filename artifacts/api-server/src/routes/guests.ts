@@ -118,7 +118,7 @@ router.post("/organizations/:orgId/events/:eventId/guests/bulk", async (req, res
   }
 
   const inserted = await db.insert(guestsTable).values(
-    parsed.data.guests.map(g => ({ ...g, eventId, status: "added" as const }))
+    parsed.data.guests.map((g: typeof parsed.data.guests[number]) => ({ ...g, eventId, status: "added" as const }))
   ).returning();
 
   res.status(201).json(inserted.map(formatGuest));
