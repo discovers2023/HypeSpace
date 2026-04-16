@@ -42,12 +42,22 @@ function formatGuest(g: typeof guestsTable.$inferSelect) {
   };
 }
 
+async function verifyEventOwnership(orgId: number, eventId: number): Promise<boolean> {
+  const [event] = await db.select({ id: eventsTable.id }).from(eventsTable)
+    .where(and(eq(eventsTable.id, eventId), eq(eventsTable.organizationId, orgId)));
+  return !!event;
+}
+
 router.get("/organizations/:orgId/events/:eventId/guests", async (req, res): Promise<void> => {
+  const rawOrgId = Array.isArray(req.params.orgId) ? req.params.orgId[0] : req.params.orgId;
   const rawEventId = Array.isArray(req.params.eventId) ? req.params.eventId[0] : req.params.eventId;
+  const orgId = parseInt(rawOrgId, 10);
   const eventId = parseInt(rawEventId, 10);
+  if (!(await verifyEventOwnership(orgId, eventId))) {
+    res.status(404).json({ error: "Event not found" }); return;
+  }
   const { status } = req.query as { status?: string };
-  let query = db.select().from(guestsTable).where(eq(guestsTable.eventId, eventId));
-  const guests = await query;
+  const guests = await db.select().from(guestsTable).where(eq(guestsTable.eventId, eventId));
   const filtered = status ? guests.filter(g => g.status === status) : guests;
   res.json(ListGuestsResponse.parse(filtered.map(formatGuest)));
 });
@@ -57,6 +67,9 @@ router.post("/organizations/:orgId/events/:eventId/guests", async (req, res): Pr
   const rawEventId = Array.isArray(req.params.eventId) ? req.params.eventId[0] : req.params.eventId;
   const orgId = parseInt(rawOrgId, 10);
   const eventId = parseInt(rawEventId, 10);
+  if (!(await verifyEventOwnership(orgId, eventId))) {
+    res.status(404).json({ error: "Event not found" }); return;
+  }
   const parsed = AddGuestBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
@@ -92,6 +105,9 @@ router.post("/organizations/:orgId/events/:eventId/guests/bulk", async (req, res
   const rawEventId = Array.isArray(req.params.eventId) ? req.params.eventId[0] : req.params.eventId;
   const orgId = parseInt(rawOrgId, 10);
   const eventId = parseInt(rawEventId, 10);
+  if (!(await verifyEventOwnership(orgId, eventId))) {
+    res.status(404).json({ error: "Event not found" }); return;
+  }
   const parsed = BulkAddGuestsBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
@@ -109,10 +125,15 @@ router.post("/organizations/:orgId/events/:eventId/guests/bulk", async (req, res
 });
 
 router.put("/organizations/:orgId/events/:eventId/guests/:guestId", async (req, res): Promise<void> => {
+  const rawOrgId = Array.isArray(req.params.orgId) ? req.params.orgId[0] : req.params.orgId;
   const rawGuestId = Array.isArray(req.params.guestId) ? req.params.guestId[0] : req.params.guestId;
   const rawEventId = Array.isArray(req.params.eventId) ? req.params.eventId[0] : req.params.eventId;
+  const orgId = parseInt(rawOrgId, 10);
   const guestId = parseInt(rawGuestId, 10);
   const eventId = parseInt(rawEventId, 10);
+  if (!(await verifyEventOwnership(orgId, eventId))) {
+    res.status(404).json({ error: "Event not found" }); return;
+  }
   const parsed = UpdateGuestBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
@@ -148,10 +169,15 @@ router.put("/organizations/:orgId/events/:eventId/guests/:guestId", async (req, 
 });
 
 router.delete("/organizations/:orgId/events/:eventId/guests/:guestId", async (req, res): Promise<void> => {
+  const rawOrgId = Array.isArray(req.params.orgId) ? req.params.orgId[0] : req.params.orgId;
   const rawGuestId = Array.isArray(req.params.guestId) ? req.params.guestId[0] : req.params.guestId;
   const rawEventId = Array.isArray(req.params.eventId) ? req.params.eventId[0] : req.params.eventId;
+  const orgId = parseInt(rawOrgId, 10);
   const guestId = parseInt(rawGuestId, 10);
   const eventId = parseInt(rawEventId, 10);
+  if (!(await verifyEventOwnership(orgId, eventId))) {
+    res.status(404).json({ error: "Event not found" }); return;
+  }
   await db.delete(guestsTable).where(and(eq(guestsTable.id, guestId), eq(guestsTable.eventId, eventId)));
   res.sendStatus(204);
 });
