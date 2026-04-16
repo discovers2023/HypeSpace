@@ -37,13 +37,13 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase()));
 
   if (!user) {
-    res.status(404).json({ error: "USER_NOT_FOUND" });
+    res.status(401).json({ error: "INVALID_CREDENTIALS" });
     return;
   }
 
   const passwordMatch = await bcrypt.compare(password, user.passwordHash);
   if (!passwordMatch) {
-    res.status(401).json({ error: "WRONG_PASSWORD" });
+    res.status(401).json({ error: "INVALID_CREDENTIALS" });
     return;
   }
 
