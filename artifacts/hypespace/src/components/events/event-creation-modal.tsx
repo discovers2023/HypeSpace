@@ -42,9 +42,9 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const STEPS = [
   { key: "details", label: "Event Details", icon: CalendarIcon },
-  { key: "guests", label: "Add Guests", icon: Users },
   { key: "campaign", label: "Design Campaign", icon: Mail },
   { key: "test", label: "Test Email", icon: Send },
+  { key: "guests", label: "Add Guests", icon: Users },
   { key: "review", label: "Review & Launch", icon: Rocket },
 ] as const;
 
@@ -311,13 +311,13 @@ export function EventCreationModal({ open, onClose, prefillDate, onEventCreated 
                 </Form>
               )}
               {stepIndex === 1 && createdEventId && (
-                <GuestsStep eventId={createdEventId} />
-              )}
-              {stepIndex === 2 && createdEventId && (
                 <CampaignStep eventId={createdEventId} org={org} />
               )}
-              {stepIndex === 3 && createdEventId && (
+              {stepIndex === 2 && createdEventId && (
                 <TestEmailStep eventId={createdEventId} />
+              )}
+              {stepIndex === 3 && createdEventId && (
+                <GuestsStep eventId={createdEventId} />
               )}
               {stepIndex === 4 && createdEventId && (
                 <ReviewStep
@@ -684,6 +684,7 @@ function CampaignStep({ eventId, org }: { eventId: number; org: Organization | u
   const [tone, setTone] = useState<AiGenerateCampaignBodyTone>("professional");
   const [context, setContext] = useState("");
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
+  const [editMode, setEditMode] = useState(false);
   const [generated, setGenerated] = useState<{
     subject: string; htmlContent: string; textContent: string; suggestions: string[];
   } | null>(null);
@@ -696,8 +697,28 @@ function CampaignStep({ eventId, org }: { eventId: number; org: Organization | u
       {
         onSuccess: (result) => {
           const branding = org ? { ...org } : { name: "HypeSpace Events" };
-          setGenerated({ ...result, htmlContent: applyBranding(result.htmlContent, branding) });
-          toast({ title: "Campaign generated!" });
+          const branded = applyBranding(result.htmlContent, branding);
+          setGenerated({ ...result, htmlContent: branded });
+          createCampaign.mutate(
+            {
+              orgId: ORG_ID,
+              data: {
+                eventId,
+                name: `AI Campaign: ${result.subject.substring(0, 40)}`,
+                subject: result.subject,
+                type: campaignType as CampaignType,
+                htmlContent: branded,
+                textContent: result.textContent,
+              },
+            },
+            {
+              onSuccess: () => {
+                toast({ title: "Campaign generated & saved!" });
+                queryClient.invalidateQueries({ queryKey: [`/api/organizations/${ORG_ID}/campaigns`] });
+              },
+              onError: (e) => toast({ title: "Generated, but failed to save", description: e.message, variant: "destructive" }),
+            },
+          );
         },
         onError: (e) => toast({ title: "Generation failed", description: e.message, variant: "destructive" }),
       },
@@ -796,20 +817,41 @@ function CampaignStep({ eventId, org }: { eventId: number; org: Organization | u
               </div>
             </div>
           </div>
-          <div className={`bg-[#f3f0ff] flex justify-center ${previewMode === "mobile" ? "px-4 py-4" : ""}`}>
-            <iframe
-              srcDoc={generated.htmlContent}
-              title="Email preview"
-              className="border-0 rounded"
-              style={{ width: previewMode === "mobile" ? "375px" : "100%", height: "320px" }}
-              sandbox="allow-same-origin"
-            />
-          </div>
-          <div className="px-4 py-3 border-t flex justify-between">
-            <Button variant="outline" size="sm" onClick={() => setGenerated(null)}>Discard</Button>
-            <Button size="sm" onClick={onSave} disabled={createCampaign.isPending} className="bg-primary hover:bg-primary/90 text-white">
-              {createCampaign.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</> : "Save Campaign"}
-            </Button>
+          {editMode ? (
+            <div className="p-3">
+              <Textarea
+                value={generated.htmlContent}
+                onChange={(e) => setGenerated({ ...generated, htmlContent: e.target.value })}
+                className="font-mono text-xs min-h-[300px] resize-y"
+              />
+            </div>
+          ) : (
+            <div className={`bg-[#f3f0ff] flex justify-center ${previewMode === "mobile" ? "px-4 py-4" : ""}`}>
+              <iframe
+                srcDoc={generated.htmlContent}
+                title="Email preview"
+                className="border-0 rounded"
+                style={{ width: previewMode === "mobile" ? "375px" : "100%", height: "320px" }}
+                sandbox="allow-same-origin"
+              />
+            </div>
+          )}
+          <div className="px-4 py-3 border-t flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setGenerated(null)}>Discard</Button>
+              <Button variant="outline" size="sm" onClick={() => setEditMode(!editMode)}>
+                <FileText className="h-3.5 w-3.5 mr-1" />
+                {editMode ? "Preview" : "Edit HTML"}
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={onGenerate} disabled={generateCampaign.isPending}>
+                {generateCampaign.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Sparkles className="h-3.5 w-3.5 mr-1" />Regenerate</>}
+              </Button>
+              <Button size="sm" onClick={onSave} disabled={createCampaign.isPending} className="bg-primary hover:bg-primary/90 text-white">
+                {createCampaign.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</> : "Save Campaign"}
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -887,7 +929,6 @@ function TestEmailStep({ eventId }: { eventId: number }) {
                 placeholder="your@email.com"
                 value={testEmail}
                 onChange={(e) => setTestEmail(e.target.value)}
-                disabled={!campaign}
               />
               <Button
                 className="bg-primary hover:bg-primary/90 text-white shrink-0"
@@ -919,6 +960,8 @@ function ReviewStep({ eventId, form, onLaunched }: { eventId: number; form: UseF
   const values = form.getValues();
   const guestCount = guests?.length ?? 0;
   const campaignCount = campaigns?.length ?? 0;
+  const previewCampaign = campaigns?.[0];
+  const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
 
   const onLaunch = async () => {
     setIsLaunching(true);
@@ -992,6 +1035,34 @@ function ReviewStep({ eventId, form, onLaunched }: { eventId: number; form: UseF
           </div>
         </div>
       </div>
+
+      {previewCampaign && (
+        <div className="rounded-xl border overflow-hidden">
+          <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground mb-1 font-semibold">Invitation Preview</p>
+              <p className="text-sm font-semibold truncate">{previewCampaign.subject}</p>
+            </div>
+            <div className="flex items-center rounded-lg border bg-background overflow-hidden shrink-0">
+              <button type="button" onClick={() => setPreviewMode("desktop")} className={`px-2 py-1.5 transition-colors ${previewMode === "desktop" ? "bg-primary text-white" : "text-muted-foreground"}`}>
+                <Monitor className="h-3.5 w-3.5" />
+              </button>
+              <button type="button" onClick={() => setPreviewMode("mobile")} className={`px-2 py-1.5 transition-colors ${previewMode === "mobile" ? "bg-primary text-white" : "text-muted-foreground"}`}>
+                <Smartphone className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+          <div className={`bg-[#f3f0ff] flex justify-center ${previewMode === "mobile" ? "px-4 py-4" : ""}`}>
+            <iframe
+              srcDoc={previewCampaign.htmlContent ?? ""}
+              title="Invitation preview"
+              className="border-0 rounded bg-white"
+              style={{ width: previewMode === "mobile" ? "375px" : "100%", height: "480px" }}
+              sandbox="allow-same-origin"
+            />
+          </div>
+        </div>
+      )}
 
       {guestCount === 0 && (
         <div className="flex items-start gap-2 p-3 rounded-xl border border-amber-200 bg-amber-50">
