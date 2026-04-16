@@ -873,6 +873,30 @@ export default function EventDetail() {
                   )}
                   Duplicate Event
                 </DropdownMenuItem>
+                {event.status === "draft" && (
+                  <DropdownMenuItem
+                    className="text-green-600 focus:text-green-600"
+                    onClick={() => updateEvent.mutate(
+                      { orgId: ORG_ID, eventId, data: { status: "published" } },
+                      { onSuccess: () => toast({ title: "Event published!" }) },
+                    )}
+                  >
+                    <Rocket className="mr-2 h-4 w-4" />
+                    Publish Event
+                  </DropdownMenuItem>
+                )}
+                {event.status === "cancelled" && (
+                  <DropdownMenuItem
+                    className="text-green-600 focus:text-green-600"
+                    onClick={() => updateEvent.mutate(
+                      { orgId: ORG_ID, eventId, data: { status: "published" } },
+                      { onSuccess: () => toast({ title: "Event republished!" }) },
+                    )}
+                  >
+                    <Rocket className="mr-2 h-4 w-4" />
+                    Republish Event
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 {event.status !== "cancelled" && event.status !== "completed" && (
                   <DropdownMenuItem
