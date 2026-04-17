@@ -32,9 +32,38 @@ app.use(
 );
 
 // --- CORS: restrict to known origins ---
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
-  : ["http://localhost:5173"];
+// Capacitor native origins — required for the iOS/Android shells to call the API.
+// Per Capacitor docs, iOS uses capacitor://localhost by default; Android uses
+// http://localhost unless server.androidScheme is set to "https" (our config
+// sets it to "https"). All three are listed to cover every shell variant.
+const CAPACITOR_NATIVE_ORIGINS = [
+  "capacitor://localhost",
+  "http://localhost",
+  "https://localhost",
+];
+
+const configuredOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean)
+  : [];
+
+// In development, be permissive: include the Vite dev server + Capacitor
+// native origins by default. In production, the operator MUST set
+// ALLOWED_ORIGINS explicitly — Capacitor origins are NOT auto-allowed in prod
+// to force a conscious decision about which native shells can call the API.
+const allowedOrigins =
+  process.env.NODE_ENV === "production"
+    ? configuredOrigins.length > 0
+      ? configuredOrigins
+      : (() => {
+          throw new Error(
+            "ALLOWED_ORIGINS env var is required in production (comma-separated list of origins, e.g. https://app.example.com,capacitor://localhost)",
+          );
+        })()
+    : [
+        ...configuredOrigins,
+        "http://localhost:5173",
+        ...CAPACITOR_NATIVE_ORIGINS,
+      ];
 
 app.use(
   cors({
