@@ -337,23 +337,37 @@ export function EventCreationModal({ open, onClose, prefillDate, onEventCreated 
 
         {/* Footer */}
         <div className="px-6 py-4 border-t flex justify-between items-center sticky bottom-0 bg-background">
-          <Button variant="outline" onClick={stepIndex === 0 ? handleClose : goBack}>
-            {stepIndex === 0 ? "Cancel" : <><ArrowLeft className="h-4 w-4 mr-1" />Back</>}
-          </Button>
-          {stepIndex < STEPS.length - 1 && (
-            <Button
-              onClick={goNext}
-              disabled={isSubmitting}
-              className="bg-primary hover:bg-primary/90 text-white"
-            >
-              {isSubmitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</> : <>Next <ArrowRight className="h-4 w-4 ml-2" /></>}
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={stepIndex === 0 ? handleClose : goBack}>
+              {stepIndex === 0 ? "Cancel" : <><ArrowLeft className="h-4 w-4 mr-1" />Back</>}
             </Button>
-          )}
-          {stepIndex === STEPS.length - 1 && (
-            <Button variant="outline" onClick={handleClose}>
-              Done
-            </Button>
-          )}
+            {stepIndex > 0 && stepIndex < STEPS.length - 1 && createdEventId && (
+              <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={handleClose}>
+                Save & Exit
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {stepIndex > 0 && stepIndex < STEPS.length - 1 && (
+              <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => { setDirection(1); setStepIndex(STEPS.length - 1); }}>
+                Skip to Review
+              </Button>
+            )}
+            {stepIndex < STEPS.length - 1 && (
+              <Button
+                onClick={goNext}
+                disabled={isSubmitting}
+                className="bg-primary hover:bg-primary/90 text-white"
+              >
+                {isSubmitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</> : <>Next <ArrowRight className="h-4 w-4 ml-2" /></>}
+              </Button>
+            )}
+            {stepIndex === STEPS.length - 1 && (
+              <Button variant="outline" onClick={handleClose}>
+                Done
+              </Button>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -818,8 +832,39 @@ function CampaignStep({ eventId, org }: { eventId: number; org: Organization | u
 
       <div>
         <label className="text-xs font-semibold mb-1 block">Additional Context</label>
-        <Textarea placeholder="e.g. Mention surprise speaker, validated parking..." value={context} onChange={(e) => setContext(e.target.value)} className="resize-none min-h-[60px]" />
+        <Textarea placeholder="e.g. Mention surprise speaker, validated parking, CE credits available..." value={context} onChange={(e) => setContext(e.target.value)} className="resize-none min-h-[60px]" />
       </div>
+
+      {/* Image insertion for campaign */}
+      {generated && (
+        <div className="p-3 rounded-lg border bg-muted/30 space-y-2">
+          <label className="text-xs font-semibold block">Insert Image into Campaign</label>
+          <div className="flex gap-2">
+            <Input
+              type="url"
+              placeholder="Paste image URL (logo, speaker photo, banner...)"
+              id="campaign-image-url"
+              className="flex-1 text-sm"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const input = document.getElementById("campaign-image-url") as HTMLInputElement;
+                const url = input?.value?.trim();
+                if (!url) return;
+                const imgTag = `<div style="text-align:center;margin:24px 0;"><img src="${url}" alt="Campaign image" style="max-width:100%;height:auto;border-radius:12px;" /></div>`;
+                setGenerated(prev => prev ? { ...prev, htmlContent: prev.htmlContent.replace("</body>", `${imgTag}</body>`) } : prev);
+                input.value = "";
+              }}
+            >
+              <Upload className="h-3.5 w-3.5 mr-1" /> Insert
+            </Button>
+          </div>
+          <p className="text-[10px] text-muted-foreground">Image will be added to the campaign email. Use direct image URLs (ending in .jpg, .png, etc.)</p>
+        </div>
+      )}
 
       <Button onClick={onGenerate} disabled={generateCampaign.isPending} className="bg-primary hover:bg-primary/90 text-white">
         {generateCampaign.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Generating...</> : <><Sparkles className="h-4 w-4 mr-2" />Generate with AI</>}
