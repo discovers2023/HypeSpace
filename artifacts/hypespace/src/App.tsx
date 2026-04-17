@@ -18,6 +18,7 @@ import CampaignEdit from "@/pages/campaigns/campaign-edit";
 import SocialList from "@/pages/social/social-list";
 import TeamList from "@/pages/team/team-list";
 import Settings from "@/pages/settings";
+import Onboarding from "@/pages/onboarding";
 import Profile from "@/pages/profile";
 import AcceptInvite from "@/pages/accept-invite";
 import CalendarPage from "@/pages/calendar";
@@ -40,6 +41,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/onboarding" component={Onboarding} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/calendar" component={CalendarPage} />
       <Route path="/events" component={EventList} />

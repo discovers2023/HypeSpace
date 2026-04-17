@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/layout/app-layout";
-import { Link } from "wouter";
+import { Link, Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Users, Mail, BarChart, ArrowUpRight, Activity, CheckCircle, XCircle, HelpCircle, Clock, Plus, TrendingUp, Sparkles } from "lucide-react";
@@ -198,9 +198,16 @@ function StatCard({ href, icon: Icon, title, value, subtitle, accentColor }: {
 import { useAuth } from "@/components/auth-provider";
 
 export default function Dashboard() {
-  const { activeOrgId } = useAuth();
+  const { activeOrgId, onboardingCompletedAt, isLoading: authLoading } = useAuth();
   const { data: stats, isLoading: isStatsLoading } = useGetDashboardStats(activeOrgId);
   const { data: activity, isLoading: isActivityLoading } = useGetRecentActivity(activeOrgId, { limit: 5 });
+
+  // Gate: brand-new orgs (no onboardingCompletedAt) land on /onboarding first.
+  // Only gate /dashboard (the default post-login landing) so direct navigation
+  // to /events, /campaigns, etc. still works if the user skips the wizard.
+  if (!authLoading && activeOrgId && onboardingCompletedAt === null) {
+    return <Redirect to="/onboarding" />;
+  }
 
   const chartData = stats ? [
     { name: "Onsite", total: stats.eventsByType.onsite },

@@ -20,6 +20,7 @@ type AuthContextType = {
   user: User | null;
   orgs: OrgSummary[];
   activeOrgId: number;
+  onboardingCompletedAt: string | null;
   impersonation: ImpersonationState;
   isLoading: boolean;
   login: (user: User, orgs: OrgSummary[], activeOrgId: number) => void;
@@ -27,6 +28,7 @@ type AuthContextType = {
   switchOrg: (orgId: number) => void;
   startImpersonation: (targetOrgId: number) => void;
   stopImpersonation: () => void;
+  refreshOnboarding: () => void;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,6 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // 0 signals "not yet loaded" — consumers will wait for a real value
   const [activeOrgId, setActiveOrgId] = useState<number>(0);
+  const [onboardingCompletedAt, setOnboardingCompletedAt] = useState<string | null>(null);
   const [impersonation, setImpersonation] = useState<ImpersonationState>({
     isImpersonating: false,
     originalOrgId: null,
@@ -61,6 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!impersonation.isImpersonating) {
         setActiveOrgId(authData.activeOrgId ?? 0);
       }
+      setOnboardingCompletedAt(authData.onboardingCompletedAt ?? null);
       // Store CSRF token if returned
       if (authData.csrfToken) {
         (window as Window & { __csrfToken?: string }).__csrfToken = authData.csrfToken;
@@ -68,8 +72,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } else {
       setUser(null);
       setOrgs([]);
+      setOnboardingCompletedAt(null);
     }
   }, [authData, impersonation.isImpersonating]);
+
+  const refreshOnboarding = () => {
+    queryClient.invalidateQueries({ queryKey: ["auth_status"] });
+  };
 
   const login = (newUser: User, newOrgs: OrgSummary[], newActiveOrgId: number) => {
     setUser(newUser);
@@ -122,6 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         orgs,
         activeOrgId,
+        onboardingCompletedAt,
         impersonation,
         isLoading,
         login,
@@ -129,6 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         switchOrg,
         startImpersonation,
         stopImpersonation,
+        refreshOnboarding,
       }}
     >
       {children}
