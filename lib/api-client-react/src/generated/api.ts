@@ -20,7 +20,9 @@ import type {
   ActivityItem,
   AddGuestBody,
   AiGenerateCampaignBody,
+  AiGenerateCampaignImageBody,
   AiGeneratedCampaign,
+  AiGeneratedCampaignImage,
   BulkAddGuestsBody,
   Campaign,
   CreateCampaignBody,
@@ -2450,6 +2452,97 @@ export const useAiGenerateCampaign = <
   TContext
 > => {
   return useMutation(getAiGenerateCampaignMutationOptions(options));
+};
+
+/**
+ * @summary Generate a hero image for a campaign using AI
+ */
+export const getAiGenerateCampaignImageUrl = (orgId: number) => {
+  return `/api/organizations/${orgId}/campaigns/ai-generate-image`;
+};
+
+export const aiGenerateCampaignImage = async (
+  orgId: number,
+  aiGenerateCampaignImageBody: AiGenerateCampaignImageBody,
+  options?: RequestInit,
+): Promise<AiGeneratedCampaignImage> => {
+  return customFetch<AiGeneratedCampaignImage>(
+    getAiGenerateCampaignImageUrl(orgId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(aiGenerateCampaignImageBody),
+    },
+  );
+};
+
+export const getAiGenerateCampaignImageMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof aiGenerateCampaignImage>>,
+    TError,
+    { orgId: number; data: BodyType<AiGenerateCampaignImageBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof aiGenerateCampaignImage>>,
+  TError,
+  { orgId: number; data: BodyType<AiGenerateCampaignImageBody> },
+  TContext
+> => {
+  const mutationKey = ["aiGenerateCampaignImage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof aiGenerateCampaignImage>>,
+    { orgId: number; data: BodyType<AiGenerateCampaignImageBody> }
+  > = (props) => {
+    const { orgId, data } = props ?? {};
+
+    return aiGenerateCampaignImage(orgId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AiGenerateCampaignImageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof aiGenerateCampaignImage>>
+>;
+export type AiGenerateCampaignImageMutationBody =
+  BodyType<AiGenerateCampaignImageBody>;
+export type AiGenerateCampaignImageMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Generate a hero image for a campaign using AI
+ */
+export const useAiGenerateCampaignImage = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof aiGenerateCampaignImage>>,
+    TError,
+    { orgId: number; data: BodyType<AiGenerateCampaignImageBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof aiGenerateCampaignImage>>,
+  TError,
+  { orgId: number; data: BodyType<AiGenerateCampaignImageBody> },
+  TContext
+> => {
+  return useMutation(getAiGenerateCampaignImageMutationOptions(options));
 };
 
 /**

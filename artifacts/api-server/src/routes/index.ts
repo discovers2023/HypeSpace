@@ -37,6 +37,7 @@ const aiLimiter = rateLimit({
 
 router.use("/auth", authLimiter);
 router.use("/organizations/:orgId/campaigns/ai-generate", aiLimiter);
+router.use("/organizations/:orgId/campaigns/ai-generate-image", aiLimiter);
 
 // Auth guard: blocks all routes except auth, health, and public endpoints
 function requireAuth(req: Request, res: Response, next: NextFunction): void {

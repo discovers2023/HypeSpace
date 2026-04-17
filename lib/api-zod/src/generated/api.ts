@@ -683,6 +683,35 @@ export const AiGenerateCampaignResponse = zod.object({
 });
 
 /**
+ * @summary Generate a hero image for a campaign using AI
+ */
+export const AiGenerateCampaignImageParams = zod.object({
+  orgId: zod.coerce.number(),
+});
+
+export const AiGenerateCampaignImageBody = zod.object({
+  eventId: zod.number().nullish(),
+  campaignType: zod.enum([
+    "invitation",
+    "reminder",
+    "followup",
+    "announcement",
+    "custom",
+  ]),
+  tone: zod.enum(["professional", "friendly", "formal", "casual", "urgent"]),
+  additionalContext: zod.string().nullish(),
+  stylePrompt: zod
+    .string()
+    .nullish()
+    .describe("Optional override for the image style hint"),
+});
+
+export const AiGenerateCampaignImageResponse = zod.object({
+  imageUrl: zod.string(),
+  generatedBy: zod.enum(["openai", "gemini", "stock"]),
+});
+
+/**
  * @summary List social media posts for organization
  */
 export const ListSocialPostsParams = zod.object({

@@ -659,6 +659,31 @@ paths:
               schema:
                 $ref: "#/components/schemas/AiGeneratedCampaign"
 
+  /organizations/{orgId}/campaigns/ai-generate-image:
+    post:
+      operationId: aiGenerateCampaignImage
+      tags: [campaigns]
+      summary: Generate a hero image for a campaign using AI
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiGenerateCampaignImageBody"
+      responses:
+        "200":
+          description: Generated hero image
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiGeneratedCampaignImage"
+
   /organizations/{orgId}/social-posts:
     get:
       operationId: listSocialPosts
@@ -1382,6 +1407,41 @@ components:
         - htmlContent
         - textContent
         - suggestions
+
+    AiGenerateCampaignImageBody:
+      type: object
+      properties:
+        eventId:
+          type: integer
+          nullable: true
+        campaignType:
+          type: string
+          enum: [invitation, reminder, followup, announcement, custom]
+        tone:
+          type: string
+          enum: [professional, friendly, formal, casual, urgent]
+        additionalContext:
+          type: string
+          nullable: true
+        stylePrompt:
+          type: string
+          nullable: true
+          description: Optional override for the image style hint
+      required:
+        - campaignType
+        - tone
+
+    AiGeneratedCampaignImage:
+      type: object
+      properties:
+        imageUrl:
+          type: string
+        generatedBy:
+          type: string
+          enum: [openai, gemini, stock]
+      required:
+        - imageUrl
+        - generatedBy
 
     SocialPost:
       type: object

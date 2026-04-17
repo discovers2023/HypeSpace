@@ -414,6 +414,51 @@ export interface AiGeneratedCampaign {
   heroImageUrl?: string | null;
 }
 
+export type AiGenerateCampaignImageBodyCampaignType =
+  (typeof AiGenerateCampaignImageBodyCampaignType)[keyof typeof AiGenerateCampaignImageBodyCampaignType];
+
+export const AiGenerateCampaignImageBodyCampaignType = {
+  invitation: "invitation",
+  reminder: "reminder",
+  followup: "followup",
+  announcement: "announcement",
+  custom: "custom",
+} as const;
+
+export type AiGenerateCampaignImageBodyTone =
+  (typeof AiGenerateCampaignImageBodyTone)[keyof typeof AiGenerateCampaignImageBodyTone];
+
+export const AiGenerateCampaignImageBodyTone = {
+  professional: "professional",
+  friendly: "friendly",
+  formal: "formal",
+  casual: "casual",
+  urgent: "urgent",
+} as const;
+
+export interface AiGenerateCampaignImageBody {
+  eventId?: number | null;
+  campaignType: AiGenerateCampaignImageBodyCampaignType;
+  tone: AiGenerateCampaignImageBodyTone;
+  additionalContext?: string | null;
+  /** Optional override for the image style hint */
+  stylePrompt?: string | null;
+}
+
+export type AiGeneratedCampaignImageGeneratedBy =
+  (typeof AiGeneratedCampaignImageGeneratedBy)[keyof typeof AiGeneratedCampaignImageGeneratedBy];
+
+export const AiGeneratedCampaignImageGeneratedBy = {
+  openai: "openai",
+  gemini: "gemini",
+  stock: "stock",
+} as const;
+
+export interface AiGeneratedCampaignImage {
+  imageUrl: string;
+  generatedBy: AiGeneratedCampaignImageGeneratedBy;
+}
+
 export type SocialPostPlatform =
   (typeof SocialPostPlatform)[keyof typeof SocialPostPlatform];
 

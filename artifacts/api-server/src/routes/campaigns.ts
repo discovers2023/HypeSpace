@@ -28,7 +28,10 @@ import {
   SendCampaignResponse,
   AiGenerateCampaignBody,
   AiGenerateCampaignResponse,
+  AiGenerateCampaignImageBody,
+  AiGenerateCampaignImageResponse,
 } from "@workspace/api-zod";
+import { generateCampaignImage } from "../lib/ai-image";
 
 const router: IRouter = Router();
 
@@ -338,7 +341,6 @@ router.post("/organizations/:orgId/campaigns/ai-generate", async (req, res): Pro
 
     let heroImageUrl: string | null = null;
     if (parsed.data.includeImage) {
-      const { generateCampaignImage } = await import("../lib/ai-image");
       const imagePromise = generateCampaignImage({
         eventTitle,
         eventType,
@@ -373,6 +375,57 @@ router.post("/organizations/:orgId/campaigns/ai-generate", async (req, res): Pro
     req.log?.error({ err, provider }, "AI generation failed");
     res.status(502).json({
       error: "AI_GENERATION_FAILED",
+      provider,
+      detail: detail.slice(0, 500),
+    });
+  }
+});
+
+router.post("/organizations/:orgId/campaigns/ai-generate-image", async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.orgId) ? req.params.orgId[0] : req.params.orgId;
+  const orgId = parseInt(raw, 10);
+  const parsed = AiGenerateCampaignImageBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  // Fetch event details for prompt context + org AI config
+  let eventTitle = "Our Event";
+  let eventType = "";
+  let eventDescription = "";
+  if (parsed.data.eventId) {
+    const [event] = await db.select().from(eventsTable).where(eq(eventsTable.id, parsed.data.eventId));
+    if (event) {
+      eventTitle = event.title;
+      eventType = event.type ?? "";
+      eventDescription = event.description ?? "";
+    }
+  }
+  const [orgRow] = await db.select().from(organizationsTable).where(eq(organizationsTable.id, orgId));
+  const orgAiConfig = orgRow?.aiProvider && orgRow.aiProvider !== "none" ? {
+    provider: orgRow.aiProvider,
+    apiKey: orgRow.aiApiKey ?? "",
+    model: orgRow.aiModel ?? undefined,
+    baseUrl: orgRow.aiBaseUrl ?? undefined,
+  } : null;
+
+  try {
+    const result = await generateCampaignImage({
+      eventTitle,
+      eventType,
+      eventDescription,
+      campaignType: parsed.data.campaignType,
+      tone: parsed.data.tone,
+      additionalContext: parsed.data.additionalContext ?? null,
+      stylePrompt: parsed.data.stylePrompt ?? undefined,
+      orgId,
+      config: orgAiConfig,
+    });
+    res.json(AiGenerateCampaignImageResponse.parse(result));
+  } catch (err) {
+    const provider = orgAiConfig?.provider ?? "unknown";
+    const detail = err instanceof Error ? err.message : String(err);
+    req.log?.error({ err, provider }, "AI image generation failed");
+    res.status(502).json({
+      error: "AI_IMAGE_GENERATION_FAILED",
       provider,
       detail: detail.slice(0, 500),
     });

@@ -3,6 +3,8 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import session from "express-session";
 import pinoHttp from "pino-http";
+import path from "node:path";
+import { mkdirSync } from "node:fs";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
@@ -73,6 +75,20 @@ app.use(
 // The session cookie is never sent on cross-origin requests, so an attacker's
 // site cannot forge authenticated mutations. This is sufficient for cookie-based
 // session auth without a separate CSRF token mechanism.
+
+// --- Static serving for AI-generated campaign images ---
+// Mounted BEFORE /api so email clients (no session cookie) can load hero images
+// directly from emails. UUID filenames prevent enumeration; fallthrough:false
+// ensures only files inside publicImagesDir are served.
+const publicImagesDir = path.resolve(process.cwd(), "public", "campaign-images");
+mkdirSync(publicImagesDir, { recursive: true });
+app.use(
+  "/campaign-images",
+  express.static(publicImagesDir, {
+    maxAge: "7d",
+    fallthrough: false,
+  }),
+);
 
 app.use("/api", router);
 
