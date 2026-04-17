@@ -1,0 +1,22 @@
+{
+  "name": "@workspace/hypespace-mobile",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "cap:sync": "cap sync",
+    "cap:copy": "cap copy",
+    "cap:open:ios": "cap open ios",
+    "cap:open:android": "cap open android",
+    "cap:add:ios": "cap add ios",
+    "cap:add:android": "cap add android",
+    "build:web": "pnpm --filter @workspace/hypespace run build",
+    "build:mobile": "pnpm run build:web && pnpm run cap:sync"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6",
+    "@capacitor/cli": "^6",
+    "@capacitor/core": "^6",
+    "@capacitor/ios": "^6"
+  }
+}

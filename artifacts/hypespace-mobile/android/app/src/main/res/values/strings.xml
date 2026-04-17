@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">HypeSpace</string>
+    <string name="title_activity_main">HypeSpace</string>
+    <string name="package_name">com.discoversolutions.hypespace</string>
+    <string name="custom_url_scheme">com.discoversolutions.hypespace</string>
+</resources>
