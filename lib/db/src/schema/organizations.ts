@@ -16,6 +16,11 @@ export const organizationsTable = pgTable("organizations", {
   fromEmail: text("from_email"),
   replyToEmail: text("reply_to_email"),
   emailFooterText: text("email_footer_text"),
+  // AI provider config — encrypted in production, stored as JSON
+  aiProvider: text("ai_provider").default("none"), // none | anthropic | gemini | openai | ollama
+  aiApiKey: text("ai_api_key"), // encrypted API key
+  aiModel: text("ai_model"), // e.g. claude-sonnet-4-20250514, gemini-pro, gpt-4o, llama3
+  aiBaseUrl: text("ai_base_url"), // custom endpoint for Ollama / self-hosted
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

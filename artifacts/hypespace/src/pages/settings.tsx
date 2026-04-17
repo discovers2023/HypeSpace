@@ -47,6 +47,7 @@ import {
   Server,
   Send,
   Trash2,
+  Sparkles,
 } from "lucide-react";
 import {
   Select,
@@ -66,7 +67,7 @@ const orgSchema = z.object({
 });
 type OrgFormValues = z.infer<typeof orgSchema>;
 
-type TabId = "general" | "branding" | "email" | "integrations" | "billing";
+type TabId = "general" | "branding" | "email" | "ai" | "integrations" | "billing";
 
 // --- Platform field definitions ---
 type FieldDef = {
@@ -2090,6 +2091,143 @@ function BrandingTab({ orgId }: { orgId: number }) {
   );
 }
 
+// --- AI Settings Tab ---
+const AI_PROVIDERS = [
+  { value: "none", label: "Disabled", desc: "Use template-based generation" },
+  { value: "anthropic", label: "Anthropic (Claude)", desc: "Claude Sonnet, Opus, Haiku" },
+  { value: "openai", label: "OpenAI (GPT)", desc: "GPT-4o, GPT-4, GPT-3.5" },
+  { value: "gemini", label: "Google Gemini", desc: "Gemini Pro, Flash" },
+  { value: "ollama", label: "Ollama (Self-hosted)", desc: "Llama, Mistral, etc." },
+];
+
+function AiSettingsTab({ orgId }: { orgId: number }) {
+  const { toast } = useToast();
+  const { data: org } = useGetOrganization(orgId);
+  const updateOrg = useUpdateOrganization();
+  const queryClient = useQueryClient();
+  const [provider, setProvider] = useState("none");
+  const [apiKey, setApiKey] = useState("");
+  const [model, setModel] = useState("");
+  const [baseUrl, setBaseUrl] = useState("");
+  const [showKey, setShowKey] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (org && !loaded) {
+      setProvider((org as Record<string, unknown>).aiProvider as string ?? "none");
+      setApiKey((org as Record<string, unknown>).aiApiKey as string ?? "");
+      setModel((org as Record<string, unknown>).aiModel as string ?? "");
+      setBaseUrl((org as Record<string, unknown>).aiBaseUrl as string ?? "");
+      setLoaded(true);
+    }
+  }, [org, loaded]);
+
+  const onSave = () => {
+    updateOrg.mutate(
+      { orgId, data: { aiProvider: provider, aiApiKey: apiKey, aiModel: model || undefined, aiBaseUrl: baseUrl || undefined } as Record<string, unknown> },
+      {
+        onSuccess: () => {
+          toast({ title: "AI settings saved!" });
+          queryClient.invalidateQueries({ queryKey: [`/api/organizations/${orgId}`] });
+        },
+        onError: (err) => toast({ title: "Failed to save", description: err.message, variant: "destructive" }),
+      },
+    );
+  };
+
+  const defaultModels: Record<string, string[]> = {
+    anthropic: ["claude-sonnet-4-20250514", "claude-haiku-4-5-20251001", "claude-opus-4-20250514"],
+    openai: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
+    gemini: ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
+    ollama: ["llama3", "mistral", "codellama", "mixtral"],
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5" /> AI Campaign Generation</CardTitle>
+        <CardDescription>Connect your own AI provider to generate campaign emails. Your API key is stored securely and only used for your organization.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div>
+          <label className="text-sm font-medium mb-2 block">AI Provider</label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {AI_PROVIDERS.map((p) => (
+              <button
+                key={p.value}
+                type="button"
+                onClick={() => { setProvider(p.value); setModel(""); setBaseUrl(""); }}
+                className={`p-3 rounded-lg border-2 text-left transition-all ${
+                  provider === p.value ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"
+                }`}
+              >
+                <p className="font-semibold text-sm">{p.label}</p>
+                <p className="text-xs text-muted-foreground">{p.desc}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {provider !== "none" && (
+          <>
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">API Key {provider === "ollama" && "(optional for local)"}</label>
+              <div className="flex gap-2">
+                <Input
+                  type={showKey ? "text" : "password"}
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder={provider === "anthropic" ? "sk-ant-..." : provider === "openai" ? "sk-..." : provider === "gemini" ? "AIza..." : "Optional for local Ollama"}
+                  className="flex-1"
+                />
+                <Button type="button" variant="outline" size="icon" onClick={() => setShowKey(!showKey)}>
+                  {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Model</label>
+              <select
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Default</option>
+                {(defaultModels[provider] ?? []).map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">Or type a custom model name in the field above.</p>
+            </div>
+
+            {(provider === "ollama" || provider === "openai") && (
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Custom API Base URL</label>
+                <Input
+                  value={baseUrl}
+                  onChange={(e) => setBaseUrl(e.target.value)}
+                  placeholder={provider === "ollama" ? "http://localhost:11434/v1" : "https://api.openai.com/v1"}
+                />
+                <p className="text-xs text-muted-foreground mt-1">Leave empty to use the default endpoint.</p>
+              </div>
+            )}
+
+            <div className="p-3 rounded-lg border border-blue-200 bg-blue-50 text-sm text-blue-800">
+              <p className="font-medium mb-1">How it works</p>
+              <p className="text-xs">When you click "Generate with AI" in a campaign, HypeSpace sends your event details to your configured AI provider. The AI creates the email subject, HTML content, and plain text version. Your API key is never shared with anyone else.</p>
+            </div>
+          </>
+        )}
+
+        <Button onClick={onSave} disabled={updateOrg.isPending} className="bg-primary text-white">
+          {updateOrg.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</> : "Save AI Settings"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 // --- Billing Tab ---
 interface PlanLimits {
   key: "free" | "starter" | "growth" | "agency";
@@ -2449,6 +2587,7 @@ export default function Settings() {
     { id: "general", label: "General", icon: Building },
     { id: "branding", label: "Branding", icon: Palette },
     { id: "email", label: "Email Sending", icon: Mail },
+    { id: "ai", label: "AI Settings", icon: Sparkles },
     { id: "integrations", label: "Integrations", icon: LinkIcon },
     { id: "billing", label: "Billing & Plan", icon: CreditCard },
   ];
@@ -2610,6 +2749,7 @@ export default function Settings() {
               </Card>
             )}
 
+            {activeTab === "ai" && <AiSettingsTab orgId={orgId} />}
             {activeTab === "billing" && <BillingTab orgId={orgId} />}
           </div>
         </div>

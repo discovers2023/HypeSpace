@@ -94,6 +94,10 @@ export const UpdateOrganizationBody = zod.object({
   fromEmail: zod.string().nullish(),
   replyToEmail: zod.string().nullish(),
   emailFooterText: zod.string().nullish(),
+  aiProvider: zod.string().nullish(),
+  aiApiKey: zod.string().nullish(),
+  aiModel: zod.string().nullish(),
+  aiBaseUrl: zod.string().nullish(),
 });
 
 export const UpdateOrganizationResponse = zod.object({

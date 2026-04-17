@@ -288,13 +288,21 @@ router.post("/organizations/:orgId/campaigns/ai-generate", async (req, res): Pro
   const [orgRow] = await db.select().from(organizationsTable).where(eq(organizationsTable.id, orgId));
   const orgName = orgRow?.name ?? "HypeSpace Events";
 
+  // Build org AI config from DB
+  const orgAiConfig = orgRow?.aiProvider && orgRow.aiProvider !== "none" ? {
+    provider: orgRow.aiProvider,
+    apiKey: orgRow.aiApiKey ?? "",
+    model: orgRow.aiModel ?? undefined,
+    baseUrl: orgRow.aiBaseUrl ?? undefined,
+  } : null;
+
   // Try AI generation first, fall back to templates
-  if (isAiAvailable()) {
+  if (isAiAvailable(orgAiConfig)) {
     try {
       const aiResult = await generateCampaignWithAI({
         eventTitle, eventDate, eventTime, eventLocation, eventType,
         eventDescription, campaignType, tone, additionalContext, rsvpUrl, orgName,
-      });
+      }, orgAiConfig);
       res.json(AiGenerateCampaignResponse.parse(aiResult));
       return;
     } catch (err) {

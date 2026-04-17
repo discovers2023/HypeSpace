@@ -1,6 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+interface AiConfig {
+  provider: string;
+  apiKey: string;
+  model?: string;
+  baseUrl?: string;
+}
 
 interface CampaignInput {
   eventTitle: string;
@@ -23,14 +28,10 @@ interface CampaignOutput {
   suggestions: string[];
 }
 
-export function isAiAvailable(): boolean {
-  return !!ANTHROPIC_API_KEY;
-}
+const SYSTEM_PROMPT = `You are an expert email marketing copywriter for event management. You generate professional, visually appealing HTML email campaigns. Always return valid JSON only — no markdown, no code fences.`;
 
-export async function generateCampaignWithAI(input: CampaignInput): Promise<CampaignOutput> {
-  const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
-
-  const prompt = `You are an expert email marketing copywriter for event management. Generate a professional, visually appealing HTML email campaign.
+function buildUserPrompt(input: CampaignInput): string {
+  return `Generate a professional HTML email campaign.
 
 EVENT DETAILS:
 - Title: ${input.eventTitle}
@@ -41,57 +42,120 @@ EVENT DETAILS:
 - Description: ${input.eventDescription || "No description provided"}
 
 CAMPAIGN TYPE: ${input.campaignType} (${
-    input.campaignType === "invitation" ? "Initial invite to attend the event" :
-    input.campaignType === "reminder" ? "Reminder for people who already know about it" :
-    input.campaignType === "followup" ? "Thank you / follow-up after the event" :
-    input.campaignType === "announcement" ? "First announcement that the event exists" :
-    "Custom communication about the event"
+    input.campaignType === "invitation" ? "Initial invite to attend" :
+    input.campaignType === "reminder" ? "Reminder for registered attendees" :
+    input.campaignType === "followup" ? "Thank you / post-event follow-up" :
+    input.campaignType === "announcement" ? "First announcement" :
+    "Custom communication"
   })
 TONE: ${input.tone}
 RSVP/CTA URL: ${input.rsvpUrl}
 ORGANIZATION: ${input.orgName || "HypeSpace Events"}
 ${input.additionalContext ? `ADDITIONAL CONTEXT: ${input.additionalContext}` : ""}
 
-Generate a complete HTML email with these requirements:
-1. Responsive, mobile-friendly HTML email (600px max width, inline CSS only)
-2. Professional gradient header (use #7C3AED purple and #F97316 orange as brand colors)
-3. Clear event details section with date, time, location
-4. Compelling body copy matching the tone and campaign type
-5. Prominent CTA button linking to ${input.rsvpUrl}
-6. Clean footer with unsubscribe link placeholder
-7. The email should look polished and modern — use rounded corners, subtle shadows, good typography
+Requirements:
+1. Responsive HTML email (600px max, inline CSS only)
+2. Gradient header using #7C3AED (purple) and #F97316 (orange) brand colors
+3. Event details section with date, time, location
+4. Compelling body copy matching tone and campaign type
+5. Prominent CTA button linking to the RSVP URL
+6. Footer with unsubscribe placeholder
+7. Modern design — rounded corners, subtle shadows, good typography
 
-Return your response as JSON with this exact structure (no markdown, just raw JSON):
-{
-  "subject": "The email subject line",
-  "htmlContent": "The complete HTML email",
-  "textContent": "Plain text version of the email",
-  "suggestions": ["suggestion 1 for improvement", "suggestion 2", "suggestion 3"]
-}`;
+Return ONLY raw JSON (no markdown fences):
+{"subject":"...","htmlContent":"...","textContent":"...","suggestions":["...","...","..."]}`;
+}
 
-  const message = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 4096,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const responseText = message.content
-    .filter((block): block is Anthropic.TextBlock => block.type === "text")
-    .map((block) => block.text)
-    .join("");
-
-  // Parse JSON from response (handle potential markdown wrapping)
-  let cleaned = responseText.trim();
+function parseAiResponse(text: string): CampaignOutput {
+  let cleaned = text.trim();
   if (cleaned.startsWith("```json")) cleaned = cleaned.slice(7);
   if (cleaned.startsWith("```")) cleaned = cleaned.slice(3);
   if (cleaned.endsWith("```")) cleaned = cleaned.slice(0, -3);
   cleaned = cleaned.trim();
 
   const result = JSON.parse(cleaned) as CampaignOutput;
-
   if (!result.subject || !result.htmlContent) {
     throw new Error("AI response missing required fields");
   }
-
   return result;
+}
+
+async function generateWithAnthropic(config: AiConfig, input: CampaignInput): Promise<CampaignOutput> {
+  const client = new Anthropic({ apiKey: config.apiKey });
+  const message = await client.messages.create({
+    model: config.model || "claude-sonnet-4-20250514",
+    max_tokens: 4096,
+    system: SYSTEM_PROMPT,
+    messages: [{ role: "user", content: buildUserPrompt(input) }],
+  });
+  const responseText = message.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text).join("");
+  return parseAiResponse(responseText);
+}
+
+async function generateWithOpenAICompatible(config: AiConfig, input: CampaignInput): Promise<CampaignOutput> {
+  // Works with OpenAI, Gemini (via OpenAI compat), Ollama, and any OpenAI-compatible API
+  const baseUrl = config.baseUrl || (
+    config.provider === "gemini" ? "https://generativelanguage.googleapis.com/v1beta/openai" :
+    config.provider === "ollama" ? "http://localhost:11434/v1" :
+    "https://api.openai.com/v1"
+  );
+  const model = config.model || (
+    config.provider === "gemini" ? "gemini-2.0-flash" :
+    config.provider === "ollama" ? "llama3" :
+    "gpt-4o"
+  );
+
+  const res = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 4096,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: buildUserPrompt(input) },
+      ],
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`AI provider error (${res.status}): ${err.slice(0, 200)}`);
+  }
+
+  const data = await res.json() as { choices: Array<{ message: { content: string } }> };
+  const responseText = data.choices?.[0]?.message?.content ?? "";
+  return parseAiResponse(responseText);
+}
+
+export function isAiAvailable(config?: AiConfig | null): boolean {
+  if (config && config.provider !== "none" && config.apiKey) return true;
+  return !!process.env.ANTHROPIC_API_KEY;
+}
+
+export async function generateCampaignWithAI(input: CampaignInput, config?: AiConfig | null): Promise<CampaignOutput> {
+  // Use org-level config if available, fall back to system env
+  const effectiveConfig: AiConfig = config && config.provider !== "none" && config.apiKey
+    ? config
+    : { provider: "anthropic", apiKey: process.env.ANTHROPIC_API_KEY ?? "" };
+
+  if (!effectiveConfig.apiKey) {
+    throw new Error("No AI API key configured");
+  }
+
+  switch (effectiveConfig.provider) {
+    case "anthropic":
+      return generateWithAnthropic(effectiveConfig, input);
+    case "openai":
+    case "gemini":
+    case "ollama":
+      return generateWithOpenAICompatible(effectiveConfig, input);
+    default:
+      throw new Error(`Unsupported AI provider: ${effectiveConfig.provider}`);
+  }
 }
