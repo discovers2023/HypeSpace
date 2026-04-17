@@ -41,9 +41,27 @@ router.post("/organizations/:orgId/events/:eventId/reminders", async (req, res):
   const parsed = CreateReminderBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
+  // Check event exists and is not in the past
+  const [event] = await db.select().from(eventsTable).where(eq(eventsTable.id, eventId));
+  if (!event) { res.status(404).json({ error: "Event not found" }); return; }
+  if (new Date(event.endDate) < new Date()) {
+    res.status(400).json({ error: "Cannot create reminders for past events" });
+    return;
+  }
+
+  // Calculate scheduled send time based on type and offset
+  const offsetHours = parsed.data.offsetHours ?? 24;
+  let scheduledAt: Date | null = null;
+  if (parsed.data.type === "before_event") {
+    scheduledAt = new Date(new Date(event.startDate).getTime() - offsetHours * 60 * 60 * 1000);
+  } else if (parsed.data.type === "after_event") {
+    scheduledAt = new Date(new Date(event.endDate).getTime() + offsetHours * 60 * 60 * 1000);
+  }
+
   const [reminder] = await db.insert(remindersTable).values({
     ...parsed.data,
     eventId,
+    scheduledAt,
   }).returning();
 
   res.status(201).json(formatReminder(reminder));

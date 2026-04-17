@@ -1,5 +1,5 @@
-import { db, campaignsTable, activityTable, organizationsTable } from "@workspace/db";
-import { and, eq, lte, isNotNull } from "drizzle-orm";
+import { db, campaignsTable, activityTable, organizationsTable, remindersTable, guestsTable } from "@workspace/db";
+import { and, eq, lte, isNotNull, ne } from "drizzle-orm";
 import { getPlan } from "./plans";
 import { sendEmail } from "./email";
 import { logger } from "./logger";
@@ -78,15 +78,66 @@ async function processDueScheduledCampaigns(): Promise<void> {
   }
 }
 
-export function startScheduler(): void {
-  logger.info("Campaign scheduler started (interval: 60s)");
-  // Run once immediately on startup, then on interval
-  processDueScheduledCampaigns().catch((err) =>
-    logger.error({ err }, "Scheduler: initial run error")
-  );
-  setInterval(() => {
-    processDueScheduledCampaigns().catch((err) =>
-      logger.error({ err }, "Scheduler: interval error")
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+async function processDueReminders(): Promise<void> {
+  const now = new Date();
+  const due = await db
+    .select()
+    .from(remindersTable)
+    .where(
+      and(
+        ne(remindersTable.status, "sent"),
+        isNotNull(remindersTable.scheduledAt),
+        lte(remindersTable.scheduledAt, now),
+      )
     );
-  }, INTERVAL_MS);
+
+  for (const reminder of due) {
+    try {
+      // Get eligible guests
+      const guests = await db.select().from(guestsTable)
+        .where(eq(guestsTable.eventId, reminder.eventId));
+      const eligible = guests.filter(g => g.status === "invited" || g.status === "confirmed" || g.status === "added");
+
+      // Mark sent immediately
+      await db.update(remindersTable)
+        .set({ status: "sent", sentAt: new Date() })
+        .where(eq(remindersTable.id, reminder.id));
+
+      // Send to each guest
+      for (const guest of eligible) {
+        await sendEmail({
+          to: guest.email,
+          toName: guest.name,
+          subject: reminder.subject,
+          html: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+            <h2 style="color:#1a0533;">${escapeHtml(reminder.subject)}</h2>
+            <p style="color:#4a4a6a;line-height:1.7;white-space:pre-wrap;">${escapeHtml(reminder.message)}</p>
+          </div>`,
+          text: reminder.message,
+        }).catch((err) => {
+          logger.error({ err, reminderId: reminder.id, guest: guest.email }, "Reminder email failed");
+        });
+      }
+
+      logger.info({ reminderId: reminder.id, recipientCount: eligible.length }, "Scheduled reminder sent");
+    } catch (err) {
+      logger.error({ err, reminderId: reminder.id }, "Scheduler: failed to send reminder");
+    }
+  }
+}
+
+export function startScheduler(): void {
+  logger.info("Campaign & reminder scheduler started (interval: 60s)");
+
+  const runAll = () => Promise.all([
+    processDueScheduledCampaigns(),
+    processDueReminders(),
+  ]).catch((err) => logger.error({ err }, "Scheduler error"));
+
+  runAll();
+  setInterval(runAll, INTERVAL_MS);
 }
