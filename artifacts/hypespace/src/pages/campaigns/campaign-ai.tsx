@@ -5,8 +5,8 @@ import { Link, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useAiGenerateCampaign, useListEvents, useCreateCampaign, useGetOrganization } from "@workspace/api-client-react";
-import { ArrowLeft, Sparkles, Wand2, Mail } from "lucide-react";
+import { useAiGenerateCampaign, useAiGenerateCampaignImage, useListEvents, useCreateCampaign, useGetOrganization } from "@workspace/api-client-react";
+import { ArrowLeft, Sparkles, Wand2, Mail, RefreshCw } from "lucide-react";
 import { CampaignSuggestionList } from "@/components/campaign-suggestion-list";
 import {
   Form,
@@ -64,15 +64,17 @@ export default function CampaignAi() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const generateCampaign = useAiGenerateCampaign();
+  const regenerateImage = useAiGenerateCampaignImage();
   const createCampaign = useCreateCampaign();
   const { data: events, isLoading: isEventsLoading } = useListEvents(activeOrgId);
   const { data: org } = useGetOrganization(activeOrgId);
-  
+
   const [generatedResult, setGeneratedResult] = useState<{
     subject: string;
     htmlContent: string;
     textContent: string;
     suggestions: string[];
+    heroImageUrl: string | null;
     selectedEventId: number;
     selectedType: string;
   } | null>(null);
@@ -87,15 +89,27 @@ export default function CampaignAi() {
     },
   });
 
+  // Strip any hero <img> the server injected into the HTML — we render the
+  // hero separately as an overlay above the preview, so double-rendering it
+  // in the iframe body would be visually redundant. The email itself still
+  // includes the <img> because it's baked into the stored htmlContent.
+  const stripInjectedHeroImage = (html: string): string =>
+    html.replace(
+      /<img[^>]*src="[^"]*(campaign-images|source\.unsplash\.com)[^"]*"[^>]*>/gi,
+      "",
+    );
+
   const onSubmit = async (data: AiCampaignFormValues) => {
     generateCampaign.mutate(
-      { 
+      {
+        orgId: activeOrgId,
         data: {
           eventId: parseInt(data.eventId, 10),
           campaignType: data.campaignType,
           tone: data.tone,
-          additionalContext: data.additionalContext
-        }
+          additionalContext: data.additionalContext,
+          includeImage: true,
+        },
       },
       {
         onSuccess: (result) => {
@@ -108,17 +122,54 @@ export default function CampaignAi() {
             emailFooterText: org.emailFooterText,
             fromEmail: org.fromEmail,
           } : { name: "HypeSpace Events" };
+          const branded = applyBranding(result.htmlContent, branding);
+          const preview = stripInjectedHeroImage(branded);
           setGeneratedResult({
             ...result,
-            htmlContent: applyBranding(result.htmlContent, branding),
+            htmlContent: preview,
+            heroImageUrl: result.heroImageUrl ?? null,
             selectedEventId: parseInt(data.eventId, 10),
-            selectedType: data.campaignType
+            selectedType: data.campaignType,
           });
         },
-        onError: (error) => {
+        onError: (error: unknown) => {
+          const apiErr = error as { data?: { error?: string; provider?: string; detail?: string }; message?: string };
+          const provider = apiErr.data?.provider;
+          const detail = apiErr.data?.detail;
           toast({
-            title: "Generation failed",
-            description: error.message || "An error occurred",
+            title: "AI generation failed",
+            description: provider && detail
+              ? `${provider}: ${detail}`
+              : (apiErr.message || "An error occurred. Check Settings → AI for a valid provider and API key."),
+            variant: "destructive",
+          });
+        },
+      }
+    );
+  };
+
+  const handleRegenerateImage = () => {
+    if (!generatedResult) return;
+    regenerateImage.mutate(
+      {
+        orgId: activeOrgId,
+        data: {
+          eventId: generatedResult.selectedEventId,
+          campaignType: generatedResult.selectedType as "invitation" | "reminder" | "followup" | "announcement" | "custom",
+          tone: form.getValues("tone"),
+          additionalContext: form.getValues("additionalContext") ?? null,
+        },
+      },
+      {
+        onSuccess: (result) => {
+          setGeneratedResult((prev) => prev ? { ...prev, heroImageUrl: result.imageUrl } : prev);
+          toast({ title: "New image generated", description: `Source: ${result.generatedBy}` });
+        },
+        onError: (error: unknown) => {
+          const apiErr = error as { data?: { error?: string; provider?: string; detail?: string }; message?: string };
+          toast({
+            title: "Image regeneration failed",
+            description: apiErr.data?.detail || apiErr.message || "Could not generate a new image.",
             variant: "destructive",
           });
         },
@@ -343,8 +394,36 @@ export default function CampaignAi() {
                     <CardTitle className="text-xl">{generatedResult.subject}</CardTitle>
                   </CardHeader>
                   <CardContent className="p-0">
+                    {generatedResult.heroImageUrl && (
+                      <div className="relative">
+                        <img
+                          src={generatedResult.heroImageUrl}
+                          alt="Campaign hero"
+                          className="w-full h-[240px] object-cover border-b"
+                        />
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="absolute top-3 right-3 bg-white/90 hover:bg-white shadow-md"
+                          onClick={handleRegenerateImage}
+                          disabled={regenerateImage.isPending}
+                        >
+                          {regenerateImage.isPending ? (
+                            <>
+                              <div className="h-3 w-3 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                              Regenerating...
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="h-3 w-3 mr-1.5" />
+                              Regenerate image
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
                     <div className="bg-card p-6 min-h-[300px] border-b">
-                      <div 
+                      <div
                         className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-muted"
                         dangerouslySetInnerHTML={{ __html: generatedResult.htmlContent }}
                       />
