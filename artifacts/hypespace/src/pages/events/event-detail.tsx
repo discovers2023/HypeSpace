@@ -250,6 +250,7 @@ export default function EventDetail() {
     "before_event",
   );
   const [newReminderOffset, setNewReminderOffset] = useState("24");
+  const [newReminderAudience, setNewReminderAudience] = useState("confirmed_and_maybe");
   const [newReminderSubject, setNewReminderSubject] = useState("");
   const [newReminderMessage, setNewReminderMessage] = useState("");
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -605,9 +606,10 @@ export default function EventDetail() {
         data: {
           type: newReminderType,
           offsetHours,
+          audience: newReminderAudience,
           subject: newReminderSubject.trim(),
           message: newReminderMessage.trim(),
-        },
+        } as Record<string, unknown>,
       },
       {
         onSuccess: () => {
@@ -615,6 +617,7 @@ export default function EventDetail() {
           setIsNewReminderOpen(false);
           setNewReminderType("before_event");
           setNewReminderOffset("24");
+          setNewReminderAudience("confirmed_and_maybe");
           setNewReminderSubject("");
           setNewReminderMessage("");
           queryClient.invalidateQueries({
@@ -1864,6 +1867,19 @@ export default function EventDetail() {
                               </SelectContent>
                             </Select>
                           </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-sm font-medium">Send to</label>
+                          <Select value={newReminderAudience} onValueChange={setNewReminderAudience}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="confirmed_and_maybe">RSVP Yes & Maybe</SelectItem>
+                              <SelectItem value="confirmed">RSVP Yes only</SelectItem>
+                              <SelectItem value="maybe">RSVP Maybe only</SelectItem>
+                              <SelectItem value="all">All guests (except declined)</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
 
                         <div className="bg-muted/50 rounded-lg px-3 py-2 text-xs text-muted-foreground">

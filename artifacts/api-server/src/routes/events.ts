@@ -237,6 +237,30 @@ router.post("/organizations/:orgId/events/:eventId/launch", async (req, res): Pr
     });
   }
 
+  // Auto-create default reminders (14d, 7d, 3d, 1d, 4h before event)
+  const startDate = new Date(event.startDate);
+  const defaultReminders = [
+    { offsetHours: 336, label: "14 days" },
+    { offsetHours: 168, label: "7 days" },
+    { offsetHours: 72, label: "3 days" },
+    { offsetHours: 24, label: "1 day" },
+    { offsetHours: 4, label: "4 hours" },
+  ];
+  for (const r of defaultReminders) {
+    const scheduledAt = new Date(startDate.getTime() - r.offsetHours * 60 * 60 * 1000);
+    if (scheduledAt > now) {
+      await db.insert(remindersTable).values({
+        eventId,
+        type: "before_event",
+        offsetHours: r.offsetHours,
+        audience: "confirmed_and_maybe",
+        subject: `Reminder: ${event.title} is in ${r.label}`,
+        message: `This is a friendly reminder that ${event.title} is coming up in ${r.label}. We look forward to seeing you there!\n\nEvent: ${event.title}\nDate: ${startDate.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}\nLocation: ${event.location || event.onlineUrl || "See event page"}`,
+        scheduledAt,
+      });
+    }
+  }
+
   // Auto-create a social post announcing the event
   const [socialPost] = await db.insert(socialPostsTable).values({
     organizationId: orgId,

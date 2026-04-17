@@ -97,10 +97,17 @@ async function processDueReminders(): Promise<void> {
 
   for (const reminder of due) {
     try {
-      // Get eligible guests
+      // Get eligible guests based on audience targeting
       const guests = await db.select().from(guestsTable)
         .where(eq(guestsTable.eventId, reminder.eventId));
-      const eligible = guests.filter(g => g.status === "invited" || g.status === "confirmed" || g.status === "added");
+      const audience = (reminder as Record<string, unknown>).audience as string ?? "confirmed_and_maybe";
+      const eligible = guests.filter(g => {
+        if (audience === "confirmed") return g.status === "confirmed";
+        if (audience === "maybe") return (g.status as string) === "maybe";
+        if (audience === "confirmed_and_maybe") return g.status === "confirmed" || (g.status as string) === "maybe";
+        // "all" — send to everyone who hasn't declined
+        return g.status !== "declined";
+      });
 
       // Mark sent immediately
       await db.update(remindersTable)
