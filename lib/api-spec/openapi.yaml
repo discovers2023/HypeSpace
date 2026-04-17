@@ -1352,6 +1352,10 @@ components:
         additionalContext:
           type: string
           nullable: true
+        includeImage:
+          type: boolean
+          nullable: true
+          description: When true, the server also generates a hero image and returns heroImageUrl
       required:
         - campaignType
         - tone
@@ -1369,6 +1373,10 @@ components:
           type: array
           items:
             type: string
+        heroImageUrl:
+          type: string
+          nullable: true
+          description: Absolute or relative URL to the hero image (from /campaign-images/... or stock source)
       required:
         - subject
         - htmlContent

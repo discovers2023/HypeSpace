@@ -11,4 +11,6 @@ export interface AiGeneratedCampaign {
   htmlContent: string;
   textContent: string;
   suggestions: string[];
+  /** Absolute or relative URL to the hero image (from /campaign-images/... or stock source) */
+  heroImageUrl?: string | null;
 }

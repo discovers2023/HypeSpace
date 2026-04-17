@@ -13,7 +13,6 @@ export const GuestStatus = {
   invited: "invited",
   confirmed: "confirmed",
   declined: "declined",
-  maybe: "maybe",
   waitlisted: "waitlisted",
   attended: "attended",
 } as const;

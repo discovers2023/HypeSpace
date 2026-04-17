@@ -71,11 +71,6 @@ export const GetOrganizationResponse = zod.object({
   memberCount: zod.number(),
   eventCount: zod.number(),
   createdAt: zod.string(),
-  primaryColor: zod.string().nullish(),
-  accentColor: zod.string().nullish(),
-  fromEmail: zod.string().nullish(),
-  replyToEmail: zod.string().nullish(),
-  emailFooterText: zod.string().nullish(),
 });
 
 /**
@@ -89,15 +84,6 @@ export const UpdateOrganizationBody = zod.object({
   name: zod.string().optional(),
   description: zod.string().nullish(),
   logoUrl: zod.string().nullish(),
-  primaryColor: zod.string().nullish(),
-  accentColor: zod.string().nullish(),
-  fromEmail: zod.string().nullish(),
-  replyToEmail: zod.string().nullish(),
-  emailFooterText: zod.string().nullish(),
-  aiProvider: zod.string().nullish(),
-  aiApiKey: zod.string().nullish(),
-  aiModel: zod.string().nullish(),
-  aiBaseUrl: zod.string().nullish(),
 });
 
 export const UpdateOrganizationResponse = zod.object({
@@ -111,11 +97,6 @@ export const UpdateOrganizationResponse = zod.object({
   memberCount: zod.number(),
   eventCount: zod.number(),
   createdAt: zod.string(),
-  primaryColor: zod.string().nullish(),
-  accentColor: zod.string().nullish(),
-  fromEmail: zod.string().nullish(),
-  replyToEmail: zod.string().nullish(),
-  emailFooterText: zod.string().nullish(),
 });
 
 /**
@@ -375,7 +356,14 @@ export const ListGuestsParams = zod.object({
 
 export const ListGuestsQueryParams = zod.object({
   status: zod
-    .enum(["invited", "confirmed", "declined", "waitlisted", "attended"])
+    .enum([
+      "added",
+      "invited",
+      "confirmed",
+      "declined",
+      "waitlisted",
+      "attended",
+    ])
     .optional(),
 });
 
@@ -447,7 +435,14 @@ export const UpdateGuestParams = zod.object({
 
 export const UpdateGuestBody = zod.object({
   status: zod
-    .enum(["invited", "confirmed", "declined", "waitlisted", "attended"])
+    .enum([
+      "added",
+      "invited",
+      "confirmed",
+      "declined",
+      "waitlisted",
+      "attended",
+    ])
     .optional(),
   notes: zod.string().nullish(),
 });
@@ -582,7 +577,6 @@ export const UpdateCampaignBody = zod.object({
   htmlContent: zod.string().nullish(),
   textContent: zod.string().nullish(),
   scheduledAt: zod.string().nullish(),
-  status: zod.enum(["draft", "scheduled", "sent", "failed"]).optional(),
 });
 
 export const UpdateCampaignResponse = zod.object({
@@ -667,6 +661,12 @@ export const AiGenerateCampaignBody = zod.object({
   ]),
   tone: zod.enum(["professional", "friendly", "formal", "casual", "urgent"]),
   additionalContext: zod.string().nullish(),
+  includeImage: zod
+    .boolean()
+    .nullish()
+    .describe(
+      "When true, the server also generates a hero image and returns heroImageUrl",
+    ),
 });
 
 export const AiGenerateCampaignResponse = zod.object({
@@ -674,6 +674,12 @@ export const AiGenerateCampaignResponse = zod.object({
   htmlContent: zod.string(),
   textContent: zod.string(),
   suggestions: zod.array(zod.string()),
+  heroImageUrl: zod
+    .string()
+    .nullish()
+    .describe(
+      "Absolute or relative URL to the hero image (from \/campaign-images\/... or stock source)",
+    ),
 });
 
 /**
@@ -687,7 +693,14 @@ export const ListSocialPostsResponseItem = zod.object({
   id: zod.number(),
   organizationId: zod.number(),
   eventId: zod.number().nullish(),
-  platform: zod.enum(["twitter", "linkedin", "facebook", "instagram", "threads", "tiktok"]),
+  platform: zod.enum([
+    "twitter",
+    "linkedin",
+    "facebook",
+    "instagram",
+    "threads",
+    "tiktok",
+  ]),
   content: zod.string(),
   imageUrl: zod.string().nullish(),
   status: zod.enum(["draft", "scheduled", "published", "failed"]),
@@ -706,7 +719,14 @@ export const CreateSocialPostParams = zod.object({
 
 export const CreateSocialPostBody = zod.object({
   eventId: zod.number().nullish(),
-  platform: zod.enum(["twitter", "linkedin", "facebook", "instagram", "threads", "tiktok"]),
+  platform: zod.enum([
+    "twitter",
+    "linkedin",
+    "facebook",
+    "instagram",
+    "threads",
+    "tiktok",
+  ]),
   content: zod.string(),
   imageUrl: zod.string().nullish(),
   scheduledAt: zod.string().nullish(),
@@ -730,7 +750,14 @@ export const UpdateSocialPostResponse = zod.object({
   id: zod.number(),
   organizationId: zod.number(),
   eventId: zod.number().nullish(),
-  platform: zod.enum(["twitter", "linkedin", "facebook", "instagram", "threads", "tiktok"]),
+  platform: zod.enum([
+    "twitter",
+    "linkedin",
+    "facebook",
+    "instagram",
+    "threads",
+    "tiktok",
+  ]),
   content: zod.string(),
   imageUrl: zod.string().nullish(),
   status: zod.enum(["draft", "scheduled", "published", "failed"]),
@@ -759,7 +786,14 @@ export const PublishSocialPostResponse = zod.object({
   id: zod.number(),
   organizationId: zod.number(),
   eventId: zod.number().nullish(),
-  platform: zod.enum(["twitter", "linkedin", "facebook", "instagram", "threads", "tiktok"]),
+  platform: zod.enum([
+    "twitter",
+    "linkedin",
+    "facebook",
+    "instagram",
+    "threads",
+    "tiktok",
+  ]),
   content: zod.string(),
   imageUrl: zod.string().nullish(),
   status: zod.enum(["draft", "scheduled", "published", "failed"]),
@@ -806,16 +840,18 @@ export const GetDashboardStatsResponse = zod.object({
       onlineUrl: zod.string().nullish(),
       capacity: zod.number().nullish(),
       coverImageUrl: zod.string().nullish(),
+      slug: zod.string().nullish(),
+      publicId: zod.string().optional(),
       guestCount: zod.number(),
       confirmedCount: zod.number(),
       createdAt: zod.string(),
     }),
   ),
   guestsByStatus: zod.object({
+    added: zod.number(),
     invited: zod.number(),
     confirmed: zod.number(),
     declined: zod.number(),
-    maybe: zod.number(),
     attended: zod.number(),
   }),
   eventsByType: zod.object({
@@ -823,17 +859,6 @@ export const GetDashboardStatsResponse = zod.object({
     remote: zod.number(),
     hybrid: zod.number(),
   }),
-  perEventRsvp: zod.array(
-    zod.object({
-      eventId: zod.number(),
-      title: zod.string(),
-      yes: zod.number(),
-      no: zod.number(),
-      maybe: zod.number(),
-      invited: zod.number(),
-      total: zod.number(),
-    }),
-  ),
 });
 
 /**

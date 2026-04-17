@@ -13,4 +13,6 @@ export interface AiGenerateCampaignBody {
   campaignType: AiGenerateCampaignBodyCampaignType;
   tone: AiGenerateCampaignBodyTone;
   additionalContext?: string | null;
+  /** When true, the server also generates a hero image and returns heroImageUrl */
+  includeImage?: boolean | null;
 }

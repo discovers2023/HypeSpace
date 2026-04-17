@@ -23,8 +23,8 @@ export type OrganizationPlan =
 export const OrganizationPlan = {
   free: "free",
   starter: "starter",
-  professional: "professional",
-  enterprise: "enterprise",
+  growth: "growth",
+  agency: "agency",
 } as const;
 
 export interface Organization {
@@ -38,11 +38,6 @@ export interface Organization {
   memberCount: number;
   eventCount: number;
   createdAt: string;
-  primaryColor?: string | null;
-  accentColor?: string | null;
-  fromEmail?: string | null;
-  replyToEmail?: string | null;
-  emailFooterText?: string | null;
 }
 
 export interface CreateOrganizationBody {
@@ -55,11 +50,6 @@ export interface UpdateOrganizationBody {
   name?: string;
   description?: string | null;
   logoUrl?: string | null;
-  primaryColor?: string | null;
-  accentColor?: string | null;
-  fromEmail?: string | null;
-  replyToEmail?: string | null;
-  emailFooterText?: string | null;
 }
 
 export type TeamMemberRole =
@@ -174,8 +164,6 @@ export interface Event {
   onlineUrl?: string | null;
   capacity?: number | null;
   coverImageUrl?: string | null;
-  recurrence?: string;
-  recurrenceEndDate?: string | null;
   slug?: string | null;
   publicId?: string;
   guestCount: number;
@@ -381,7 +369,6 @@ export interface CreateCampaignBody {
 export interface UpdateCampaignBody {
   name?: string;
   subject?: string;
-  status?: string;
   htmlContent?: string | null;
   textContent?: string | null;
   scheduledAt?: string | null;
@@ -414,6 +401,8 @@ export interface AiGenerateCampaignBody {
   campaignType: AiGenerateCampaignBodyCampaignType;
   tone: AiGenerateCampaignBodyTone;
   additionalContext?: string | null;
+  /** When true, the server also generates a hero image and returns heroImageUrl */
+  includeImage?: boolean | null;
 }
 
 export interface AiGeneratedCampaign {
@@ -421,6 +410,8 @@ export interface AiGeneratedCampaign {
   htmlContent: string;
   textContent: string;
   suggestions: string[];
+  /** Absolute or relative URL to the hero image (from /campaign-images/... or stock source) */
+  heroImageUrl?: string | null;
 }
 
 export type SocialPostPlatform =

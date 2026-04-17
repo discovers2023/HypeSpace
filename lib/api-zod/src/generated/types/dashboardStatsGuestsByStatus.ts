@@ -11,6 +11,5 @@ export type DashboardStatsGuestsByStatus = {
   invited: number;
   confirmed: number;
   declined: number;
-  maybe: number;
   attended: number;
 };

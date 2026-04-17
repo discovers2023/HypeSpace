@@ -16,7 +16,7 @@ interface CampaignInput {
   eventDescription: string;
   campaignType: string;
   tone: string;
-  additionalContext?: string;
+  additionalContext?: string | null;
   rsvpUrl: string;
   orgName?: string;
 }
@@ -28,7 +28,18 @@ interface CampaignOutput {
   suggestions: string[];
 }
 
-const SYSTEM_PROMPT = `You are an expert email marketing copywriter for event management. You generate professional, visually appealing HTML email campaigns. Always return valid JSON only — no markdown, no code fences.`;
+export class AiGenerationError extends Error {
+  public provider: string;
+  public detail: string;
+  constructor(provider: string, detail: string) {
+    super(`AI generation failed (${provider}): ${detail}`);
+    this.provider = provider;
+    this.detail = detail;
+    this.name = "AiGenerationError";
+  }
+}
+
+const SYSTEM_PROMPT = `You are an elite email marketing copywriter for event organizers. Your job is to produce HTML email campaigns that feel personal, specific, and written by a human who actually cares about the event. NEVER use generic phrases like "Don't miss out!", "You won't want to miss this", "Join us for an amazing time", or "an unforgettable experience". Reference concrete details from the event description. Vary sentence length. Use one strong, specific hook in the opening sentence. Return ONLY valid JSON — no markdown fences, no prose around it.`;
 
 function buildUserPrompt(input: CampaignInput): string {
   return `Generate a professional HTML email campaign.
@@ -53,14 +64,14 @@ RSVP/CTA URL: ${input.rsvpUrl}
 ORGANIZATION: ${input.orgName || "HypeSpace Events"}
 ${input.additionalContext ? `ADDITIONAL CONTEXT: ${input.additionalContext}` : ""}
 
-Requirements:
-1. Responsive HTML email (600px max, inline CSS only)
-2. Gradient header using #7C3AED (purple) and #F97316 (orange) brand colors
-3. Event details section with date, time, location
-4. Compelling body copy matching tone and campaign type
-5. Prominent CTA button linking to the RSVP URL
-6. Footer with unsubscribe placeholder
-7. Modern design — rounded corners, subtle shadows, good typography
+Writing rules (follow strictly):
+1. Open with a specific hook that references the event topic or description — NOT "Dear attendee", NOT "We are pleased". The first sentence should quote or paraphrase a concrete detail from the event description.
+2. If the event description is non-empty, weave at least 3 concrete details from it into the body copy.
+3. Vary sentence length. Mix short punchy sentences (4–8 words) with longer ones. Never more than two sentences of similar length in a row.
+4. Banned phrases: "don't miss out", "you won't want to miss", "an amazing time", "unforgettable experience", "join us for", "we are pleased to", "cordially invited", "exciting opportunity".
+5. Keep the HTML inline-styled and 600px max width. Use a single table-based layout for email-client compatibility.
+6. Header gradient: #7C3AED (purple) and #F97316 (orange). Footer: unsubscribe placeholder.
+7. Single prominent CTA button linking to ${input.rsvpUrl}.
 
 Return ONLY raw JSON (no markdown fences):
 {"subject":"...","htmlContent":"...","textContent":"...","suggestions":["...","...","..."]}`;
@@ -94,6 +105,34 @@ async function generateWithAnthropic(config: AiConfig, input: CampaignInput): Pr
   return parseAiResponse(responseText);
 }
 
+/**
+ * Ollama exposes /api/tags (NOT under /v1) listing installed models.
+ * Returns the first model name, or throws if none installed.
+ */
+async function detectOllamaModel(baseUrl: string): Promise<string> {
+  // Strip trailing /v1 or /v1/ if present — /api/tags lives at the Ollama root
+  const ollamaRoot = baseUrl.replace(/\/v1\/?$/, "");
+  const tagsUrl = `${ollamaRoot}/api/tags`;
+  let res: Response;
+  try {
+    res = await fetch(tagsUrl);
+  } catch (err) {
+    throw new Error(
+      `Could not reach Ollama at ${ollamaRoot} — is Ollama running? (${err instanceof Error ? err.message : String(err)})`
+    );
+  }
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Ollama /api/tags returned ${res.status}: ${body.slice(0, 200)}`);
+  }
+  const data = await res.json() as { models?: Array<{ name?: string }> };
+  const models = data.models ?? [];
+  if (models.length === 0 || !models[0]?.name) {
+    throw new Error("No Ollama models installed — run 'ollama pull gemma2' or set a specific model in Settings");
+  }
+  return models[0].name;
+}
+
 async function generateWithOpenAICompatible(config: AiConfig, input: CampaignInput): Promise<CampaignOutput> {
   // Works with OpenAI, Gemini (via OpenAI compat), Ollama, and any OpenAI-compatible API
   const baseUrl = config.baseUrl || (
@@ -101,11 +140,19 @@ async function generateWithOpenAICompatible(config: AiConfig, input: CampaignInp
     config.provider === "ollama" ? "http://localhost:11434/v1" :
     "https://api.openai.com/v1"
   );
-  const model = config.model || (
-    config.provider === "gemini" ? "gemini-2.0-flash" :
-    config.provider === "ollama" ? "llama3" :
-    "gpt-4o"
-  );
+
+  // Auto-detect Ollama model when none configured
+  let resolvedModel: string;
+  if (config.model && config.model.trim() !== "") {
+    resolvedModel = config.model;
+  } else if (config.provider === "ollama") {
+    const ollamaRoot = config.baseUrl || "http://localhost:11434";
+    resolvedModel = await detectOllamaModel(ollamaRoot);
+  } else if (config.provider === "gemini") {
+    resolvedModel = "gemini-2.0-flash";
+  } else {
+    resolvedModel = "gpt-4o";
+  }
 
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
@@ -114,7 +161,7 @@ async function generateWithOpenAICompatible(config: AiConfig, input: CampaignInp
       ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
     },
     body: JSON.stringify({
-      model,
+      model: resolvedModel,
       max_tokens: 4096,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
@@ -124,8 +171,8 @@ async function generateWithOpenAICompatible(config: AiConfig, input: CampaignInp
   });
 
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`AI provider error (${res.status}): ${err.slice(0, 200)}`);
+    const err = await res.text().catch(() => "");
+    throw new Error(`AI provider error (${res.status}) with model "${resolvedModel}": ${err.slice(0, 500)}`);
   }
 
   const data = await res.json() as { choices: Array<{ message: { content: string } }> };
@@ -134,28 +181,39 @@ async function generateWithOpenAICompatible(config: AiConfig, input: CampaignInp
 }
 
 export function isAiAvailable(config?: AiConfig | null): boolean {
-  if (config && config.provider !== "none" && config.apiKey) return true;
+  if (config && config.provider !== "none") {
+    // Ollama doesn't require an API key — it's a local daemon
+    if (config.provider === "ollama") return true;
+    if (config.apiKey) return true;
+  }
   return !!process.env.ANTHROPIC_API_KEY;
 }
 
 export async function generateCampaignWithAI(input: CampaignInput, config?: AiConfig | null): Promise<CampaignOutput> {
   // Use org-level config if available, fall back to system env
-  const effectiveConfig: AiConfig = config && config.provider !== "none" && config.apiKey
+  const effectiveConfig: AiConfig = config && config.provider !== "none" && (config.apiKey || config.provider === "ollama")
     ? config
     : { provider: "anthropic", apiKey: process.env.ANTHROPIC_API_KEY ?? "" };
 
-  if (!effectiveConfig.apiKey) {
-    throw new Error("No AI API key configured");
+  if (effectiveConfig.provider !== "ollama" && !effectiveConfig.apiKey) {
+    throw new AiGenerationError(effectiveConfig.provider || "unknown", "No AI API key configured");
   }
 
-  switch (effectiveConfig.provider) {
-    case "anthropic":
-      return generateWithAnthropic(effectiveConfig, input);
-    case "openai":
-    case "gemini":
-    case "ollama":
-      return generateWithOpenAICompatible(effectiveConfig, input);
-    default:
-      throw new Error(`Unsupported AI provider: ${effectiveConfig.provider}`);
+  try {
+    switch (effectiveConfig.provider) {
+      case "anthropic":
+        return await generateWithAnthropic(effectiveConfig, input);
+      case "openai":
+      case "gemini":
+      case "ollama":
+        return await generateWithOpenAICompatible(effectiveConfig, input);
+      default:
+        throw new Error(`Unsupported AI provider: ${effectiveConfig.provider}`);
+    }
+  } catch (err) {
+    // Preserve AiGenerationError if already thrown; otherwise wrap
+    if (err instanceof AiGenerationError) throw err;
+    const detail = err instanceof Error ? err.message : String(err);
+    throw new AiGenerationError(effectiveConfig.provider, detail);
   }
 }
