@@ -37,8 +37,15 @@ const navItems = [
 ];
 
 export function Sidebar() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const { orgs, activeOrgId, switchOrg } = useAuth();
+
+  const onLogout = async () => {
+    const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+    await fetch(`${BASE}/api/auth/logout`, { method: "POST" });
+    setLocation("/login");
+    window.location.reload();
+  };
   const activeOrg = orgs.find(o => o.id === activeOrgId) ?? orgs[0];
 
   const OrgSwitcher = () => (
@@ -118,7 +125,7 @@ export function Sidebar() {
                 <NavLinks />
               </div>
               <div className="pt-4 border-t border-border/50 mt-auto">
-                <Button variant="ghost" className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive text-sm">
+                <Button variant="ghost" className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive text-sm" onClick={onLogout}>
                   <LogOut className="h-[18px] w-[18px]" />
                   Logout
                 </Button>
