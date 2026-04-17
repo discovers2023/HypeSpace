@@ -1,5 +1,6 @@
 import { AppLayout } from "@/components/layout/app-layout";
 import { useAuth } from "@/components/auth-provider";
+import { Link, useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
@@ -67,7 +68,7 @@ const orgSchema = z.object({
 });
 type OrgFormValues = z.infer<typeof orgSchema>;
 
-type TabId = "general" | "branding" | "email" | "ai" | "integrations" | "billing";
+export type TabId = "general" | "branding" | "email" | "ai" | "integrations" | "billing";
 
 // --- Platform field definitions ---
 type FieldDef = {
@@ -854,7 +855,7 @@ function PlatformCard({ platform, connected, onConnect, onDisconnect, onImport, 
 }
 
 // --- Integrations Tab ---
-function IntegrationsTab({ orgId }: { orgId: number }) {
+export function IntegrationsTab({ orgId }: { orgId: number }) {
   const { toast } = useToast();
   const { data: integrations, isLoading } = useIntegrations(orgId);
   const connectMutation = useConnectIntegration(orgId);
@@ -1563,7 +1564,7 @@ type SendingDomain = {
   verifiedAt: string | null;
 };
 
-function EmailSendingTab({ orgId }: { orgId: number }) {
+export function EmailSendingTab({ orgId }: { orgId: number }) {
   const { toast } = useToast();
   const [addDomain, setAddDomain] = useState("");
   const [addFromEmail, setAddFromEmail] = useState("");
@@ -1784,7 +1785,7 @@ function EmailSendingTab({ orgId }: { orgId: number }) {
 }
 
 // --- Branding Tab ---
-function BrandingTab({ orgId }: { orgId: number }) {
+export function BrandingTab({ orgId }: { orgId: number }) {
   const { data: org, isLoading } = useGetOrganization(orgId);
   const updateOrg = useUpdateOrganization();
   const { toast } = useToast();
@@ -2100,7 +2101,7 @@ const AI_PROVIDERS = [
   { value: "ollama", label: "Ollama (Self-hosted)", desc: "Llama, Mistral, etc." },
 ];
 
-function AiSettingsTab({ orgId }: { orgId: number }) {
+export function AiSettingsTab({ orgId }: { orgId: number }) {
   const { toast } = useToast();
   const { data: org } = useGetOrganization(orgId);
   const updateOrg = useUpdateOrganization();
@@ -2550,7 +2551,24 @@ function UsageCard({ label, current, max }: { label: string; current: number; ma
 export default function Settings() {
   const { activeOrgId } = useAuth();
   const orgId = activeOrgId;
-  const [activeTab, setActiveTab] = useState<TabId>("general");
+  const [, setLocation] = useLocation();
+  const search = useSearch();
+  const initialTab: TabId = (() => {
+    const t = new URLSearchParams(search).get("tab");
+    const valid: TabId[] = ["general", "branding", "email", "ai", "integrations", "billing"];
+    return (valid as string[]).includes(t ?? "") ? (t as TabId) : "general";
+  })();
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
+
+  useEffect(() => {
+    const t = new URLSearchParams(search).get("tab");
+    const valid: TabId[] = ["general", "branding", "email", "ai", "integrations", "billing"];
+    if (t && (valid as string[]).includes(t) && t !== activeTab) {
+      setActiveTab(t as TabId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+
   const { data: org, isLoading } = useGetOrganization(orgId);
   const updateOrg = useUpdateOrganization();
   const { toast } = useToast();
@@ -2605,7 +2623,10 @@ export default function Settings() {
             {tabs.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
-                onClick={() => setActiveTab(id)}
+                onClick={() => {
+                  setActiveTab(id);
+                  setLocation(`/settings?tab=${id}`, { replace: true });
+                }}
                 className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors w-full text-left ${
                   activeTab === id
                     ? "bg-primary/10 text-primary"
@@ -2706,6 +2727,20 @@ export default function Settings() {
                         </form>
                       </Form>
                     )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Setup wizard</CardTitle>
+                    <CardDescription>
+                      Re-run the first-time setup walkthrough — configure branding, email sending, AI, and integrations in one guided flow.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Link href="/onboarding">
+                      <Button variant="outline">Run setup wizard</Button>
+                    </Link>
                   </CardContent>
                 </Card>
 

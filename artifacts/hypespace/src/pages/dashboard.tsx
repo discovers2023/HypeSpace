@@ -241,7 +241,7 @@ export default function Dashboard() {
                 </CardDescription>
               </div>
             </div>
-            <Link href="/settings">
+            <Link href="/settings?tab=integrations">
               <Button variant="outline" className="border-primary/20 hover:bg-primary/10 rounded-xl">
                 Configure Integrations
                 <ArrowUpRight className="ml-2 h-4 w-4" />
