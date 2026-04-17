@@ -5,6 +5,7 @@ import { getPlan } from "../lib/plans";
 import { sendEmail } from "../lib/email";
 import { getAppBaseUrl } from "../lib/app-url";
 import sanitizeHtml from "sanitize-html";
+import { isAiAvailable, generateCampaignWithAI } from "../lib/ai-campaign";
 
 const sanitizeOpts: sanitizeHtml.IOptions = {
   allowedTags: sanitizeHtml.defaults.allowedTags.concat(["img", "style", "head", "meta", "link", "center", "font"]),
@@ -283,6 +284,26 @@ router.post("/organizations/:orgId/campaigns/ai-generate", async (req, res): Pro
   const appBaseUrl = getAppBaseUrl(req);
   const rsvpUrl = eventSlug ? `${appBaseUrl}/e/${eventSlug}` : "#";
 
+  // Fetch org name for branding
+  const [orgRow] = await db.select().from(organizationsTable).where(eq(organizationsTable.id, orgId));
+  const orgName = orgRow?.name ?? "HypeSpace Events";
+
+  // Try AI generation first, fall back to templates
+  if (isAiAvailable()) {
+    try {
+      const aiResult = await generateCampaignWithAI({
+        eventTitle, eventDate, eventTime, eventLocation, eventType,
+        eventDescription, campaignType, tone, additionalContext, rsvpUrl, orgName,
+      });
+      res.json(AiGenerateCampaignResponse.parse(aiResult));
+      return;
+    } catch (err) {
+      // Log and fall through to template generation
+      console.error("AI generation failed, falling back to templates:", err);
+    }
+  }
+
+  // --- Template fallback (when no ANTHROPIC_API_KEY or AI fails) ---
   const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
   // Extract speaker / topic from additionalContext heuristically
