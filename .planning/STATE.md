@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-16)
 Phase: 1 of 3 (Security Hardening) — COMPLETE
 Plan: 3 of 3 in current phase — all plans done
 Status: Phase complete — ready for verification
-Last activity: 2026-04-16
+Last activity: 2026-04-17 - Completed quick task 260417-ois: Configure Integrations routing + onboarding wizard
 
 Progress: [███░░░░░░░] 33%
 
@@ -90,6 +90,12 @@ None yet.
 
 - Phase 1 SEC-02 (email verification) requires an outbound email transport configured in the environment — confirm SMTP/Resend credentials before planning
 - Deadline is Monday April 20, 2026 — 4 days; 3 phases must complete sequentially
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260417-ois | Fix Configure Integrations routing + first-login onboarding wizard (Branding, Email, AI, Integrations) | 2026-04-17 | a772f70 | [260417-ois-fix-dashboard-configure-integrations-but](./quick/260417-ois-fix-dashboard-configure-integrations-but/) |
 
 ## Deferred Items
 
