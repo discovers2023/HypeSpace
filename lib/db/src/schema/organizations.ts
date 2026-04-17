@@ -21,6 +21,10 @@ export const organizationsTable = pgTable("organizations", {
   aiApiKey: text("ai_api_key"), // encrypted API key
   aiModel: text("ai_model"), // e.g. claude-sonnet-4-20250514, gemini-pro, gpt-4o, llama3
   aiBaseUrl: text("ai_base_url"), // custom endpoint for Ollama / self-hosted
+  // Null = onboarding wizard not yet completed; any timestamp = completed at that time.
+  // After schema push, backfill existing dev/seed orgs with:
+  //   UPDATE organizations SET onboarding_completed_at = NOW() WHERE id = 1;
+  onboardingCompletedAt: timestamp("onboarding_completed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

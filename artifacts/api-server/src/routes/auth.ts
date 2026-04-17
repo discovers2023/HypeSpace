@@ -47,6 +47,14 @@ router.get("/auth/me", async (req, res): Promise<void> => {
   const orgs = memberships.map(m => ({ id: m.orgId, name: m.orgName, slug: m.orgSlug }));
   const activeOrgId = orgs[0].id;
 
+  // Fetch onboarding status for the active org — spread outside GetMeResponse.parse()
+  // to keep @workspace/api-zod untouched (same pattern as orgs/activeOrgId/csrfToken).
+  const [activeOrg] = await db
+    .select({ onboardingCompletedAt: organizationsTable.onboardingCompletedAt })
+    .from(organizationsTable)
+    .where(eq(organizationsTable.id, activeOrgId));
+  const onboardingCompletedAt = activeOrg?.onboardingCompletedAt?.toISOString() ?? null;
+
   res.json({
     ...GetMeResponse.parse({
       id: user.id,
@@ -57,6 +65,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     }),
     orgs,
     activeOrgId,
+    onboardingCompletedAt,
   });
 });
 
