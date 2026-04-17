@@ -4,7 +4,6 @@ import { eq, asc } from "drizzle-orm";
 import { GetMeResponse } from "@workspace/api-zod";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
-import type { CsrfTokenGenerator } from "csrf-csrf";
 import { sendVerificationEmail } from "../lib/email";
 
 const router: IRouter = Router();
@@ -48,9 +47,6 @@ router.get("/auth/me", async (req, res): Promise<void> => {
   const orgs = memberships.map(m => ({ id: m.orgId, name: m.orgName, slug: m.orgSlug }));
   const activeOrgId = orgs[0].id;
 
-  // Issue a fresh CSRF token on each /me call (lets frontend refresh token after page reload)
-  const generateCsrfToken = req.app.locals.generateCsrfToken as CsrfTokenGenerator | undefined;
-  const csrfToken = generateCsrfToken ? generateCsrfToken(req, res) : undefined;
   res.json({
     ...GetMeResponse.parse({
       id: user.id,
@@ -61,7 +57,6 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     }),
     orgs,
     activeOrgId,
-    ...(csrfToken !== undefined ? { csrfToken } : {}),
   });
 });
 
@@ -97,9 +92,6 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   // Set session
   req.session.userId = user.id;
 
-  // Issue CSRF token for subsequent mutations
-  const generateCsrfToken = req.app.locals.generateCsrfToken as CsrfTokenGenerator | undefined;
-  const csrfToken = generateCsrfToken ? generateCsrfToken(req, res) : undefined;
 
   res.json({
     id: user.id,
@@ -107,7 +99,6 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     name: user.name,
     avatarUrl: user.avatarUrl ?? null,
     createdAt: user.createdAt.toISOString(),
-    ...(csrfToken !== undefined ? { csrfToken } : {}),
   });
 });
 

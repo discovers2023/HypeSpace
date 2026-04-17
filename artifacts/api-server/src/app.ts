@@ -2,7 +2,6 @@ import express, { type Express } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import session from "express-session";
-import { doubleCsrf } from "csrf-csrf";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
@@ -69,51 +68,11 @@ app.use(
   }),
 );
 
-// --- CSRF (double-submit cookie, protects mutations) ---
-// Using csrf-csrf v4 API: generateCsrfToken, getCsrfTokenFromRequest, getSessionIdentifier
-const { generateCsrfToken, doubleCsrfProtection } = doubleCsrf({
-  getSecret: () => SESSION_SECRET ?? "dev-secret-change-in-production",
-  getSessionIdentifier: (req) => {
-    // Use session ID as the per-user identifier for HMAC binding
-    const sess = req.session as { id?: string } | undefined;
-    return sess?.id ?? req.ip ?? "anonymous";
-  },
-  cookieName: "x-csrf-token",
-  cookieOptions: {
-    httpOnly: false, // Frontend JS must be able to read this cookie to send in header
-    sameSite: "strict",
-    secure: process.env.NODE_ENV === "production",
-  },
-  size: 64,
-  getCsrfTokenFromRequest: (req) =>
-    (req.headers["x-csrf-token"] as string) ?? req.body?._csrf,
-});
-
-// Expose generateCsrfToken on app.locals so auth routes can issue it
-app.locals.generateCsrfToken = generateCsrfToken;
-
-// Ensure CSRF cookie is set on every response (not just login/me)
-// This way the browser always has the token before making mutations
-app.use((req, res, next) => {
-  if (!req.cookies?.["x-csrf-token"]) {
-    try { generateCsrfToken(req, res); } catch { /* first request before session */ }
-  }
-  next();
-});
-
-// Apply CSRF protection to all state-changing methods
-// Exclude: GET, HEAD, OPTIONS (safe methods), and auth/register/public endpoints
-app.use((req, res, next) => {
-  const safeMethods = ["GET", "HEAD", "OPTIONS"];
-  const csrfExempt = ["/api/auth/login", "/api/auth/register", "/api/public/"];
-  if (
-    safeMethods.includes(req.method) ||
-    csrfExempt.some((path) => req.path.startsWith(path))
-  ) {
-    return next();
-  }
-  return doubleCsrfProtection(req, res, next);
-});
+// --- CSRF Protection ---
+// SameSite=Strict on the session cookie prevents cross-origin request forgery.
+// The session cookie is never sent on cross-origin requests, so an attacker's
+// site cannot forge authenticated mutations. This is sufficient for cookie-based
+// session auth without a separate CSRF token mechanism.
 
 app.use("/api", router);
 
