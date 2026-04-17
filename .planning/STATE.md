@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-16)
 Phase: 1 of 3 (Security Hardening) — COMPLETE
 Plan: 3 of 3 in current phase — all plans done
 Status: Phase complete — ready for verification
-Last activity: 2026-04-17 - Completed quick task 260417-ois: Configure Integrations routing + onboarding wizard
+Last activity: 2026-04-17 - Completed quick task 260417-oz0: Real AI content + image generation
 
 Progress: [███░░░░░░░] 33%
 
@@ -96,6 +96,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260417-ois | Fix Configure Integrations routing + first-login onboarding wizard (Branding, Email, AI, Integrations) | 2026-04-17 | a772f70 | [260417-ois-fix-dashboard-configure-integrations-but](./quick/260417-ois-fix-dashboard-configure-integrations-but/) |
+| 260417-oz0 | Kill AI template fallback, auto-detect Ollama model, add AI hero image generation (OpenAI/Gemini/Unsplash) | 2026-04-17 | 5d61404 | [260417-oz0-fix-generate-with-ai-to-produce-real-ai-](./quick/260417-oz0-fix-generate-with-ai-to-produce-real-ai-/) |
 
 ## Deferred Items
 
