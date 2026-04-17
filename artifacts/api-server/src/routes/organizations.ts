@@ -30,6 +30,10 @@ function formatOrg(org: typeof organizationsTable.$inferSelect, memberCount: num
     fromEmail: org.fromEmail ?? null,
     replyToEmail: org.replyToEmail ?? null,
     emailFooterText: org.emailFooterText ?? null,
+    aiProvider: org.aiProvider ?? null,
+    aiApiKey: org.aiApiKey ?? null,
+    aiModel: org.aiModel ?? null,
+    aiBaseUrl: org.aiBaseUrl ?? null,
   };
 }
 

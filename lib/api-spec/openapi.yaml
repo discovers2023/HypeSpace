@@ -955,6 +955,33 @@ components:
           type: integer
         createdAt:
           type: string
+        primaryColor:
+          type: string
+          nullable: true
+        accentColor:
+          type: string
+          nullable: true
+        fromEmail:
+          type: string
+          nullable: true
+        replyToEmail:
+          type: string
+          nullable: true
+        emailFooterText:
+          type: string
+          nullable: true
+        aiProvider:
+          type: string
+          nullable: true
+        aiApiKey:
+          type: string
+          nullable: true
+        aiModel:
+          type: string
+          nullable: true
+        aiBaseUrl:
+          type: string
+          nullable: true
       required:
         - id
         - name
@@ -988,6 +1015,33 @@ components:
           type: string
           nullable: true
         logoUrl:
+          type: string
+          nullable: true
+        primaryColor:
+          type: string
+          nullable: true
+        accentColor:
+          type: string
+          nullable: true
+        fromEmail:
+          type: string
+          nullable: true
+        replyToEmail:
+          type: string
+          nullable: true
+        emailFooterText:
+          type: string
+          nullable: true
+        aiProvider:
+          type: string
+          nullable: true
+        aiApiKey:
+          type: string
+          nullable: true
+        aiModel:
+          type: string
+          nullable: true
+        aiBaseUrl:
           type: string
           nullable: true
 

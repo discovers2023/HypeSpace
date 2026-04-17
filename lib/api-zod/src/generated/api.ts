@@ -39,6 +39,15 @@ export const ListOrganizationsResponseItem = zod.object({
   memberCount: zod.number(),
   eventCount: zod.number(),
   createdAt: zod.string(),
+  primaryColor: zod.string().nullish(),
+  accentColor: zod.string().nullish(),
+  fromEmail: zod.string().nullish(),
+  replyToEmail: zod.string().nullish(),
+  emailFooterText: zod.string().nullish(),
+  aiProvider: zod.string().nullish(),
+  aiApiKey: zod.string().nullish(),
+  aiModel: zod.string().nullish(),
+  aiBaseUrl: zod.string().nullish(),
 });
 export const ListOrganizationsResponse = zod.array(
   ListOrganizationsResponseItem,
@@ -71,6 +80,15 @@ export const GetOrganizationResponse = zod.object({
   memberCount: zod.number(),
   eventCount: zod.number(),
   createdAt: zod.string(),
+  primaryColor: zod.string().nullish(),
+  accentColor: zod.string().nullish(),
+  fromEmail: zod.string().nullish(),
+  replyToEmail: zod.string().nullish(),
+  emailFooterText: zod.string().nullish(),
+  aiProvider: zod.string().nullish(),
+  aiApiKey: zod.string().nullish(),
+  aiModel: zod.string().nullish(),
+  aiBaseUrl: zod.string().nullish(),
 });
 
 /**
@@ -84,6 +102,15 @@ export const UpdateOrganizationBody = zod.object({
   name: zod.string().optional(),
   description: zod.string().nullish(),
   logoUrl: zod.string().nullish(),
+  primaryColor: zod.string().nullish(),
+  accentColor: zod.string().nullish(),
+  fromEmail: zod.string().nullish(),
+  replyToEmail: zod.string().nullish(),
+  emailFooterText: zod.string().nullish(),
+  aiProvider: zod.string().nullish(),
+  aiApiKey: zod.string().nullish(),
+  aiModel: zod.string().nullish(),
+  aiBaseUrl: zod.string().nullish(),
 });
 
 export const UpdateOrganizationResponse = zod.object({
@@ -97,6 +124,15 @@ export const UpdateOrganizationResponse = zod.object({
   memberCount: zod.number(),
   eventCount: zod.number(),
   createdAt: zod.string(),
+  primaryColor: zod.string().nullish(),
+  accentColor: zod.string().nullish(),
+  fromEmail: zod.string().nullish(),
+  replyToEmail: zod.string().nullish(),
+  emailFooterText: zod.string().nullish(),
+  aiProvider: zod.string().nullish(),
+  aiApiKey: zod.string().nullish(),
+  aiModel: zod.string().nullish(),
+  aiBaseUrl: zod.string().nullish(),
 });
 
 /**

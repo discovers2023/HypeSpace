@@ -38,6 +38,15 @@ export interface Organization {
   memberCount: number;
   eventCount: number;
   createdAt: string;
+  primaryColor?: string | null;
+  accentColor?: string | null;
+  fromEmail?: string | null;
+  replyToEmail?: string | null;
+  emailFooterText?: string | null;
+  aiProvider?: string | null;
+  aiApiKey?: string | null;
+  aiModel?: string | null;
+  aiBaseUrl?: string | null;
 }
 
 export interface CreateOrganizationBody {
@@ -50,6 +59,15 @@ export interface UpdateOrganizationBody {
   name?: string;
   description?: string | null;
   logoUrl?: string | null;
+  primaryColor?: string | null;
+  accentColor?: string | null;
+  fromEmail?: string | null;
+  replyToEmail?: string | null;
+  emailFooterText?: string | null;
+  aiProvider?: string | null;
+  aiApiKey?: string | null;
+  aiModel?: string | null;
+  aiBaseUrl?: string | null;
 }
 
 export type TeamMemberRole =
