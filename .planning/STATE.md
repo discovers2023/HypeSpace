@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-16)
 Phase: 1 of 3 (Security Hardening) — COMPLETE
 Plan: 3 of 3 in current phase — all plans done
 Status: Phase complete — ready for verification
-Last activity: 2026-04-18 - Completed quick task 260418-omb: Fix scheduled reminder emails not being delivered
+Last activity: 2026-04-18 - Completed quick tasks 260418-pnc (AI editing suite) + 260418-pt3 (invite redesign + settings auth guard)
 
 Progress: [███░░░░░░░] 33%
 
@@ -98,6 +98,8 @@ None yet.
 | 260417-ois | Fix Configure Integrations routing + first-login onboarding wizard (Branding, Email, AI, Integrations) | 2026-04-17 | a772f70 | [260417-ois-fix-dashboard-configure-integrations-but](./quick/260417-ois-fix-dashboard-configure-integrations-but/) |
 | 260417-oz0 | Kill AI template fallback, auto-detect Ollama model, add AI hero image generation (OpenAI/Gemini/Unsplash) | 2026-04-17 | 5d61404 | [260417-oz0-fix-generate-with-ai-to-produce-real-ai-](./quick/260417-oz0-fix-generate-with-ai-to-produce-real-ai-/) |
 | 260418-omb | Fix scheduled reminder emails not being delivered (pass orgId in scheduler.ts processDueReminders + retry on failure) | 2026-04-18 | 7cc6747 | [260418-omb-fix-scheduled-reminder-emails-not-being-](./quick/260418-omb-fix-scheduled-reminder-emails-not-being-/) |
+| 260418-pnc | AI editing suite — real /ai-rewrite endpoint, AI event description generation, AI subject-line variants (replaces broken regex suggestions) | 2026-04-18 | 2123e13 | [260418-pnc-ai-editing-suite-real-ai-rewrite-endpoin](./quick/260418-pnc-ai-editing-suite-real-ai-rewrite-endpoin/) |
+| 260418-pt3 | Invite landing redesign (Date/Time/Location info card) + Settings page auth guard against PUT /organizations/0 | 2026-04-18 | 5fd525a | [260418-pt3-invite-email-redesign-location-date-time](./quick/260418-pt3-invite-email-redesign-location-date-time/) |
 
 ## Deferred Items
 
