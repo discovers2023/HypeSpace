@@ -1,6 +1,6 @@
 import { AppLayout } from "@/components/layout/app-layout";
 import { useAuth } from "@/components/auth-provider";
-import { Link, Redirect, useLocation, useSearch } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
@@ -2549,7 +2549,7 @@ function UsageCard({ label, current, max }: { label: string; current: number; ma
 
 // --- Settings Page ---
 export default function Settings() {
-  const { activeOrgId, user, isLoading: authLoading } = useAuth();
+  const { activeOrgId } = useAuth();
   const orgId = activeOrgId;
   const [, setLocation] = useLocation();
   const search = useSearch();
@@ -2585,15 +2585,6 @@ export default function Settings() {
       form.reset({ name: org.name, description: org.description || "", logoUrl: org.logoUrl || "" });
     }
   }, [org, form]);
-
-  // Auth guard: once /auth/me has resolved with no user, bounce to /login.
-  // Placed after all hooks so React's hook-call order stays stable across
-  // renders (don't return before the hooks above). Don't redirect while
-  // authLoading is true — that flashes /login on hard refresh for users
-  // who are actually authenticated.
-  if (!authLoading && !user) {
-    return <Redirect to="/login" />;
-  }
 
   const onSubmit = (data: OrgFormValues) => {
     updateOrg.mutate(
