@@ -11,7 +11,10 @@ import {
   GetEventResponse,
   UpdateEventBody,
   UpdateEventResponse,
+  AiDescribeEventBody,
+  AiDescribeEventResponse,
 } from "@workspace/api-zod";
+import { isAiAvailable, describeEventWithAI } from "../lib/ai-campaign";
 
 const router: IRouter = Router();
 
@@ -616,6 +619,49 @@ router.delete("/organizations/:orgId/events/:eventId", async (req, res): Promise
   await db.delete(socialPostsTable).where(eq(socialPostsTable.eventId, eventId));
   await db.delete(eventsTable).where(and(eq(eventsTable.id, eventId), eq(eventsTable.organizationId, orgId)));
   res.sendStatus(204);
+});
+
+router.post("/organizations/:orgId/events/ai-describe", async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.orgId) ? req.params.orgId[0] : req.params.orgId;
+  const orgId = parseInt(raw, 10);
+  const parsed = AiDescribeEventBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const [orgRow] = await db.select().from(organizationsTable).where(eq(organizationsTable.id, orgId));
+  const orgAiConfig = orgRow?.aiProvider && orgRow.aiProvider !== "none" ? {
+    provider: orgRow.aiProvider,
+    apiKey: orgRow.aiApiKey ?? "",
+    model: orgRow.aiModel ?? undefined,
+    baseUrl: orgRow.aiBaseUrl ?? undefined,
+  } : null;
+
+  if (!isAiAvailable(orgAiConfig)) {
+    res.status(400).json({
+      error: "AI_NOT_CONFIGURED",
+      message: "No AI provider is configured. Open Settings → AI to configure a provider.",
+    });
+    return;
+  }
+
+  try {
+    const result = await describeEventWithAI({
+      title: parsed.data.title,
+      type: parsed.data.type ?? null,
+      category: parsed.data.category ?? null,
+      location: parsed.data.location ?? null,
+      additionalContext: parsed.data.additionalContext ?? null,
+    }, orgAiConfig);
+    res.json(AiDescribeEventResponse.parse(result));
+  } catch (err) {
+    const provider = orgAiConfig?.provider ?? "unknown";
+    const detail = err instanceof Error ? err.message : String(err);
+    req.log?.error({ err, provider }, "AI event description failed");
+    res.status(502).json({
+      error: "AI_DESCRIBE_FAILED",
+      provider,
+      detail: detail.slice(0, 500),
+    });
+  }
 });
 
 export default router;

@@ -5,7 +5,7 @@ import { getPlan } from "../lib/plans";
 import { sendEmail } from "../lib/email";
 import { getAppBaseUrl } from "../lib/app-url";
 import sanitizeHtml from "sanitize-html";
-import { isAiAvailable, generateCampaignWithAI } from "../lib/ai-campaign";
+import { isAiAvailable, generateCampaignWithAI, rewriteHtmlWithAI, generateSubjectVariantsWithAI } from "../lib/ai-campaign";
 
 const sanitizeOpts: sanitizeHtml.IOptions = {
   allowedTags: sanitizeHtml.defaults.allowedTags.concat(["img", "style", "head", "meta", "link", "center", "font"]),
@@ -30,6 +30,10 @@ import {
   AiGenerateCampaignResponse,
   AiGenerateCampaignImageBody,
   AiGenerateCampaignImageResponse,
+  AiRewriteCampaignBody,
+  AiRewriteCampaignResponse,
+  AiSubjectVariantsCampaignBody,
+  AiSubjectVariantsCampaignResponse,
 } from "@workspace/api-zod";
 import { generateCampaignImage } from "../lib/ai-image";
 
@@ -426,6 +430,90 @@ router.post("/organizations/:orgId/campaigns/ai-generate-image", async (req, res
     req.log?.error({ err, provider }, "AI image generation failed");
     res.status(502).json({
       error: "AI_IMAGE_GENERATION_FAILED",
+      provider,
+      detail: detail.slice(0, 500),
+    });
+  }
+});
+
+router.post("/organizations/:orgId/campaigns/ai-rewrite", async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.orgId) ? req.params.orgId[0] : req.params.orgId;
+  const orgId = parseInt(raw, 10);
+  const parsed = AiRewriteCampaignBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const [orgRow] = await db.select().from(organizationsTable).where(eq(organizationsTable.id, orgId));
+  const orgAiConfig = orgRow?.aiProvider && orgRow.aiProvider !== "none" ? {
+    provider: orgRow.aiProvider,
+    apiKey: orgRow.aiApiKey ?? "",
+    model: orgRow.aiModel ?? undefined,
+    baseUrl: orgRow.aiBaseUrl ?? undefined,
+  } : null;
+
+  if (!isAiAvailable(orgAiConfig)) {
+    res.status(400).json({
+      error: "AI_NOT_CONFIGURED",
+      message: "No AI provider is configured. Open Settings → AI to configure a provider.",
+    });
+    return;
+  }
+
+  try {
+    const result = await rewriteHtmlWithAI({
+      html: parsed.data.html,
+      subject: parsed.data.subject,
+      instruction: parsed.data.instruction,
+      eventTitle: parsed.data.eventTitle ?? undefined,
+    }, orgAiConfig);
+    res.json(AiRewriteCampaignResponse.parse(result));
+  } catch (err) {
+    const provider = orgAiConfig?.provider ?? "unknown";
+    const detail = err instanceof Error ? err.message : String(err);
+    req.log?.error({ err, provider }, "AI rewrite failed");
+    res.status(502).json({
+      error: "AI_REWRITE_FAILED",
+      provider,
+      detail: detail.slice(0, 500),
+    });
+  }
+});
+
+router.post("/organizations/:orgId/campaigns/ai-subject-variants", async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.orgId) ? req.params.orgId[0] : req.params.orgId;
+  const orgId = parseInt(raw, 10);
+  const parsed = AiSubjectVariantsCampaignBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const [orgRow] = await db.select().from(organizationsTable).where(eq(organizationsTable.id, orgId));
+  const orgAiConfig = orgRow?.aiProvider && orgRow.aiProvider !== "none" ? {
+    provider: orgRow.aiProvider,
+    apiKey: orgRow.aiApiKey ?? "",
+    model: orgRow.aiModel ?? undefined,
+    baseUrl: orgRow.aiBaseUrl ?? undefined,
+  } : null;
+
+  if (!isAiAvailable(orgAiConfig)) {
+    res.status(400).json({
+      error: "AI_NOT_CONFIGURED",
+      message: "No AI provider is configured. Open Settings → AI to configure a provider.",
+    });
+    return;
+  }
+
+  try {
+    const result = await generateSubjectVariantsWithAI({
+      campaignType: parsed.data.campaignType,
+      eventTitle: parsed.data.eventTitle,
+      tone: parsed.data.tone ?? null,
+      currentSubject: parsed.data.currentSubject ?? null,
+    }, orgAiConfig);
+    res.json(AiSubjectVariantsCampaignResponse.parse(result));
+  } catch (err) {
+    const provider = orgAiConfig?.provider ?? "unknown";
+    const detail = err instanceof Error ? err.message : String(err);
+    req.log?.error({ err, provider }, "AI subject variants failed");
+    res.status(502).json({
+      error: "AI_SUBJECT_VARIANTS_FAILED",
       provider,
       detail: detail.slice(0, 500),
     });
