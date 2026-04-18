@@ -33,6 +33,7 @@ import {
 } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { AiDescribeButton } from "@/components/ai-describe-button";
 import { TimezonePicker } from "@/components/timezone-picker";
 import { CoverImagePicker } from "@/components/cover-image-picker";
 import { CSVImportModal } from "@/components/csv-import-modal";
@@ -568,7 +569,15 @@ function DetailsStep({ form, eventType }: { form: UseFormReturn<EventFormValues>
         name="description"
         render={({ field }) => (
           <FormItem>
-            <FormLabel className="font-semibold">Description</FormLabel>
+            <div className="flex items-center justify-between">
+              <FormLabel className="font-semibold">Description</FormLabel>
+              <AiDescribeButton
+                compact
+                title={form.watch("title") ?? ""}
+                location={form.watch("location") ?? null}
+                onApply={(desc) => form.setValue("description", desc, { shouldDirty: true })}
+              />
+            </div>
             <FormControl>
               <Textarea placeholder="Tell people what to expect at your event..." className="resize-none min-h-[80px]" {...field} />
             </FormControl>

@@ -29,7 +29,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { TimezonePicker } from "@/components/timezone-picker";
 import { CoverImagePicker } from "@/components/cover-image-picker";
-import { AIDescriptionButton } from "@/components/ai-description-button";
+import { AiDescribeButton } from "@/components/ai-describe-button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, parseISO } from "date-fns";
@@ -641,15 +641,13 @@ function DetailsSection({ form }: { form: UseFormReturn<EventFormValues> }) {
           <FormItem>
             <div className="flex items-center justify-between mb-1.5">
               <FormLabel className="text-sm font-semibold">Description</FormLabel>
-              <AIDescriptionButton
-                  context={{
-                    title: form.watch("title"),
-                    type: form.watch("type"),
-                    category: form.watch("category"),
-                    location: form.watch("location"),
-                    startDate: form.watch("startDate"),
-                  }}
-                  onGenerated={(desc) => form.setValue("description", desc, { shouldDirty: true })}
+              <AiDescribeButton
+                  compact
+                  title={form.watch("title") ?? ""}
+                  type={form.watch("type") ?? null}
+                  category={form.watch("category") ?? null}
+                  location={form.watch("location") ?? null}
+                  onApply={(desc) => form.setValue("description", desc, { shouldDirty: true })}
                 />
             </div>
             <FormControl>

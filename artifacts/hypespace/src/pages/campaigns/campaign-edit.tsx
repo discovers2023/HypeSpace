@@ -29,11 +29,11 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Save, Send, Trash2, AlertTriangle, Code2, Type,
-  Paintbrush, Loader2, Eye, TestTube, Lock, Sparkles, ChevronDown, ChevronUp, BarChart2,
+  Paintbrush, Loader2, Eye, TestTube, Lock, Sparkles, BarChart2,
   CalendarClock, X,
 } from "lucide-react";
-import { CampaignSuggestionList } from "@/components/campaign-suggestion-list";
-import { DEFAULT_SUGGESTIONS } from "@/lib/campaign-suggestions";
+import { AiImproveButton } from "@/components/ai-improve-button";
+import { AiSubjectVariantsButton } from "@/components/ai-subject-variants-button";
 
 // ─── Regex-based extraction / patching for the AI template ───────────────────
 // These patterns are safe to use on both AI-generated AND hand-edited HTML.
@@ -116,7 +116,6 @@ export default function CampaignEdit() {
   const [testEmail, setTestEmail] = useState("");
   const [testSending, setTestSending] = useState(false);
   const [showTestInput, setShowTestInput] = useState(false);
-  const [showSuggestions, setShowSuggestions] = useState(true);
 
   // Visual editor fields — extracted from the template
   const [bodyIntro, setBodyIntro] = useState("");
@@ -485,7 +484,17 @@ export default function CampaignEdit() {
 
                   <FormField control={form.control} name="subject" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email subject line</FormLabel>
+                      <div className="flex items-center justify-between">
+                        <FormLabel>Email subject line</FormLabel>
+                        {!isSent && (
+                          <AiSubjectVariantsButton
+                            campaignType={campaign.type ?? "invitation"}
+                            eventTitle={campaign.name}
+                            currentSubject={field.value ?? ""}
+                            onPick={(s) => form.setValue("subject", s, { shouldDirty: true })}
+                          />
+                        )}
+                      </div>
                       <FormControl>
                         <Input placeholder="You're invited to…" disabled={isSent} {...field} />
                       </FormControl>
@@ -663,36 +672,23 @@ export default function CampaignEdit() {
               </form>
             </Form>
 
-            {/* AI Suggestions Panel */}
+            {/* AI Refine */}
             {!isSent && (
-              <div className="bg-card border rounded-xl overflow-hidden">
-                <button
-                  type="button"
-                  className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/30 transition-colors"
-                  onClick={() => setShowSuggestions((v) => !v)}
-                >
-                  <span className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-primary" />
-                    AI Suggestions
-                    <span className="text-xs text-muted-foreground font-normal">— click any to apply</span>
-                  </span>
-                  {showSuggestions
-                    ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                    : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-                </button>
-                {showSuggestions && (
-                  <div className="px-4 pb-4">
-                    <CampaignSuggestionList
-                      suggestions={DEFAULT_SUGGESTIONS}
-                      html={form.watch("htmlContent") ?? ""}
-                      onApply={(newHtml) => {
-                        form.setValue("htmlContent", newHtml, { shouldDirty: true });
-                        setBodyIntro(extractBodyIntro(newHtml));
-                      }}
-                      compact
-                    />
-                  </div>
-                )}
+              <div className="bg-card border rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2 text-sm font-medium">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  Refine with AI
+                </span>
+                <AiImproveButton
+                  compact
+                  html={form.watch("htmlContent") ?? ""}
+                  subject={form.watch("subject") ?? ""}
+                  onApply={(next) => {
+                    form.setValue("htmlContent", next.html, { shouldDirty: true });
+                    form.setValue("subject", next.subject, { shouldDirty: true });
+                    setBodyIntro(extractBodyIntro(next.html));
+                  }}
+                />
               </div>
             )}
           </div>
