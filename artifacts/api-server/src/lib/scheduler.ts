@@ -1,4 +1,4 @@
-import { db, campaignsTable, activityTable, organizationsTable, remindersTable, guestsTable } from "@workspace/db";
+import { db, campaignsTable, activityTable, organizationsTable, remindersTable, guestsTable, eventsTable } from "@workspace/db";
 import { and, eq, lte, isNotNull, ne } from "drizzle-orm";
 import { getPlan } from "./plans";
 import { sendEmail } from "./email";
@@ -97,6 +97,18 @@ async function processDueReminders(): Promise<void> {
 
   for (const reminder of due) {
     try {
+      // Look up the parent event to get organizationId — remindersTable has no orgId column.
+      const [event] = await db.select().from(eventsTable).where(eq(eventsTable.id, reminder.eventId));
+      if (!event) {
+        // Event was deleted; mark reminder sent so we stop polling it.
+        await db.update(remindersTable)
+          .set({ status: "sent", sentAt: new Date() })
+          .where(eq(remindersTable.id, reminder.id));
+        logger.warn({ reminderId: reminder.id, eventId: reminder.eventId }, "Reminder skipped: event not found");
+        continue;
+      }
+      const orgId = event.organizationId;
+
       // Get eligible guests based on audience targeting
       const guests = await db.select().from(guestsTable)
         .where(eq(guestsTable.eventId, reminder.eventId));
@@ -109,12 +121,7 @@ async function processDueReminders(): Promise<void> {
         return g.status !== "declined";
       });
 
-      // Mark sent immediately
-      await db.update(remindersTable)
-        .set({ status: "sent", sentAt: new Date() })
-        .where(eq(remindersTable.id, reminder.id));
-
-      // Send to each guest
+      // Send to each guest (pass orgId so getTransporter() resolves the org's SMTP, not Ethereal)
       for (const guest of eligible) {
         await sendEmail({
           to: guest.email,
@@ -125,14 +132,25 @@ async function processDueReminders(): Promise<void> {
             <p style="color:#4a4a6a;line-height:1.7;white-space:pre-wrap;">${escapeHtml(reminder.message)}</p>
           </div>`,
           text: reminder.message,
+          orgId,
         }).catch((err) => {
           logger.error({ err, reminderId: reminder.id, guest: guest.email }, "Reminder email failed");
         });
       }
 
-      logger.info({ reminderId: reminder.id, recipientCount: eligible.length }, "Scheduled reminder sent");
+      // Mark sent AFTER the loop. Note: matches the campaign scheduler's "mark sent unconditionally
+      // after attempting send" semantics — individual per-guest failures are logged but do not block
+      // the row from being marked sent. This avoids re-spamming guests on transient failures.
+      // Pre-loop failures (event lookup, DB error, guest query) are caught by the outer try and leave
+      // status unchanged, so the row will be retried on the next 60s tick.
+      await db.update(remindersTable)
+        .set({ status: "sent", sentAt: new Date() })
+        .where(eq(remindersTable.id, reminder.id));
+
+      logger.info({ reminderId: reminder.id, recipientCount: eligible.length, orgId }, "Scheduled reminder sent");
     } catch (err) {
       logger.error({ err, reminderId: reminder.id }, "Scheduler: failed to send reminder");
+      // Intentionally do NOT mark sent here — leave status pending so the next tick retries.
     }
   }
 }
