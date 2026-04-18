@@ -748,6 +748,72 @@ export const AiGenerateCampaignImageResponse = zod.object({
 });
 
 /**
+ * @summary Rewrite a campaign body HTML based on a freeform instruction
+ */
+export const AiRewriteCampaignParams = zod.object({
+  orgId: zod.coerce.number(),
+});
+
+export const AiRewriteCampaignBody = zod.object({
+  html: zod.string(),
+  subject: zod.string(),
+  instruction: zod
+    .string()
+    .describe(
+      "Freeform user instruction, e.g. 'make it shorter' or 'add urgency'.",
+    ),
+  eventTitle: zod.string().nullish(),
+});
+
+export const AiRewriteCampaignResponse = zod.object({
+  html: zod.string(),
+  subject: zod.string(),
+});
+
+/**
+ * @summary Generate alternative subject lines for a campaign
+ */
+export const AiSubjectVariantsCampaignParams = zod.object({
+  orgId: zod.coerce.number(),
+});
+
+export const AiSubjectVariantsCampaignBody = zod.object({
+  campaignType: zod.enum([
+    "invitation",
+    "reminder",
+    "followup",
+    "announcement",
+    "custom",
+  ]),
+  eventTitle: zod.string(),
+  tone: zod.string().nullish(),
+  currentSubject: zod.string().nullish(),
+});
+
+export const AiSubjectVariantsCampaignResponse = zod.object({
+  variants: zod.array(zod.string()),
+});
+
+/**
+ * @summary Generate an event description with AI
+ */
+export const AiDescribeEventParams = zod.object({
+  orgId: zod.coerce.number(),
+});
+
+export const AiDescribeEventBody = zod.object({
+  title: zod.string(),
+  type: zod.string().nullish().describe("in-person | online | hybrid"),
+  category: zod.string().nullish(),
+  location: zod.string().nullish(),
+  additionalContext: zod.string().nullish(),
+});
+
+export const AiDescribeEventResponse = zod.object({
+  description: zod.string(),
+});
+
+/**
  * @summary List social media posts for organization
  */
 export const ListSocialPostsParams = zod.object({
