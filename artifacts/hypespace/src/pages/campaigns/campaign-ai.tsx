@@ -7,7 +7,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAiGenerateCampaign, useAiGenerateCampaignImage, useListEvents, useCreateCampaign, useGetOrganization } from "@workspace/api-client-react";
 import { ArrowLeft, Sparkles, Wand2, Mail, RefreshCw } from "lucide-react";
-import { CampaignSuggestionList } from "@/components/campaign-suggestion-list";
+import { AiImproveButton } from "@/components/ai-improve-button";
 import {
   Form,
   FormControl,
@@ -429,20 +429,21 @@ export default function CampaignAi() {
                       />
                     </div>
                   </CardContent>
-                  <CardFooter className="bg-muted/30 flex flex-col items-start p-6">
-                    <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                  <CardFooter className="bg-muted/30 flex flex-col items-start p-6 gap-3">
+                    <h4 className="text-sm font-semibold flex items-center gap-2">
                       <Sparkles className="h-4 w-4 text-primary" />
-                      AI Suggestions — click to apply
+                      Refine with AI
                     </h4>
-                    <div className="w-full">
-                      <CampaignSuggestionList
-                        suggestions={generatedResult.suggestions}
-                        html={generatedResult.htmlContent}
-                        onApply={(newHtml) =>
-                          setGeneratedResult((prev) => prev ? { ...prev, htmlContent: newHtml } : prev)
-                        }
-                      />
-                    </div>
+                    <AiImproveButton
+                      html={generatedResult.htmlContent}
+                      subject={generatedResult.subject}
+                      eventTitle={events?.find((e) => e.id === generatedResult.selectedEventId)?.title}
+                      onApply={(next) =>
+                        setGeneratedResult((prev) =>
+                          prev ? { ...prev, htmlContent: next.html, subject: next.subject } : prev,
+                        )
+                      }
+                    />
                   </CardFooter>
                 </Card>
               </div>

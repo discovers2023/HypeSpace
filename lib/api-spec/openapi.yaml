@@ -684,6 +684,81 @@ paths:
               schema:
                 $ref: "#/components/schemas/AiGeneratedCampaignImage"
 
+  /organizations/{orgId}/campaigns/ai-rewrite:
+    post:
+      operationId: aiRewriteCampaign
+      tags: [campaigns]
+      summary: Rewrite a campaign body HTML based on a freeform instruction
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiRewriteCampaignBody"
+      responses:
+        "200":
+          description: Rewritten campaign content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiRewriteCampaignResponse"
+
+  /organizations/{orgId}/campaigns/ai-subject-variants:
+    post:
+      operationId: aiSubjectVariantsCampaign
+      tags: [campaigns]
+      summary: Generate alternative subject lines for a campaign
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiSubjectVariantsBody"
+      responses:
+        "200":
+          description: Subject line variants
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiSubjectVariantsResponse"
+
+  /organizations/{orgId}/events/ai-describe:
+    post:
+      operationId: aiDescribeEvent
+      tags: [events]
+      summary: Generate an event description with AI
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiDescribeEventBody"
+      responses:
+        "200":
+          description: Generated event description
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiDescribeEventResponse"
+
   /organizations/{orgId}/social-posts:
     get:
       operationId: listSocialPosts
@@ -1496,6 +1571,92 @@ components:
       required:
         - imageUrl
         - generatedBy
+
+    AiRewriteCampaignBody:
+      type: object
+      properties:
+        html:
+          type: string
+        subject:
+          type: string
+        instruction:
+          type: string
+          description: Freeform user instruction, e.g. 'make it shorter' or 'add urgency'.
+        eventTitle:
+          type: string
+          nullable: true
+      required:
+        - html
+        - subject
+        - instruction
+
+    AiRewriteCampaignResponse:
+      type: object
+      properties:
+        html:
+          type: string
+        subject:
+          type: string
+      required:
+        - html
+        - subject
+
+    AiSubjectVariantsBody:
+      type: object
+      properties:
+        campaignType:
+          type: string
+          enum: [invitation, reminder, followup, announcement, custom]
+        eventTitle:
+          type: string
+        tone:
+          type: string
+          nullable: true
+        currentSubject:
+          type: string
+          nullable: true
+      required:
+        - campaignType
+        - eventTitle
+
+    AiSubjectVariantsResponse:
+      type: object
+      properties:
+        variants:
+          type: array
+          items:
+            type: string
+      required:
+        - variants
+
+    AiDescribeEventBody:
+      type: object
+      properties:
+        title:
+          type: string
+        type:
+          type: string
+          nullable: true
+          description: in-person | online | hybrid
+        category:
+          type: string
+          nullable: true
+        location:
+          type: string
+          nullable: true
+        additionalContext:
+          type: string
+          nullable: true
+      required:
+        - title
+
+    AiDescribeEventResponse:
+      type: object
+      properties:
+        description:
+          type: string
+      required:
+        - description
 
     SocialPost:
       type: object

@@ -63,7 +63,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { CSVImportModal } from "@/components/csv-import-modal";
 import { GHLImportModal } from "@/components/ghl-import-modal";
-import { CampaignSuggestionList } from "@/components/campaign-suggestion-list";
+import { AiImproveButton } from "@/components/ai-improve-button";
 import { useAuth } from "@/components/auth-provider";
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -548,23 +548,24 @@ function CampaignStep({
                 )}
               </CardContent>
 
-              {/* AI Suggestions */}
-              {generated.suggestions && generated.suggestions.length > 0 && (
-                <div className="bg-gradient-to-r from-primary/5 to-accent/5 border-t p-5">
-                  <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-primary" />
-                    AI Suggestions — click to apply
-                  </h4>
-                  <CampaignSuggestionList
-                    suggestions={generated.suggestions}
-                    html={generated.htmlContent}
-                    onApply={(newHtml) =>
-                      setGenerated((prev) => prev ? { ...prev, htmlContent: newHtml } : prev)
-                    }
-                    compact
-                  />
-                </div>
-              )}
+              {/* AI Refine */}
+              <div className="bg-gradient-to-r from-primary/5 to-accent/5 border-t p-5 flex items-center justify-between gap-3">
+                <h4 className="text-sm font-semibold flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  Refine with AI
+                </h4>
+                <AiImproveButton
+                  compact
+                  html={generated.htmlContent}
+                  subject={generated.subject}
+                  eventTitle={event.title}
+                  onApply={(next) =>
+                    setGenerated((prev) =>
+                      prev ? { ...prev, htmlContent: next.html, subject: next.subject } : prev,
+                    )
+                  }
+                />
+              </div>
 
               <CardFooter className="bg-muted/30 border-t flex justify-between p-4">
                 <Button variant="outline" size="sm" onClick={() => { setGenerated(null); setEditMode("preview"); }}>

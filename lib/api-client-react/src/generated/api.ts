@@ -19,10 +19,16 @@ import type {
 import type {
   ActivityItem,
   AddGuestBody,
+  AiDescribeEventBody,
+  AiDescribeEventResponse,
   AiGenerateCampaignBody,
   AiGenerateCampaignImageBody,
   AiGeneratedCampaign,
   AiGeneratedCampaignImage,
+  AiRewriteCampaignBody,
+  AiRewriteCampaignResponse,
+  AiSubjectVariantsBody,
+  AiSubjectVariantsResponse,
   BulkAddGuestsBody,
   Campaign,
   CreateCampaignBody,
@@ -2543,6 +2549,274 @@ export const useAiGenerateCampaignImage = <
   TContext
 > => {
   return useMutation(getAiGenerateCampaignImageMutationOptions(options));
+};
+
+/**
+ * @summary Rewrite a campaign body HTML based on a freeform instruction
+ */
+export const getAiRewriteCampaignUrl = (orgId: number) => {
+  return `/api/organizations/${orgId}/campaigns/ai-rewrite`;
+};
+
+export const aiRewriteCampaign = async (
+  orgId: number,
+  aiRewriteCampaignBody: AiRewriteCampaignBody,
+  options?: RequestInit,
+): Promise<AiRewriteCampaignResponse> => {
+  return customFetch<AiRewriteCampaignResponse>(
+    getAiRewriteCampaignUrl(orgId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(aiRewriteCampaignBody),
+    },
+  );
+};
+
+export const getAiRewriteCampaignMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof aiRewriteCampaign>>,
+    TError,
+    { orgId: number; data: BodyType<AiRewriteCampaignBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof aiRewriteCampaign>>,
+  TError,
+  { orgId: number; data: BodyType<AiRewriteCampaignBody> },
+  TContext
+> => {
+  const mutationKey = ["aiRewriteCampaign"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof aiRewriteCampaign>>,
+    { orgId: number; data: BodyType<AiRewriteCampaignBody> }
+  > = (props) => {
+    const { orgId, data } = props ?? {};
+
+    return aiRewriteCampaign(orgId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AiRewriteCampaignMutationResult = NonNullable<
+  Awaited<ReturnType<typeof aiRewriteCampaign>>
+>;
+export type AiRewriteCampaignMutationBody = BodyType<AiRewriteCampaignBody>;
+export type AiRewriteCampaignMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Rewrite a campaign body HTML based on a freeform instruction
+ */
+export const useAiRewriteCampaign = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof aiRewriteCampaign>>,
+    TError,
+    { orgId: number; data: BodyType<AiRewriteCampaignBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof aiRewriteCampaign>>,
+  TError,
+  { orgId: number; data: BodyType<AiRewriteCampaignBody> },
+  TContext
+> => {
+  return useMutation(getAiRewriteCampaignMutationOptions(options));
+};
+
+/**
+ * @summary Generate alternative subject lines for a campaign
+ */
+export const getAiSubjectVariantsCampaignUrl = (orgId: number) => {
+  return `/api/organizations/${orgId}/campaigns/ai-subject-variants`;
+};
+
+export const aiSubjectVariantsCampaign = async (
+  orgId: number,
+  aiSubjectVariantsBody: AiSubjectVariantsBody,
+  options?: RequestInit,
+): Promise<AiSubjectVariantsResponse> => {
+  return customFetch<AiSubjectVariantsResponse>(
+    getAiSubjectVariantsCampaignUrl(orgId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(aiSubjectVariantsBody),
+    },
+  );
+};
+
+export const getAiSubjectVariantsCampaignMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof aiSubjectVariantsCampaign>>,
+    TError,
+    { orgId: number; data: BodyType<AiSubjectVariantsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof aiSubjectVariantsCampaign>>,
+  TError,
+  { orgId: number; data: BodyType<AiSubjectVariantsBody> },
+  TContext
+> => {
+  const mutationKey = ["aiSubjectVariantsCampaign"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof aiSubjectVariantsCampaign>>,
+    { orgId: number; data: BodyType<AiSubjectVariantsBody> }
+  > = (props) => {
+    const { orgId, data } = props ?? {};
+
+    return aiSubjectVariantsCampaign(orgId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AiSubjectVariantsCampaignMutationResult = NonNullable<
+  Awaited<ReturnType<typeof aiSubjectVariantsCampaign>>
+>;
+export type AiSubjectVariantsCampaignMutationBody =
+  BodyType<AiSubjectVariantsBody>;
+export type AiSubjectVariantsCampaignMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Generate alternative subject lines for a campaign
+ */
+export const useAiSubjectVariantsCampaign = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof aiSubjectVariantsCampaign>>,
+    TError,
+    { orgId: number; data: BodyType<AiSubjectVariantsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof aiSubjectVariantsCampaign>>,
+  TError,
+  { orgId: number; data: BodyType<AiSubjectVariantsBody> },
+  TContext
+> => {
+  return useMutation(getAiSubjectVariantsCampaignMutationOptions(options));
+};
+
+/**
+ * @summary Generate an event description with AI
+ */
+export const getAiDescribeEventUrl = (orgId: number) => {
+  return `/api/organizations/${orgId}/events/ai-describe`;
+};
+
+export const aiDescribeEvent = async (
+  orgId: number,
+  aiDescribeEventBody: AiDescribeEventBody,
+  options?: RequestInit,
+): Promise<AiDescribeEventResponse> => {
+  return customFetch<AiDescribeEventResponse>(getAiDescribeEventUrl(orgId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(aiDescribeEventBody),
+  });
+};
+
+export const getAiDescribeEventMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof aiDescribeEvent>>,
+    TError,
+    { orgId: number; data: BodyType<AiDescribeEventBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof aiDescribeEvent>>,
+  TError,
+  { orgId: number; data: BodyType<AiDescribeEventBody> },
+  TContext
+> => {
+  const mutationKey = ["aiDescribeEvent"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof aiDescribeEvent>>,
+    { orgId: number; data: BodyType<AiDescribeEventBody> }
+  > = (props) => {
+    const { orgId, data } = props ?? {};
+
+    return aiDescribeEvent(orgId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AiDescribeEventMutationResult = NonNullable<
+  Awaited<ReturnType<typeof aiDescribeEvent>>
+>;
+export type AiDescribeEventMutationBody = BodyType<AiDescribeEventBody>;
+export type AiDescribeEventMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Generate an event description with AI
+ */
+export const useAiDescribeEvent = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof aiDescribeEvent>>,
+    TError,
+    { orgId: number; data: BodyType<AiDescribeEventBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof aiDescribeEvent>>,
+  TError,
+  { orgId: number; data: BodyType<AiDescribeEventBody> },
+  TContext
+> => {
+  return useMutation(getAiDescribeEventMutationOptions(options));
 };
 
 /**

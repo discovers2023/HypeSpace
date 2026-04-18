@@ -477,6 +477,54 @@ export interface AiGeneratedCampaignImage {
   generatedBy: AiGeneratedCampaignImageGeneratedBy;
 }
 
+export interface AiRewriteCampaignBody {
+  html: string;
+  subject: string;
+  /** Freeform user instruction, e.g. 'make it shorter' or 'add urgency'. */
+  instruction: string;
+  eventTitle?: string | null;
+}
+
+export interface AiRewriteCampaignResponse {
+  html: string;
+  subject: string;
+}
+
+export type AiSubjectVariantsBodyCampaignType =
+  (typeof AiSubjectVariantsBodyCampaignType)[keyof typeof AiSubjectVariantsBodyCampaignType];
+
+export const AiSubjectVariantsBodyCampaignType = {
+  invitation: "invitation",
+  reminder: "reminder",
+  followup: "followup",
+  announcement: "announcement",
+  custom: "custom",
+} as const;
+
+export interface AiSubjectVariantsBody {
+  campaignType: AiSubjectVariantsBodyCampaignType;
+  eventTitle: string;
+  tone?: string | null;
+  currentSubject?: string | null;
+}
+
+export interface AiSubjectVariantsResponse {
+  variants: string[];
+}
+
+export interface AiDescribeEventBody {
+  title: string;
+  /** in-person | online | hybrid */
+  type?: string | null;
+  category?: string | null;
+  location?: string | null;
+  additionalContext?: string | null;
+}
+
+export interface AiDescribeEventResponse {
+  description: string;
+}
+
 export type SocialPostPlatform =
   (typeof SocialPostPlatform)[keyof typeof SocialPostPlatform];
 
