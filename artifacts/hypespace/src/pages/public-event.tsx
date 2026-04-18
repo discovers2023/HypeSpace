@@ -207,42 +207,64 @@ export default function PublicEvent() {
             </CardHeader>
 
             <CardContent className="space-y-6">
-              {/* Date & time */}
-              <div className="flex items-start gap-3">
-                <Calendar className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
-                <div>
-                  <p className="font-medium">
-                    {format(startDate, "EEEE, MMMM d, yyyy")}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {format(startDate, "h:mm a")}
-                    {endDate && ` - ${format(endDate, "h:mm a")}`}
-                  </p>
+              {/* Date / Location / Online — grouped info card */}
+              <div className="rounded-2xl border bg-muted/30 p-5 space-y-5">
+                {/* Date & time */}
+                <div className="flex items-start gap-4">
+                  <div className="h-10 w-10 rounded-lg bg-background border flex items-center justify-center shrink-0">
+                    <Calendar className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-0.5">
+                      Date &amp; Time
+                    </p>
+                    <p className="font-semibold leading-snug">
+                      {format(startDate, "EEEE, MMMM d, yyyy")}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {format(startDate, "h:mm a")}
+                      {endDate && ` - ${format(endDate, "h:mm a")}`}
+                    </p>
+                  </div>
                 </div>
+
+                {/* Location */}
+                {event.location && (
+                  <div className="flex items-start gap-4">
+                    <div className="h-10 w-10 rounded-lg bg-background border flex items-center justify-center shrink-0">
+                      <MapPin className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-0.5">
+                        Location
+                      </p>
+                      <p className="font-semibold leading-snug">{event.location}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Online URL */}
+                {event.onlineUrl && (
+                  <div className="flex items-start gap-4">
+                    <div className="h-10 w-10 rounded-lg bg-background border flex items-center justify-center shrink-0">
+                      <Video className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-0.5">
+                        Online
+                      </p>
+                      <a
+                        href={event.onlineUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold text-primary hover:underline break-all"
+                      >
+                        Join online
+                      </a>
+                    </div>
+                  </div>
+                )}
               </div>
-
-              {/* Location */}
-              {event.location && (
-                <div className="flex items-start gap-3">
-                  <MapPin className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
-                  <p className="font-medium">{event.location}</p>
-                </div>
-              )}
-
-              {/* Online URL */}
-              {event.onlineUrl && (
-                <div className="flex items-start gap-3">
-                  <Video className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
-                  <a
-                    href={event.onlineUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-medium text-primary hover:underline break-all"
-                  >
-                    Join online
-                  </a>
-                </div>
-              )}
 
               {/* Description */}
               {event.description && (
