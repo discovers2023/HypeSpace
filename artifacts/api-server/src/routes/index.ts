@@ -1,5 +1,7 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import rateLimit from "express-rate-limit";
+import { db, teamMembersTable } from "@workspace/db";
+import { and, eq } from "drizzle-orm";
 import healthRouter from "./health";
 import authRouter from "./auth";
 import organizationsRouter from "./organizations";
@@ -56,6 +58,38 @@ router.use((req: Request, res: Response, next: NextFunction) => {
   if (openPaths.some((p) => req.path.startsWith(p))) return next();
   return requireAuth(req, res, next);
 });
+
+// Cross-org IDOR guard: every /organizations/:orgId/* request must come from a
+// member of that org. requireAuth above guarantees session.userId is set by the
+// time we reach here — we just need to verify membership.
+async function requireOrgMembership(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const orgIdRaw = req.params.orgId;
+    const orgId = parseInt(Array.isArray(orgIdRaw) ? orgIdRaw[0] : orgIdRaw, 10);
+    if (!Number.isFinite(orgId) || orgId <= 0) {
+      res.status(400).json({ error: "Invalid organization id" });
+      return;
+    }
+    const userId = req.session?.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+    const [membership] = await db
+      .select({ orgId: teamMembersTable.organizationId })
+      .from(teamMembersTable)
+      .where(and(eq(teamMembersTable.userId, userId), eq(teamMembersTable.organizationId, orgId)))
+      .limit(1);
+    if (!membership) {
+      res.status(403).json({ error: "FORBIDDEN", message: "You do not have access to this organization" });
+      return;
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+router.use("/organizations/:orgId", requireOrgMembership);
 
 router.use(healthRouter);
 router.use(authRouter);
