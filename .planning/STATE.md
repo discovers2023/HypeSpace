@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-16)
 Phase: 1 of 3 (Security Hardening) — COMPLETE
 Plan: 3 of 3 in current phase — all plans done
 Status: Phase complete — ready for verification
-Last activity: 2026-04-18 - Completed quick task 260418-rmv (app-wide auth guard) + autonomous UAT/QA pass
+Last activity: 2026-04-19 - Completed quick task 260419-idor (close cross-org IDOR with requireOrgMembership middleware)
 
 Progress: [███░░░░░░░] 33%
 
@@ -101,6 +101,8 @@ None yet.
 | 260418-pnc | AI editing suite — real /ai-rewrite endpoint, AI event description generation, AI subject-line variants (replaces broken regex suggestions) | 2026-04-18 | 2123e13 | [260418-pnc-ai-editing-suite-real-ai-rewrite-endpoin](./quick/260418-pnc-ai-editing-suite-real-ai-rewrite-endpoin/) |
 | 260418-pt3 | Invite landing redesign (Date/Time/Location info card) + Settings page auth guard against PUT /organizations/0 | 2026-04-18 | 5fd525a | [260418-pt3-invite-email-redesign-location-date-time](./quick/260418-pt3-invite-email-redesign-location-date-time/) |
 | 260418-rmv | App-wide RequireAuth guard — redirect non-public routes to /login when unauthenticated (kills the recurring orgId=0/401 bug class) | 2026-04-18 | 7b11457 | [260418-rmv-app-wide-auth-guard-redirect-non-public-](./quick/260418-rmv-app-wide-auth-guard-redirect-non-public-/) |
+| 260419-apb | Inline AI prompt bar on campaign-edit + event-edit — always-visible Ask AI input wired to existing /ai-rewrite and /ai-describe endpoints | 2026-04-19 | ecfee4d | [260419-apb-inline-ai-prompt-bar-campaign-event-edit](./quick/260419-apb-inline-ai-prompt-bar-campaign-event-edit/) |
+| 260419-idor | P0 security: close cross-org IDOR via requireOrgMembership middleware — 403 on any /organizations/:orgId/* for non-members (prevents cross-tenant data read AND write) | 2026-04-19 | 5dc391a | [260419-idor-cross-org-membership-guard](./quick/260419-idor-cross-org-membership-guard/) |
 
 ## Deferred Items
 
