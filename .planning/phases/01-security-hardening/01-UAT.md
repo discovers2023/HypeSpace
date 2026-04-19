@@ -1,18 +1,17 @@
 ---
-status: partial
+status: complete
 phase: 01-security-hardening
 source:
   - 01-01-SUMMARY.md
   - 01-02-SUMMARY.md
   - 01-03-SUMMARY.md
 started: 2026-04-19T00:00:00.000Z
-updated: 2026-04-19T18:50:00.000Z
-paused_reason: "User pivoted to new AI edit feature request mid-UAT"
+updated: 2026-04-19T19:06:00.000Z
 ---
 
 ## Current Test
 
-[paused — see paused_reason]
+[testing complete]
 
 ## Tests
 
@@ -30,11 +29,10 @@ note: "Guest id=2 rsvp_token=f314af054f9bfd1c3bb3a2bfe87f5dc9 (32-char hex)"
 
 ### 3. RSVP link works with token, not integer (SEC-04)
 expected: |
-  POST /api/public/events/:slug/rsvp with `{ "guestToken": "<rsvp_token value from DB>", "response": "yes" }` → 200.
-  Same endpoint with `{ "guestToken": "1" }` (old integer-style) → 404.
-result: issue
-reported: "Both requests return 400, not the expected 200/404. Endpoint may have changed contract or requires more fields. Needs re-test with correct body shape."
-severity: minor
+  POST /api/public/events/:slug/rsvp with `{ "guestToken": "<rsvp_token>", "status": "confirmed" }` → 200.
+  Same endpoint with `{ "guestToken": "2" }` (old integer-style) → 404.
+result: pass
+note: "Body shape is {guestToken, status} not {guestToken, response}. Token → 200 {status:confirmed,name:Ishaque}. Integer token → 404 Guest not found. SEC-04 confirmed — cannot enumerate guests by sequential id."
 
 ### 4. Public event filters drafts/cancelled (SEC-05)
 expected: |
@@ -72,21 +70,23 @@ expected: |
   Immediately attempt POST /auth/login with those creds → 403 with `error: "EMAIL_NOT_VERIFIED"`.
   Click verification link (from email / Ethereal preview / DB token) → redirects to /login?verified=true.
   Login again → 200, session established.
-result: [pending]
+result: pass
+note: "Register uat-test@example.com with {email,password,name,company} → 201 emailVerified:false. Pre-verify login → 403 EMAIL_NOT_VERIFIED. GET /api/auth/verify/:token → 302 Location: /login?verified=true. Token CLEARED from DB after use (replay protection). Login post-verify → 200."
 
 ### 9. Resend verification is enumeration-safe
 expected: |
   POST /api/auth/resend-verification with `{ "email": "real-unverified@test.com" }` → 200 with generic message.
   POST with `{ "email": "nonexistent-fake-email@test.com" }` → 200 with IDENTICAL response body.
   (Response must not reveal whether the email exists.)
-result: [pending]
+result: pass
+note: "Real unverified email and totally-fake email both return 200 with IDENTICAL body: 'If that email is registered and unverified, a new verification link has been sent.' Enumeration-safe confirmed."
 
 ## Summary
 
 total: 9
-passed: 0
-issues: 1
-pending: 8
+passed: 6
+issues: 2
+pending: 0
 skipped: 0
 
 ## Gaps
