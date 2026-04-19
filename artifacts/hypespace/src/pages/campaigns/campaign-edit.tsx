@@ -10,6 +10,7 @@ import {
   useDeleteCampaign,
   useListGuests,
   useUpdateGuest,
+  useAiRewriteCampaign,
 } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { useAuth } from "@/components/auth-provider";
@@ -34,6 +35,7 @@ import {
 } from "lucide-react";
 import { AiImproveButton } from "@/components/ai-improve-button";
 import { AiSubjectVariantsButton } from "@/components/ai-subject-variants-button";
+import { AiPromptBar } from "@/components/ai-prompt-bar";
 
 // ─── Regex-based extraction / patching for the AI template ───────────────────
 // These patterns are safe to use on both AI-generated AND hand-edited HTML.
@@ -102,6 +104,7 @@ export default function CampaignEdit() {
   const sendCampaign = useSendCampaign();
   const deleteCampaign = useDeleteCampaign();
   const updateGuest = useUpdateGuest();
+  const aiRewrite = useAiRewriteCampaign();
 
   // Fetch guests for unsubscribe tracking (uses campaign.eventId once loaded)
   const eventIdForGuests = campaign?.eventId ?? 0;
@@ -160,6 +163,49 @@ export default function CampaignEdit() {
     if (ctaLabel) html = patchCtaLabel(html, ctaLabel);
     form.setValue("htmlContent", html, { shouldDirty: true });
   }, [editorTab, bodyIntro, ctaLabel, form]);
+
+  const handleAiPrompt = (instruction: string) => {
+    syncVisualToForm();
+    aiRewrite.mutate(
+      {
+        orgId,
+        data: {
+          html: form.getValues("htmlContent") ?? "",
+          subject: form.getValues("subject") ?? "",
+          instruction,
+          eventTitle: campaign?.name ?? null,
+        },
+      },
+      {
+        onSuccess: (res) => {
+          form.setValue("htmlContent", res.html, { shouldDirty: true });
+          form.setValue("subject", res.subject, { shouldDirty: true });
+          setBodyIntro(extractBodyIntro(res.html));
+          setCtaLabel(extractCtaLabel(res.html));
+          toast({ title: "Updated with AI" });
+        },
+        onError: (error: unknown) => {
+          const apiErr = error as {
+            data?: { error?: string; detail?: string };
+            message?: string;
+          };
+          if (apiErr.data?.error === "AI_NOT_CONFIGURED") {
+            toast({
+              title: "AI not configured",
+              description: "Open Settings → AI to set up a provider.",
+              variant: "destructive",
+            });
+            return;
+          }
+          toast({
+            title: "AI rewrite failed",
+            description: apiErr.data?.detail || apiErr.message || "Could not rewrite the campaign.",
+            variant: "destructive",
+          });
+        },
+      },
+    );
+  };
 
   // ── Actions ──────────────────────────────────────────────────────────────
 
@@ -467,6 +513,18 @@ export default function CampaignEdit() {
 
           {/* LEFT — editor panel */}
           <div className="lg:col-span-2 flex flex-col gap-4">
+
+            {/* Inline AI prompt — always visible at top of editor */}
+            {!isSent && (
+              <AiPromptBar
+                placeholder="Ask AI to change this campaign… (e.g. 'make it shorter and add urgency')"
+                presets={["Make it shorter", "Add urgency", "More formal", "More casual"]}
+                isPending={aiRewrite.isPending}
+                onSubmit={handleAiPrompt}
+                helperText="Rewrites the email body and subject. You can still edit manually below."
+              />
+            )}
+
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSave)} className="flex flex-col gap-4">
 

@@ -6,7 +6,7 @@ import { Link, useLocation, useParams } from "wouter";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useGetEvent, useUpdateEvent, type UpdateEventBody, type UpdateEventBodyType, type UpdateEventBodyCategory } from "@workspace/api-client-react";
+import { useGetEvent, useUpdateEvent, useAiDescribeEvent, type UpdateEventBody, type UpdateEventBodyType, type UpdateEventBodyCategory } from "@workspace/api-client-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -30,6 +30,7 @@ import { Input } from "@/components/ui/input";
 import { TimezonePicker } from "@/components/timezone-picker";
 import { CoverImagePicker } from "@/components/cover-image-picker";
 import { AiDescribeButton } from "@/components/ai-describe-button";
+import { AiPromptBar } from "@/components/ai-prompt-bar";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, parseISO } from "date-fns";
@@ -122,6 +123,7 @@ export default function EventEdit() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const updateEvent = useUpdateEvent();
+  const aiDescribe = useAiDescribeEvent();
   const queryClient = useQueryClient();
   const [activeSection, setActiveSection] = useState<(typeof SECTIONS)[number]["key"]>("basics");
   const [isSaving, setIsSaving] = useState(false);
@@ -168,6 +170,55 @@ export default function EventEdit() {
 
   const eventType = form.watch("type");
   const isDirty = form.formState.isDirty;
+
+  const handleAiPrompt = (instruction: string) => {
+    const title = form.getValues("title");
+    if (!title?.trim()) {
+      toast({
+        title: "Add a title first",
+        description: "The AI needs a title for context.",
+        variant: "destructive",
+      });
+      return;
+    }
+    aiDescribe.mutate(
+      {
+        orgId: activeOrgId,
+        data: {
+          title,
+          type: form.getValues("type") ?? null,
+          category: form.getValues("category") ?? null,
+          location: form.getValues("location") ?? null,
+          additionalContext: instruction,
+        },
+      },
+      {
+        onSuccess: (res) => {
+          form.setValue("description", res.description, { shouldDirty: true });
+          toast({ title: "Description updated with AI" });
+        },
+        onError: (error: unknown) => {
+          const apiErr = error as {
+            data?: { error?: string; detail?: string };
+            message?: string;
+          };
+          if (apiErr.data?.error === "AI_NOT_CONFIGURED") {
+            toast({
+              title: "AI not configured",
+              description: "Open Settings → AI to set up a provider.",
+              variant: "destructive",
+            });
+            return;
+          }
+          toast({
+            title: "AI generation failed",
+            description: apiErr.data?.detail || apiErr.message || "Could not update the description.",
+            variant: "destructive",
+          });
+        },
+      },
+    );
+  };
 
   const onSave = async (data: EventFormValues) => {
     setIsSaving(true);
@@ -277,6 +328,15 @@ export default function EventEdit() {
             {isSaving ? "Saving..." : "Save Changes"}
           </Button>
         </div>
+
+        {/* Inline AI prompt — always visible */}
+        <AiPromptBar
+          placeholder="Ask AI to update the description… (e.g. 'emphasize networking opportunities')"
+          presets={["Make it shorter", "More professional", "Highlight networking", "Add a call to action"]}
+          isPending={aiDescribe.isPending}
+          onSubmit={handleAiPrompt}
+          helperText="Rewrites the event description based on the title + your instruction. Other fields stay as-is and remain manually editable."
+        />
 
         {/* Section tabs */}
         <div className="flex items-center gap-2 p-1 bg-muted/40 rounded-xl border border-border/50 w-fit">
