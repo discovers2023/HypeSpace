@@ -1,232 +1,238 @@
-# Codebase Structure
+# Directory Structure
 
-**Analysis Date:** 2026-04-15
+**Analysis Date:** 2026-04-20
 
-## Directory Layout
+## Top-Level Layout
 
 ```
-/root/Claude-projects/HypeSpace/
-├── artifacts/                     # Deployable applications
-│   ├── api-server/               # Express.js backend API
-│   ├── hypespace/                # React + Vite frontend application
-│   └── mockup-sandbox/           # Unused/reference artifact
-├── lib/                          # Shared libraries
-│   ├── api-spec/                 # OpenAPI specification (source of truth)
-│   ├── api-client-react/         # Auto-generated React Query hooks
-│   ├── api-zod/                  # Auto-generated Zod validators
-│   └── db/                       # Drizzle ORM schema definitions
-├── .planning/                    # GSD planning artifacts
-│   └── codebase/                # Codebase analysis documents
-├── docker-compose.yml            # Local PostgreSQL development
-├── pnpm-workspace.yaml          # Monorepo configuration
-└── package.json                  # Root workspace manifest
+HypeSpace/
+├── artifacts/                    # Workspace apps (entry-point packages)
+│   ├── api-server/               # Express 5 REST API
+│   ├── hypespace/                # React 19 SPA (web + source for mobile)
+│   ├── hypespace-mobile/         # Capacitor v6 wrapper (iOS/Android)
+│   └── mockup-sandbox/           # Scratch/prototype space
+├── lib/                          # Workspace shared libraries
+│   ├── api-spec/                 # OpenAPI source of truth
+│   ├── api-zod/                  # Generated Zod validators
+│   ├── api-client-react/         # Generated TanStack React Query hooks
+│   └── db/                       # Drizzle schema + client
+├── .planning/                    # GSD workflow state (phases, plans, intel, UAT)
+├── CLAUDE.md                     # Project instructions for Claude
+├── PROGRESS-REPORT.md            # Current sprint progress snapshot
+├── docker-compose.yml            # Local Postgres 16 via `db` service
+├── pnpm-workspace.yaml           # Workspace definitions + dep catalog
+├── package.json                  # Root scripts (dev/build/typecheck)
+├── pnpm-lock.yaml                # Lockfile
+└── tsconfig.base.json            # Shared TS config (strict, isolatedModules)
 ```
 
-## Directory Purposes
+## Backend — `artifacts/api-server/src/`
 
-**artifacts/api-server/**
-- Purpose: Express.js REST API server
-- Contains: Route handlers, business logic, middleware, utilities
-- Key files: `src/index.ts` (entry), `src/app.ts` (Express setup), `src/routes/*.ts` (domain routers)
-- Built to: `dist/index.mjs` (esbuild)
+```
+artifacts/api-server/src/
+├── app.ts                        # Express app setup (CORS, session, routes)
+├── index.ts                      # Entry point — reads PORT, calls app.listen()
+├── routes/
+│   ├── index.ts                  # Router aggregation + requireAuth + requireOrgMembership
+│   ├── admin.ts                  # Admin impersonation (cross-org)
+│   ├── auth.ts                   # Login/logout/register/me + session
+│   ├── campaigns.ts              # Campaigns CRUD + AI generation + send
+│   ├── dashboard.ts              # Recent activity + counts
+│   ├── email-provider.ts         # SMTP config test/save
+│   ├── events.ts                 # Events CRUD, public /e/:slug, RSVP
+│   ├── guests.ts                 # Guests CRUD, CSV/GHL import, RSVP
+│   ├── health.ts                 # /health, /healthz
+│   ├── integrations.ts           # GHL + HubSpot sync, calendar import
+│   ├── organizations.ts          # Org CRUD, switching active org
+│   ├── plans.ts                  # Plan catalog
+│   ├── reminders.ts              # Scheduled reminder list
+│   ├── sending-domains.ts        # Per-org SMTP domain config
+│   ├── social.ts                 # Social posts CRUD
+│   ├── team.ts                   # Invite, accept, role management
+│   └── tracking.ts               # Email open/click tracking pixels (unauth)
+├── lib/
+│   ├── ai-campaign.ts            # Claude API — campaign copy generation
+│   ├── ai-image.ts               # Image generation + public /campaign-images serving
+│   ├── app-url.ts                # Base URL helper (APP_BASE_URL or Replit domain)
+│   ├── email.ts                  # nodemailer sendEmail() + tracking injection
+│   ├── logger.ts                 # Pino logger config
+│   ├── plans.ts                  # Plan quota definitions + enforcement
+│   └── scheduler.ts              # setInterval reminder dispatcher
+└── types/
+    └── session.d.ts              # express-session module augmentation (userId, activeOrgId)
+```
 
-**artifacts/hypespace/**
-- Purpose: React + Vite SPA for event management UI
-- Contains: Pages, components, hooks, styles, assets
-- Key files: `src/main.tsx` (entry), `src/App.tsx` (router), `src/pages/*.tsx` (page components)
-- Built to: `dist/public/` (Vite)
+**Notable:** No dedicated `middlewares/` directory — auth/org guards live inline in `routes/index.ts:40-86`. Keep this in mind when searching for middleware.
 
-**lib/api-spec/**
-- Purpose: OpenAPI 3.0 specification (single source of truth for API contract)
-- Contains: `openapi.yaml` (full API definition), `orval.config.ts` (code generation config)
-- Regenerates: `../api-client-react/src/generated/` and `../api-zod/src/generated/`
-- Never edit generated files; always update openapi.yaml first
+## Frontend — `artifacts/hypespace/src/`
 
-**lib/api-client-react/**
-- Purpose: Auto-generated React Query hooks for frontend API consumption
-- Contains: React Query hooks, schema types, custom fetch wrapper
-- Key files: `src/generated/api.ts` (hooks), `src/generated/api.schemas.ts` (types), `src/custom-fetch.ts` (request interceptor)
-- Usage: `import { useListEvents, useCreateEvent } from "@workspace/api-client-react"`
+```
+artifacts/hypespace/src/
+├── main.tsx                      # React DOM entry
+├── App.tsx                       # Wouter <Switch> route table
+├── index.css                     # Tailwind v4 + HSL CSS variables
+├── pages/
+│   ├── landing.tsx               # Marketing homepage
+│   ├── login.tsx / register.tsx
+│   ├── dashboard.tsx
+│   ├── onboarding.tsx
+│   ├── settings.tsx / profile.tsx
+│   ├── calendar.tsx              # Multi-event calendar view
+│   ├── public-event.tsx          # Public /e/:slug RSVP page
+│   ├── accept-invite.tsx         # Team invite acceptance flow
+│   ├── not-found.tsx / about.tsx / careers.tsx
+│   ├── admin/index.tsx           # Admin console
+│   ├── events/
+│   │   ├── event-list.tsx
+│   │   ├── event-new.tsx
+│   │   ├── event-setup.tsx       # Redirected into event-edit
+│   │   ├── event-edit.tsx        # Includes AI prompt bar
+│   │   └── event-detail.tsx
+│   ├── campaigns/
+│   │   ├── campaign-list.tsx
+│   │   ├── campaign-ai.tsx       # AI generation flow
+│   │   └── campaign-edit.tsx     # Includes AI prompt bar
+│   ├── social/social-list.tsx
+│   └── team/team-list.tsx
+├── components/
+│   ├── auth-provider.tsx         # Session context + activeOrgId
+│   ├── ai-prompt-bar.tsx         # Inline AI edit (recent: quick-260419-apb)
+│   ├── ai-describe-button.tsx
+│   ├── ai-description-button.tsx
+│   ├── ai-improve-button.tsx
+│   ├── ai-subject-variants-button.tsx
+│   ├── cover-image-picker.tsx
+│   ├── csv-import-modal.tsx
+│   ├── ghl-import-modal.tsx
+│   ├── timezone-picker.tsx
+│   ├── campaigns/
+│   │   └── campaign-creation-modal.tsx
+│   ├── events/
+│   │   ├── bulk-email-dialog.tsx
+│   │   └── event-creation-modal.tsx
+│   ├── layout/
+│   │   ├── app-layout.tsx
+│   │   ├── navbar.tsx
+│   │   └── sidebar.tsx
+│   ├── 3d/                       # Three.js/R3F landing visual
+│   └── ui/                       # 55 shadcn/ui primitives (button, dialog, form, …)
+├── hooks/
+│   ├── use-mobile.tsx
+│   └── use-toast.ts
+└── lib/
+    └── utils.ts                  # `cn()` Tailwind class merger
+```
 
-**lib/api-zod/**
-- Purpose: Auto-generated Zod validators for backend validation
-- Contains: Zod schema definitions, TypeScript type definitions
-- Key files: `src/generated/api.ts` (validators), `src/generated/types/*.ts` (individual type files)
-- Usage: `import { CreateEventBody, ListEventsResponse } from "@workspace/api-zod"`
+## Mobile — `artifacts/hypespace-mobile/`
 
-**lib/db/**
-- Purpose: Drizzle ORM schema definitions and database utilities
-- Contains: Schema definitions split by domain, connection setup
-- Key files:
-  - `src/index.ts` — Exports `db` (Drizzle client) and `pool` (PostgreSQL pool)
-  - `src/schema/index.ts` — Re-exports all schema tables
-  - `src/schema/users.ts` — User accounts
-  - `src/schema/organizations.ts` — Org workspaces
-  - `src/schema/events.ts` — Event definitions
-  - `src/schema/guests.ts` — Guest RSVPs
-  - `src/schema/campaigns.ts` — Email campaigns
-  - `src/schema/social_posts.ts` — Social media posts
-  - `src/schema/team_members.ts` — Org team members
-  - `src/schema/sending_domains.ts` — Custom SMTP domains
-  - `src/schema/integrations.ts` — Third-party integration credentials
-  - `src/schema/reminders.ts` — Event reminders/notifications
-  - `src/schema/activity.ts` — Audit/activity log
+```
+artifacts/hypespace-mobile/
+├── android/                      # Capacitor-generated Android project
+├── ios/                          # Capacitor-generated iOS project
+├── capacitor.config.ts           # Native shell config (androidScheme: "https")
+└── package.json
+```
 
-## Key File Locations
+## Shared Libraries — `lib/`
 
-**Frontend Entry & Routing:**
-- `artifacts/hypespace/src/main.tsx` — React root render
-- `artifacts/hypespace/src/App.tsx` — Wouter router with all routes
+```
+lib/
+├── api-spec/
+│   ├── openapi.yaml              # Source of truth for API contract
+│   └── package.json
+├── api-zod/
+│   ├── src/                      # Generated Zod schemas (InsertEvent, CreateCampaignBody, …)
+│   └── dist/                     # Built artifact consumed by api-server
+├── api-client-react/
+│   ├── src/
+│   │   ├── custom-fetch.ts       # ApiError + ResponseParseError classes
+│   │   └── (generated hooks)     # useListEvents, useCreateCampaign, …
+│   └── dist/
+└── db/
+    ├── src/
+    │   ├── index.ts              # db client + table re-exports
+    │   └── schema/
+    │       ├── activity.ts
+    │       ├── campaigns.ts
+    │       ├── events.ts
+    │       ├── guests.ts
+    │       ├── integrations.ts
+    │       ├── organizations.ts
+    │       ├── reminders.ts
+    │       ├── sending_domains.ts
+    │       ├── social_posts.ts
+    │       ├── team_members.ts
+    │       ├── users.ts
+    │       └── index.ts          # Re-exports all tables
+    ├── drizzle.config.ts
+    └── dist/
+```
 
-**Frontend Pages (Route Handlers):**
-- `artifacts/hypespace/src/pages/dashboard.tsx` — Main dashboard
-- `artifacts/hypespace/src/pages/events/event-list.tsx` — Event listing/management
-- `artifacts/hypespace/src/pages/events/event-detail.tsx` — Event details view
-- `artifacts/hypespace/src/pages/events/event-edit.tsx` — Event editor
-- `artifacts/hypespace/src/pages/campaigns/campaign-list.tsx` — Campaign listing
-- `artifacts/hypespace/src/pages/campaigns/campaign-edit.tsx` — Campaign editor
-- `artifacts/hypespace/src/pages/campaigns/campaign-ai.tsx` — AI suggestions for campaigns
-- `artifacts/hypespace/src/pages/social/social-list.tsx` — Social post management
-- `artifacts/hypespace/src/pages/team/team-list.tsx` — Team member management
-- `artifacts/hypespace/src/pages/settings.tsx` — Organization settings
-- `artifacts/hypespace/src/pages/calendar.tsx` — Calendar view of events
-- `artifacts/hypespace/src/pages/public-event.tsx` — Public event landing page (read-only)
+## Planning — `.planning/`
 
-**Frontend UI Components:**
-- `artifacts/hypespace/src/components/ui/` — shadcn/ui primitive components (button, input, dialog, etc.)
-- `artifacts/hypespace/src/components/layout/app-layout.tsx` — Main app wrapper with sidebar/navbar
-- `artifacts/hypespace/src/components/layout/sidebar.tsx` — Navigation sidebar
-- `artifacts/hypespace/src/components/layout/navbar.tsx` — Top navigation bar
-- `artifacts/hypespace/src/components/events/event-creation-modal.tsx` — Reusable event creation form
-- `artifacts/hypespace/src/components/events/bulk-email-dialog.tsx` — Bulk email to guests
-- `artifacts/hypespace/src/components/campaigns/campaign-creation-modal.tsx` — Reusable campaign creation form
-
-**Frontend Utilities:**
-- `artifacts/hypespace/src/lib/utils.ts` — `cn()` utility for Tailwind class merging
-- `artifacts/hypespace/src/lib/campaign-suggestions.ts` — HTML building blocks for AI campaign suggestions
-- `artifacts/hypespace/src/components/auth-provider.tsx` — Authentication context and user/org state
-- `artifacts/hypespace/src/hooks/use-toast.ts` — Toast notification hook
-- `artifacts/hypespace/src/hooks/use-mobile.tsx` — Mobile breakpoint detection
-
-**Frontend Styling:**
-- `artifacts/hypespace/src/index.css` — Tailwind CSS v4 theme configuration with HSL CSS variables
-
-**Backend Entry & Setup:**
-- `artifacts/api-server/src/index.ts` — Server entry point (PORT check, listen)
-- `artifacts/api-server/src/app.ts` — Express app creation and middleware setup
-- `artifacts/api-server/src/routes/index.ts` — Route aggregation
-
-**Backend Routes (Domain-Organized):**
-- `artifacts/api-server/src/routes/auth.ts` — Login, register, auth/me
-- `artifacts/api-server/src/routes/organizations.ts` — Organization management
-- `artifacts/api-server/src/routes/team.ts` — Team member invitations
-- `artifacts/api-server/src/routes/events.ts` — Event CRUD + guest counts
-- `artifacts/api-server/src/routes/guests.ts` — Guest CRUD + plan limits
-- `artifacts/api-server/src/routes/campaigns.ts` — Campaign CRUD + AI generation + send
-- `artifacts/api-server/src/routes/social.ts` — Social post creation/publishing
-- `artifacts/api-server/src/routes/dashboard.ts` — Aggregated dashboard stats
-- `artifacts/api-server/src/routes/reminders.ts` — Event reminder scheduling
-- `artifacts/api-server/src/routes/integrations.ts` — Third-party sync (GoHighLevel, HubSpot, etc.)
-- `artifacts/api-server/src/routes/sending-domains.ts` — Custom email domain configuration
-- `artifacts/api-server/src/routes/health.ts` — Health check endpoint
-- `artifacts/api-server/src/routes/email-provider.ts` — Email service provider settings
-- `artifacts/api-server/src/routes/plans.ts` — Plan and pricing information
-
-**Backend Utilities:**
-- `artifacts/api-server/src/lib/logger.ts` — Pino logger instance
-- `artifacts/api-server/src/lib/plans.ts` — Plan tier definitions and limit validation
-- `artifacts/api-server/src/lib/email.ts` — Nodemailer email sending abstraction
-- `artifacts/api-server/src/lib/app-url.ts` — Application URL generation (domain-aware)
+```
+.planning/
+├── PROJECT.md                    # Sprint charter + locked decisions
+├── ROADMAP.md                    # Phase sequencing
+├── REQUIREMENTS.md               # Phase requirements (Nyquist)
+├── STATE.md                      # Current workflow cursor
+├── codebase/                     # (this directory) — codebase maps
+├── phases/
+│   ├── 01-security-hardening/
+│   ├── 02-multi-organization/
+│   └── 03-campaign-quality/
+├── intel/                        # Codebase intelligence files
+└── milestones/                   # Archived completed milestones
+```
 
 ## Naming Conventions
 
-**Files:**
-- Pages: kebab-case with domain prefix (e.g., `event-list.tsx`, `campaign-edit.tsx`)
-- Components: PascalCase in directories (e.g., `EventCreationModal` → `event-creation-modal.tsx`)
-- Routes: kebab-case matching domain (e.g., `events.ts`, `sending-domains.ts`)
-- Utilities: kebab-case with `use-` prefix for hooks (e.g., `use-toast.ts`)
-- Schemas: plural nouns (e.g., `users.ts`, `events.ts`, `social_posts.ts`)
+### Files
 
-**Directories:**
-- Pages: kebab-case, grouped by feature domain (e.g., `pages/events/`, `pages/campaigns/`)
-- Components: kebab-case, grouped by concern (e.g., `components/ui/`, `components/layout/`)
-- Routes: single file per domain (e.g., `routes/events.ts`, not `routes/events/index.ts`)
+| Context | Convention | Example |
+|---------|------------|---------|
+| Backend routes | `[domain].ts` | `campaigns.ts`, `events.ts` |
+| Backend lib | lowercase-dash | `ai-campaign.ts`, `app-url.ts` |
+| Frontend pages | kebab-case `.tsx` | `campaign-list.tsx`, `event-edit.tsx` |
+| Frontend components | kebab-case `.tsx` | `ai-prompt-bar.tsx`, `cover-image-picker.tsx` |
+| Hooks | `use-[name].ts` | `use-mobile.tsx`, `use-toast.ts` |
+| DB schema | `[entity].ts` in `schema/` | `users.ts`, `team_members.ts` |
+| UI primitives | single-word lowercase | `button.tsx`, `dialog.tsx` |
 
-**Functions & Variables:**
-- camelCase for all functions, variables, constants
-- Type names: PascalCase
-- Zod schemas: PascalCase (e.g., `CreateEventBody`)
+### Symbols
 
-**Database:**
-- Tables: camelCase with `Table` suffix (e.g., `eventsTable`, `guestsTable`)
-- Columns: snake_case in SQL (mapped by Drizzle)
-- Dates: `timestamp` type with timezone, defaultNow(), updatedAt tracking
-- IDs: serial primary key or uuid for public identifiers
+- **Functions/variables:** `camelCase` (`generateSlug`, `formatCampaign`, `activeOrgId`)
+- **Booleans:** `is`/`has`/`can` prefix (`isLoading`, `hasNoBody`, `canSendCampaigns`)
+- **Constants:** `UPPER_SNAKE_CASE` when truly constant (`TOAST_LIMIT`, `SESSION_SECRET`)
+- **Config objects:** `camelCase` keys (`STATUS_CONFIG`, `TYPE_ICON`)
+- **Zod schemas:** `PascalCase` ending in `Schema` or `Body` (`CreateEventBody`, `editSchema`)
+- **Interfaces/types:** `PascalCase` (`PlanLimits`, `CoverImagePickerProps`)
+- **React component props:** `[ComponentName]Props`
+- **DB inferred types:** `typeof table.$inferSelect` / `$inferInsert`
 
-## Where to Add New Code
+### Import Path Aliases
 
-**New Page/Feature:**
-- Page component: `artifacts/hypespace/src/pages/{feature}/{page-name}.tsx`
-- Add route in `artifacts/hypespace/src/App.tsx` inside `<Switch>`
-- If feature has forms/dialogs, create reusable modal in `artifacts/hypespace/src/components/{feature}/`
+| Alias | Target | Scope |
+|-------|--------|-------|
+| `@/` | `artifacts/hypespace/src/` | Frontend only |
+| `@assets/` | `attached_assets/` | Frontend only |
+| `@workspace/db` | `lib/db/` | All workspaces |
+| `@workspace/api-zod` | `lib/api-zod/` | All workspaces |
+| `@workspace/api-client-react` | `lib/api-client-react/` | Frontend |
 
-**New API Endpoint:**
-1. Update `lib/api-spec/openapi.yaml` with endpoint definition
-2. Run Orval: generates hooks in `api-client-react/src/generated/` and validators in `api-zod/src/generated/`
-3. Create route handler in `artifacts/api-server/src/routes/{domain}.ts`
-4. Register router in `artifacts/api-server/src/routes/index.ts`
-5. Use auto-generated Zod validators in handler for input/output validation
+Backend uses workspace-package imports or relative paths — **no `@/` alias on the backend**.
 
-**New Database Table:**
-1. Create schema file: `lib/db/src/schema/{entity}.ts` (or add to existing domain file)
-2. Define table with Drizzle, export insert schema for migrations
-3. Add to `lib/db/src/schema/index.ts` exports
-4. Run `pnpm drizzle-kit push` in `lib/db/` to apply to PostgreSQL
-5. Use in backend routes via `import { db, {entity}Table } from "@workspace/db"`
+## Key Locations (fast lookup)
 
-**New Component:**
-- Shared across pages: `artifacts/hypespace/src/components/{concern}/`
-- Domain-specific: `artifacts/hypespace/src/components/{feature}/{component-name}.tsx`
-- Primitive UI: Use shadcn/ui from `components/ui/`
-
-**New Utility/Hook:**
-- Frontend utility: `artifacts/hypespace/src/lib/{utility-name}.ts`
-- Frontend hook: `artifacts/hypespace/src/hooks/use-{hook-name}.ts` or `use-{hook-name}.tsx`
-- Backend utility: `artifacts/api-server/src/lib/{utility-name}.ts`
-
-## Special Directories
-
-**artifacts/hypespace/public/**
-- Purpose: Static assets served at root (favicon, robots.txt, etc.)
-- Generated: No
-- Committed: Yes
-
-**artifacts/api-server/dist/**
-- Purpose: Compiled JavaScript output from esbuild
-- Generated: Yes (`pnpm build`)
-- Committed: No
-
-**artifacts/hypespace/dist/**
-- Purpose: Built SPA output from Vite
-- Generated: Yes (`pnpm build`)
-- Committed: No
-
-**lib/api-client-react/src/generated/** & **lib/api-zod/src/generated/**
-- Purpose: Code generated by Orval from OpenAPI schema
-- Generated: Yes (via Orval from `lib/api-spec/openapi.yaml`)
-- Committed: Yes (auto-generated but committed for reproducibility)
-- Never edit directly; regenerate by updating openapi.yaml and running Orval
-
-**node_modules/**
-- Purpose: Installed dependencies (pnpm)
-- Generated: Yes (`pnpm install`)
-- Committed: No (lockfile: `pnpm-lock.yaml` is committed)
-
-**.planning/codebase/**
-- Purpose: GSD codebase analysis documents
-- Generated: Yes (by /gsd-map-codebase)
-- Committed: Yes
-
----
-
-*Structure analysis: 2026-04-15*
+| What | Where |
+|------|-------|
+| Add a new API endpoint | `artifacts/api-server/src/routes/[domain].ts` + register in `routes/index.ts` |
+| Add a DB table | `lib/db/src/schema/[name].ts` + export from `schema/index.ts` |
+| Add a new page | `artifacts/hypespace/src/pages/[name].tsx` + route in `App.tsx` |
+| Add a UI primitive | `artifacts/hypespace/src/components/ui/[name].tsx` (shadcn) |
+| Edit API contract | `lib/api-spec/openapi.yaml` → regen `api-zod` + `api-client-react` |
+| Tweak CORS/session | `artifacts/api-server/src/app.ts` |
+| Tweak auth guards | `artifacts/api-server/src/routes/index.ts:40-86` |
+| Tweak plan limits | `artifacts/api-server/src/lib/plans.ts` |
+| Tweak email send | `artifacts/api-server/src/lib/email.ts` |
+| Env variables | `.env` at repo root (DATABASE_URL, SESSION_SECRET, SMTP_*, APP_BASE_URL) |

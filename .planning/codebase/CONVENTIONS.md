@@ -1,248 +1,225 @@
-# Coding Conventions
+# Code Conventions
 
-**Analysis Date:** 2026-04-15
+**Analysis Date:** 2026-04-20
 
-## Naming Patterns
+## Tooling
 
-**Files:**
-- Backend routes: `[domain].ts` (e.g., `campaigns.ts`, `events.ts`, `integrations.ts`)
-- Utility/library files: descriptive lowercase names (e.g., `logger.ts`, `email.ts`, `plans.ts`)
-- Frontend pages: kebab-case (e.g., `campaign-list.tsx`, `campaign-edit.tsx`)
-- Frontend components: kebab-case (e.g., `cover-image-picker.tsx`, `timezone-picker.tsx`)
-- React hooks: `use-[name].ts` (e.g., `use-toast.ts`)
-- UI components: lowercase single-word or kebab-case (e.g., `button.tsx`, `dropdown-menu.tsx`)
-- Database schemas: `[entity].ts` in `lib/db/src/schema/` (e.g., `events.ts`, `campaigns.ts`)
+- **Formatter:** Prettier 3.8.1 with defaults — no `.prettierrc` committed. Trailing commas, double quotes, 2-space indent.
+- **Linter:** None. No ESLint or Biome configured. Correctness relies on TypeScript strict mode + runtime Zod validation.
+- **TypeScript:** Strict mode in `tsconfig.base.json` with these pragmatic loosenings:
+  - `isolatedModules: true`
+  - `noUnusedLocals: false` — unused vars tolerated
+  - `strictFunctionTypes: false` — function-signature variance tolerated
+  - `skipLibCheck: true`
 
-**Functions:**
-- camelCase for all functions (e.g., `generateSlug`, `formatCampaign`, `sendEmail`)
-- Async functions are named identically to sync equivalents (no `async` suffix)
-- Helper/utility functions prefixed with verb: `get`, `set`, `format`, `parse`, `send`, `validate`, `extract`, `patch`
-- Route handlers follow pattern `router.METHOD("/path", async (req, res): Promise<void> => { ... })`
+## Naming
 
-**Variables:**
-- camelCase for all variables and constants
-- Constants that are truly constant use UPPER_SNAKE_CASE (e.g., `TOAST_LIMIT`, `MAX_SIZE`, `UNLIMITED`)
-- Configuration objects use camelCase (e.g., `STATUS_CONFIG`, `TYPE_ICON`, `STOCK_IMAGES`)
-- State variables in React use camelCase (e.g., `searchTerm`, `statusFilter`, `isOpen`)
-- Boolean variables prefixed with `is`, `has`, or `can` (e.g., `isLoading`, `hasNoBody`, `canSendCampaigns`)
+### Files
 
-**Types:**
-- Zod schemas use PascalCase ending in `Schema` (e.g., `editSchema`, `InsertEvent`, `CreateCampaignBody`)
-- Interface names use PascalCase (e.g., `PlanLimits`, `CoverImagePickerProps`, `CustomFetchOptions`)
-- Database inferred types: `typeof table.$inferSelect` for rows, `typeof table.$inferInsert` for insert payloads
-- React props interface: `[ComponentName]Props` (e.g., `CoverImagePickerProps`)
+- **Backend route modules:** `[domain].ts` (lowercase) — `events.ts`, `campaigns.ts`, `team.ts`
+- **Backend lib modules:** lowercase-with-dashes — `ai-campaign.ts`, `app-url.ts`
+- **Frontend pages/components:** `kebab-case.tsx` — `campaign-edit.tsx`, `cover-image-picker.tsx`
+- **Hooks:** `use-[name].ts` — `use-toast.ts`, `use-mobile.tsx`
+- **DB schemas:** `[entity].ts` under `lib/db/src/schema/` — one file per table
 
-## Code Style
+### Symbols
 
-**Formatting:**
-- Prettier v3.8.1 installed; no `.prettierrc` config file (uses defaults)
-- Line length: implicit ~80-120 chars (follows Prettier defaults)
-- No ESLint or biome configured; relies on TypeScript strict mode
-- Imports are auto-formatted and sorted (trailing commas on multi-line)
+| Kind | Convention | Example |
+|------|------------|---------|
+| Functions | `camelCase` | `generateSlug`, `formatCampaign`, `sendEmail` |
+| Async fns | Same as sync — no `Async` suffix | `sendEmail()` is always async |
+| Helpers | Verb prefix | `get*`, `set*`, `format*`, `parse*`, `send*`, `validate*`, `extract*` |
+| Variables | `camelCase` | `searchTerm`, `statusFilter`, `activeOrgId` |
+| Constants | `UPPER_SNAKE_CASE` if truly constant | `TOAST_LIMIT`, `MAX_SIZE`, `UNLIMITED` |
+| Config objects | `camelCase` keys | `STATUS_CONFIG`, `TYPE_ICON`, `STOCK_IMAGES` |
+| Booleans | `is`/`has`/`can` prefix | `isLoading`, `hasNoBody`, `canSendCampaigns` |
+| Zod schemas | `PascalCase` + `Schema`/`Body` suffix | `CreateEventBody`, `editSchema` |
+| Interfaces/types | `PascalCase` | `PlanLimits`, `CoverImagePickerProps` |
+| Component props | `[ComponentName]Props` | `AiPromptBarProps` |
+| DB types | `typeof table.$inferSelect` / `.$inferInsert` | `typeof eventsTable.$inferSelect` |
 
-**Linting:**
-- TypeScript strict mode enabled in `tsconfig.base.json`:
-  - `noImplicitAny: true`
-  - `noImplicitReturns: true`
-  - `strictNullChecks: true`
-  - `strictBindCallApply: true`
-  - `strictPropertyInitialization: true`
-  - `useUnknownInCatchVariables: true`
-  - `alwaysStrict: true`
-  - `noFallthroughCasesInSwitch: true`
+## Backend Route Handler Pattern
 
-**Key TypeScript Settings:**
-- `isolatedModules: true` — allows esbuild to safely transpile
-- `noUnusedLocals: false` — unused variables not checked (commonly left in code)
-- `strictFunctionTypes: false` — allows flexibility with function signatures
-- `skipLibCheck: true` — skips type checking of node_modules
+Every route handler follows this shape — pervasive across `artifacts/api-server/src/routes/*.ts`:
 
-## Import Organization
+```ts
+router.post(
+  "/organizations/:orgId/events",
+  async (req, res): Promise<void> => {
+    const orgId = parseInt(
+      Array.isArray(req.params.orgId) ? req.params.orgId[0] : req.params.orgId,
+      10,
+    );
 
-**Order (within files):**
-1. External libraries (e.g., `import express from "express"`, `import { useState } from "react"`)
-2. Internal workspace packages (e.g., `import { db, campaignsTable } from "@workspace/db"`)
-3. Local relative imports (e.g., `import { logger } from "../lib/logger"`, `import { cn } from "@/lib/utils"`)
-4. Type-only imports separated logically (e.g., `import type { IRouter }` on same line as other express imports)
+    const parsed = CreateEventBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
 
-**Path Aliases:**
-- Frontend: `@/` → `artifacts/hypespace/src/`
-- Frontend assets: `@assets/` → `attached_assets/`
-- Backend: No aliases; uses relative paths or workspace package names
+    // plan quota check
+    const limits = await getPlanLimits(orgId);
+    if (current >= limits.maxEvents) {
+      res.status(402).json({
+        error: "PLAN_LIMIT_EXCEEDED",
+        message: "Event limit reached for your plan",
+        limit: limits.maxEvents,
+        plan: limits.plan,
+        current,
+        max: limits.maxEvents,
+        suggestedPlan: "starter",
+      });
+      return;
+    }
 
-**Barrel Files:**
-- Used selectively in UI components (`components/ui/index.ts` exports all UI primitives)
-- Database schema: `lib/db/src/schema/index.ts` re-exports all tables and types
-- API client: `lib/api-client-react/src/index.ts` re-exports hooks and utilities
+    const [event] = await db.insert(eventsTable).values({ ... }).returning();
+    if (!event) {
+      res.status(500).json({ error: "Insert failed" });
+      return;
+    }
 
-## Error Handling
+    await db.insert(activityTable).values({ ... });
 
-**Patterns:**
-
-**Backend Routes:**
-- Validation errors: `res.status(400).json({ error: parsed.error.message })` after `Zod.safeParse()`
-- Not found: `if (!resource) { res.status(404).json({ error: "Resource not found" }); return; }`
-- Success with early return on error: `if (!parsed.success) { res.status(400).json(...); return; }`
-- All route handlers use `Promise<void>` return type and inline error responses
-
-**Libraries (email.ts):**
-- Try/catch with silent fallback: `try { /* logic */ } catch { return null; }` for optional config retrieval
-- Uses implicit null return for missing resources
-- No exception throwing for expected error cases
-
-**React Components:**
-- Query hook errors accessed via `.error` property on query result
-- Toast notifications for user-facing errors: `toast({ title: "Error", variant: "destructive" })`
-- Validation errors shown inline on form fields via `<FormMessage>`
-- File upload errors: validate type/size, show toast on failure
-- Early return pattern: `if (error) return <ErrorUI />`
-
-**Frontend API Errors:**
-- Custom `ApiError` class in `lib/api-client-react/src/custom-fetch.ts` with `.status`, `.data`, `.message`
-- Automatic error message building from response data (checks `title`, `detail`, `message`, `error_description`)
-- Network/parse errors thrown as `ResponseParseError` with `.cause`
-- No global error boundaries observed (errors handled per-route or per-hook)
-
-## Logging
-
-**Framework:** `pino` with `pino-http` middleware for Express
-
-**Patterns:**
-- Centralized logger config in `artifacts/api-server/src/lib/logger.ts`
-- Development: Pretty-printed with colors via `pino-pretty`
-- Production: JSON format
-- Log level configurable via `LOG_LEVEL` env var (default: "info")
-- HTTP request/response logging with redaction of sensitive headers: `authorization`, `cookie`, `set-cookie`
-
-**Console logging:**
-- Direct `console.log()` used for informational messages (e.g., email sent notifications)
-- Format: `📧 Email sent to [email] (messageId: [id])`
-- No standardized format; varies by context
-
-## Comments
-
-**When to Comment:**
-- JSDoc comments on exported functions with complex signatures or unclear purpose
-- Inline comments for regex patterns or non-obvious logic (e.g., slug generation, extraction logic in `campaign-edit.tsx`)
-- Section headers for code organization (e.g., `// ─── Schema ───`, `// ─── Component ────`)
-- Comments explaining "why" not "what" (implementation details are self-explanatory from code)
-
-**JSDoc/TSDoc:**
-- Used sparsely; mostly for utility functions with unclear intent
-- Example: Email helper functions have parameter descriptions in object types
-- No automated doc generation tool in place
-
-**Example (campaign-edit.tsx line 37-38):**
-```typescript
-// ─── Regex-based extraction / patching for the AI template ───────────────────
-// These patterns are safe to use on both AI-generated AND hand-edited HTML.
+    res.json(formatEvent(event));
+  },
+);
 ```
 
-## Function Design
+### Observations
 
-**Size:** 
-- Utility functions: typically 10-50 lines
-- Route handlers: 20-100 lines (includes DB query, validation, response formatting)
-- React components: 50-300 lines (may include hooks, state, conditional rendering)
-- No explicit size limits; smaller is preferred for testability (though no tests exist)
+- **Return type:** `Promise<void>` (responses are side effects via `res.json()` / `res.status()`)
+- **Early-return on error:** always — no thrown exceptions for expected failure cases
+- **Param parsing:** `parseInt(Array.isArray(x) ? x[0] : x, 10)` is the idiomatic defense against Express's loose typing
+- **Validation:** Zod `safeParse()` at the top — never `parse()` which would throw
+- **DB writes:** `.returning()` destructured into `const [row]`
+- **Audit:** significant mutations followed by `activityTable` insert
+- **Response shaping:** always via a `format*()` helper, never raw rows
 
-**Parameters:**
-- Single object parameter for functions with 2+ arguments (e.g., email `opts` object in `sendEmail()`)
-- Type the parameter explicitly with interface/type (e.g., `opts: { toEmail: string; ... }`)
-- Database query results destructured in assignments (e.g., `const [campaign] = await db.select(...)`)
+## Error-Status Contract
 
-**Return Values:**
-- Async functions return `Promise<T>` explicitly typed
-- Route handlers use `Promise<void>` (responses sent via `res.json()`, `res.status()`)
-- Nullable returns use explicit `T | null` (e.g., `getOrgSmtpConfig(): Promise<SmtpConfig | null>`)
-- Database queries return arrays or single records via `.returning()`
+| Status | When | Body |
+|--------|------|------|
+| 400 | Zod validation failed | `{ error: parsed.error.message }` |
+| 401 | No session | `{ error: "Unauthorized" }` |
+| 402 | Plan quota exceeded | `{ error, message, limit, plan, current, max, suggestedPlan }` |
+| 403 | Not a member of org / CSRF | `{ error: "FORBIDDEN", message }` |
+| 404 | Resource missing | `{ error: "Not found" }` |
+| 409 | Duplicate / already accepted | `{ error: "EMAIL_TAKEN" }` or `"ALREADY_ACCEPTED"` |
+| 410 | Expired invite token | `{ error: "TOKEN_EXPIRED" }` |
+| 429 | Rate-limited | `{ error: "Too many attempts, please try again later." }` |
+| 500 | Unexpected | Global handler in `app.ts:139` |
 
-## Module Design
+## Frontend Patterns
 
-**Exports:**
-- Backend: Named exports for functions, one default export for router (e.g., `export default app`)
-- Frontend: Named exports for components and hooks
-- Database: Named exports for tables, types, and Zod schemas; single default export for `db` client
-- API client: Named exports for hooks and utilities
+### Data fetching
 
-**Route Modules:**
-- Each domain (campaigns, events, etc.) exported as single `router: IRouter`
-- Routes mounted in `routes/index.ts`: `app.use("/organizations", organizationsRouter)`, etc.
-- All routes follow REST conventions: GET/POST/PUT/DELETE
+- Use the auto-generated hook from `@workspace/api-client-react` — never hand-roll `fetch`
+- Access loading via `isLoading`, errors via `error`, data via `data`
+- Mutation `onSuccess` invalidates specific query keys:
 
-**React Components:**
-- Export default function (the component)
-- No re-exports of sub-components unless reused
-- Props interface as separate named export (optional, used if props are complex)
-
-**Database Layer:**
-- Schema files define table, insert schema, and type exports
-- Central `lib/db/src/index.ts` re-exports `db` client, all tables, and utilities
-- Drizzle ORM patterns: use `.$dynamic()` for conditional queries, `.$inferSelect` for row types
-
-## Code Patterns
-
-**Conditional Route Handlers:**
-```typescript
-// Pattern: Validate request body, return early on error
-const parsed = CreateEventBody.safeParse(req.body);
-if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
-```
-
-**Array Parameter Normalization:**
-```typescript
-// Pattern: Express parses array route params inconsistently
-const raw = Array.isArray(req.params.orgId) ? req.params.orgId[0] : req.params.orgId;
-const orgId = parseInt(raw, 10);
-```
-
-**Database Formatting:**
-```typescript
-// Pattern: Format database rows before sending to client
-function formatCampaign(c: typeof campaignsTable.$inferSelect) {
-  return {
-    id: c.id,
-    scheduledAt: c.scheduledAt?.toISOString() ?? null,
-    // ... other fields
-  };
-}
-```
-
-**Fallback Chain:**
-```typescript
-// Pattern: Config lookup with fallback (email.ts)
-if (orgId) { const orgSmtp = await getOrgSmtpConfig(orgId); if (orgSmtp) return orgSmtp; }
-// Fall back to env vars
-const host = process.env.SMTP_HOST;
-// Fall back to test account
-```
-
-**React State Management:**
-```typescript
-// Pattern: React Query for data fetching + React Hook Form for forms
-const { data: campaigns, isLoading } = useListCampaigns(orgId);
-const updateCampaign = useUpdateCampaign();
-const { toast } = useToast();
-const queryClient = useQueryClient();
-
-// Mutation with toast + cache invalidation
-updateCampaign.mutate(data, {
+```ts
+const createEvent = useCreateEvent({
   onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ["campaigns"] });
-    toast({ title: "Updated" });
+    queryClient.invalidateQueries({ queryKey: ["events", orgId] });
+    toast({ title: "Event created" });
+  },
+  onError: (err) => {
+    toast({ title: "Error", description: err.message, variant: "destructive" });
   },
 });
 ```
 
-**Form Validation:**
-```typescript
-// Pattern: React Hook Form + Zod
-const form = useForm({ resolver: zodResolver(editSchema) });
-form.handleSubmit(async (values) => {
-  // values are type-safe
-});
+### Forms
+
+- React Hook Form + Zod resolver — schema lives in the same file as the component
+- Validation errors shown via `<FormMessage>`; submit errors via toast
+
+### Auth
+
+- `useAuth()` from `components/auth-provider.tsx` returns `{ user, activeOrgId, isLoading, startImpersonation, stopImpersonation }`
+- `<RequireAuth>` wrapper in `App.tsx` renders nothing while `isLoading`, redirects to `/login` if no user (avoids login flash on refresh)
+
+### UI
+
+- Toast notifications via `use-toast.ts`: `toast({ title, description, variant: "destructive"? })`
+- shadcn/ui primitives imported from `@/components/ui/*` — do not import Radix directly
+- Icons: `lucide-react` (primary), `react-icons` (brand marks)
+- Styling: Tailwind v4 classes; theming via HSL CSS variables in `index.css`; use `cn()` from `@/lib/utils` to merge class strings
+
+## Imports
+
+- Auto-formatted by Prettier (trailing commas on multi-line)
+- Frontend: `@/` → `artifacts/hypespace/src/`
+- Backend: workspace package names (`@workspace/db`, `@workspace/api-zod`) or relative paths — no `@/` alias
+- Barrel exports: `lib/db/src/schema/index.ts`, `lib/api-client-react/src/index.ts`, `components/ui/*` (each primitive re-exported by name)
+
+## Error Handling Idioms
+
+### Backend
+
+- **Validation:** `parsed.error.message` → 400 JSON
+- **Not found:** `if (!row) { res.status(404).json({ error: "Not found" }); return; }`
+- **Optional config:** `try { ... } catch { return null; }` — silent fallback for nullable lookups
+- **No thrown exceptions** for expected failure cases
+- Global handler in `app.ts` catches CSRF (returns 403) and everything else (500 with `err.message`)
+
+### Frontend
+
+- React Query `error` property; `useMutation` `onError`
+- User-facing messages via toast (`variant: "destructive"`)
+- File uploads: validate type/size locally before sending, toast on failure
+- No global error boundaries observed — errors surface per-hook/per-route
+
+## Logging
+
+- **Backend (Pino):** `logger.info({ ... }, "message")` — structured
+- **Pino-http:** request/response auto-logged with redaction of `authorization`, `cookie`, `set-cookie`
+- **Ad-hoc:** `console.log` used in `email.ts` for dispatch confirmations (`📧 Email sent to … (messageId: …)`)
+- **Frontend:** `console.error` only for truly exceptional cases; user-facing messages via toast
+
+## Comments
+
+- Sparse. Default to none.
+- JSDoc reserved for non-obvious helpers or exported utilities with complex signatures
+- Inline comments explain *why* (e.g., the regex in `generateSlug`, the CORS Capacitor-origin rationale in `app.ts`)
+- Section headers occasionally used: `// ─── Schema ───`, `// ─── Component ───`
+- No automated doc generation
+
+## Function Sizing
+
+- Utility functions: 10-50 lines
+- Route handlers: 20-100 lines (validation + DB + format + audit)
+- React components: 50-300 lines (hooks + JSX)
+- No enforced limit — smaller is preferred but not policed
+
+## Module Design
+
+### Backend
+- **Named exports** for helpers and types
+- **Default export** for each domain's `router: IRouter`
+- `routes/index.ts` aggregates all routers and mounts under `/api`
+
+### Frontend
+- **Default export** for the page/component
+- **Named export** for the `*Props` interface when non-trivial
+- No re-exports unless reused
+
+### DB
+- `lib/db/src/index.ts` re-exports `db` client + all tables + all Zod insert schemas
+- Per-schema files use Drizzle `.$inferSelect` / `.$inferInsert` for row types
+- Conditional queries use Drizzle's `.$dynamic()` helper
+
+## Session Type Augmentation
+
+Session fields are declared via module augmentation in `artifacts/api-server/src/types/session.d.ts`:
+
+```ts
+declare module "express-session" {
+  interface SessionData {
+    userId?: number;
+    activeOrgId?: number;
+  }
+}
 ```
 
----
-
-*Convention analysis: 2026-04-15*
+Always update this file when adding a new session field.

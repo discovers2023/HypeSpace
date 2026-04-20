@@ -1,243 +1,203 @@
 # External Integrations
 
-**Analysis Date:** 2026-04-15
+**Analysis Date:** 2026-04-20
 
 ## APIs & External Services
 
-**CRM & Contact Management:**
-- GoHighLevel (GHL) - Contact import, sync, and RSVP tag management
-  - SDK/Client: Fetch API with custom implementation in `artifacts/api-server/src/routes/integrations.ts`
-  - Auth: API key and Location ID stored in integrations table metadata
+**Contact Management (CRM):**
+- **GoHighLevel (GHL)** - Lead/contact management and RSVP tagging
+  - SDK/Client: Native fetch with `Authorization: Bearer` headers
   - Base URL: `https://services.leadconnectorhq.com`
-  - API Version: 2021-07-28 (hardcoded)
-  - Features:
-    - Fetch contacts by location and tags
-    - Search contacts by email (for deduplication)
-    - Create new contacts with tags
-    - Update contact tags (RSVP status mapping: confirmed/maybe/declined → `studyclub-rsvp-*` tags)
-    - Import contacts as event guests with plan-based attendee limits
-  - Implementation: `artifacts/api-server/src/routes/integrations.ts` (lines 41-97 for contact fetching, 275-326 for contact sync)
+  - API Version: `2021-07-28`
+  - Auth: `GHL_API_KEY` stored in `integrations.metadata.apiKey`
+  - Location ID: Required in `integrations.metadata.locationId`
+  - Functions: Contact import preview, bulk import, RSVP tag sync
+  - File: `artifacts/api-server/src/routes/integrations.ts` (lines 10-402)
+  - RSVP tag mapping: `confirmed` → `studyclub-rsvp-yes`, `maybe` → `studyclub-rsvp-maybe`, `declined` → `studyclub-rsvp-no`
 
-**Custom CRM Webhooks:**
-- Custom Webhook URL - User-configurable webhook for RSVP sync
-  - Auth: Optional Bearer token from integrations metadata
-  - Format: JSON POST to user-provided URL
-  - Payload: `{ event, guest, rsvpStatus, timestamp, source, contactListId }`
-  - Implementation: `artifacts/api-server/src/routes/integrations.ts` (lines 409-451, `syncRsvpToCustomCRM`)
+- **Custom CRM (Webhook)** - Webhook-based RSVP sync to user's own CRM
+  - SDK/Client: Native fetch POST
+  - Auth: Optional Bearer token in `integrations.metadata.apiKey`
+  - Webhook URL: `integrations.metadata.webhookUrl`
+  - Payload: `{ event, guest, rsvpStatus, timestamp, source: "hypespace", contactListId? }`
+  - Best-effort delivery (non-fatal on failure)
+  - File: `artifacts/api-server/src/routes/integrations.ts` (lines 410-452)
 
-**Calendar Integrations:**
-- Google Calendar - iCalendar feed integration
-  - Format: iCalendar (.ics) URL
-  - Auth: Public calendar URL (no API auth required)
-  - Client: `node-ical` package for parsing
-  - Features: Fetch events by month, filter by date range
-  - Color: #4285F4
+**AI Email Generation:**
+- **Anthropic Claude API** - Email campaign content generation
+  - SDK/Client: `@anthropic-ai/sdk` v0.90.0
+  - Auth: `ANTHROPIC_API_KEY` env var
+  - Use: Campaign subject, HTML/text content, and suggestions (email campaigns only)
+  - Model: Not specified in code (defaults to Claude's current)
+  - File: `artifacts/api-server/src/lib/ai-campaign.ts`
 
-- Microsoft Outlook Calendar - iCalendar feed integration
-  - Format: iCalendar (.ics) URL
-  - Auth: Public calendar URL (no API auth required)
-  - Client: `node-ical` package
-  - Color: #0078D4
+**Calendar Integration:**
+- **Google Calendar (iCalendar)** - Event list import
+  - SDK/Client: `node-ical` v0.26.0
+  - Auth: Public iCalendar feed URL (no auth required)
+  - Calendar URL: `integrations.metadata.calendarUrl`
+  - Source type: `google` (for filtering)
+  - File: `artifacts/api-server/src/routes/integrations.ts` (lines 483-524)
 
-- Apple Calendar - iCalendar feed integration
-  - Format: iCalendar (.ics) URL
-  - Auth: Public calendar URL (no API auth required)
-  - Client: `node-ical` package
-  - Color: #555555
+- **Microsoft Outlook (iCalendar)** - Event list import
+  - SDK/Client: `node-ical` v0.26.0
+  - Auth: Public iCalendar feed URL
+  - Calendar URL: `integrations.metadata.calendarUrl`
+  - Source type: `outlook` (for filtering)
+  - File: `artifacts/api-server/src/routes/integrations.ts` (lines 483-524)
 
-- Generic iCalendar - Custom calendar feed
-  - Format: iCalendar (.ics) URL
-  - Auth: Public URL
-  - Client: `node-ical` package
-  - Color: #6366f1
-  - Implementation: `artifacts/api-server/src/routes/integrations.ts` (lines 482-574, calendar event fetching)
+- **Apple Calendar (iCalendar)** - Event list import
+  - SDK/Client: `node-ical` v0.26.0
+  - Auth: Public iCalendar feed URL
+  - Calendar URL: `integrations.metadata.calendarUrl`
+  - Source type: `apple` (for filtering)
+  - File: `artifacts/api-server/src/routes/integrations.ts` (lines 483-524)
 
-**Social Media (Planned/Tracked):**
-- Instagram - Social post platform support
-  - Status: Data model in place (`social_posts` table tracks platform field)
-  - Publishing: Not yet implemented (posts tracked with status="draft" or "published")
-
-- TikTok - Social post platform support
-  - Status: Data model in place
-  - Publishing: Not yet implemented
-
-- Facebook - Social post platform support
-  - Status: Data model in place
-  - Publishing: Not yet implemented
-
-- Twitter - Social post platform support
-  - Status: Data model in place
-  - Publishing: Not yet implemented
-
-- LinkedIn - Social post platform support
-  - Status: Data model in place
-  - Publishing: Not yet implemented
-
-- YouTube - Social post platform support
-  - Status: Data model in place
-  - Publishing: Not yet implemented
-  - Implementation: `artifacts/api-server/src/routes/social.ts` - CRUD operations for social posts, no external API calls yet
-
-**Email Campaign Platforms:**
-- Zapier - Webhook capability for external automation
-  - Status: Integration framework ready (custom_crm webhook sync can target Zapier)
+- **Generic iCalendar** - Custom .ics feeds
+  - SDK/Client: `node-ical` v0.26.0
+  - Auth: Public feed URL
+  - Calendar URL: `integrations.metadata.calendarUrl`
+  - Source type: `ical` (generic)
+  - File: `artifacts/api-server/src/routes/integrations.ts` (lines 483-524)
 
 ## Data Storage
 
 **Databases:**
-- PostgreSQL 16 (Alpine)
-  - Connection: `DATABASE_URL` environment variable (required)
-  - Client: `pg` package v8.20.0
-  - ORM: Drizzle ORM 0.45.1 with Drizzle Kit 0.31.9 for migrations
-  - Schema location: `lib/db/src/schema/` (modular by domain: users, organizations, teams, events, guests, campaigns, social_posts, integrations, reminders, sending_domains, activity)
-  - Migration tool: `pnpm run db:push` (Drizzle Kit)
-  - Development: Docker Compose PostgreSQL at `localhost:5433`
+- **PostgreSQL 16** (primary)
+  - Connection: `DATABASE_URL` env var (required)
+  - Client: `pg` v8.20.0 (native Node.js driver)
+  - ORM: Drizzle ORM v0.45.1
+  - Pool: Single connection pool in `lib/db/src/index.ts`
+  - Tables: users, organizations, team_members, events, guests, campaigns, social_posts, reminders, sending_domains, integrations, activity
+  - Locale: PostgreSQL 16-Alpine in Docker (via `docker-compose.yml`)
 
 **File Storage:**
-- Local filesystem only - No cloud storage integration
-  - Attached assets: `attached_assets/` directory for static files
-  - Frontend build output: `artifacts/hypespace/dist/public/`
+- **Local filesystem only** - No cloud storage integrated
+  - Cover images: Stored as URLs in `events.coverImageUrl` (external CDN expected)
+  - Social media content: Stored as URLs in `social_posts.postUrl`
+  - Email templates: Stored as HTML text in `campaigns.htmlContent`
 
 **Caching:**
-- TanStack React Query (client-side) - In-memory query caching
-- No server-side cache (Redis, Memcached) configured
+- **Client-side:** TanStack React Query (memory) - `queryClient.invalidateQueries()` for mutations
+- **Server-side:** None (stateless Express server)
 
 ## Authentication & Identity
 
 **Auth Provider:**
-- Custom - Email/password authentication
-  - Implementation: `artifacts/api-server/src/routes/auth.ts`
-  - Strategy: Cookie-based session (Express middleware)
-  - Password hashing: bcryptjs with 12 salt rounds
-  - Routes:
-    - `POST /auth/register` - Create user account and organization
-    - `POST /auth/login` - Email and password validation
-    - `GET /auth/me` - Get current user details
-  - No OAuth or third-party identity provider integration
+- **Custom cookie-based sessions** - In-progress implementation
+  - Current state: Hardcoded `userId = 1` in development (`artifacts/api-server/src/routes/auth.ts` line 15)
+  - Sessions middleware: `express-session` v1.19.0
+  - Cookie parser: `cookie-parser` v1.4.7
+  - Session secret: `SESSION_SECRET` env var (required for production)
+  - Password hashing: bcryptjs v3.0.3 (bcrypt)
+  - Email verification: Required before login (`emailVerified` column)
+
+- **CSRF Protection:** `csrf-csrf` v4.0.3 middleware (implemented)
+  - CSRF tokens generated per session
+  - File: `artifacts/api-server/src/routes/auth.ts`
+
+- **Organization Scoping:** All routes require `orgId` path parameter
+  - Org membership enforced via `teamMembersTable`
+  - Auth context: `AuthProvider` in `artifacts/hypespace/src/components/auth-provider.tsx`
+  - Admin impersonation: `startImpersonation()` / `stopImpersonation()` for testing
 
 ## Monitoring & Observability
 
 **Error Tracking:**
-- None - No Sentry, Rollbar, or third-party error tracking service
+- None detected (no Sentry, Rollbar, etc.)
 
 **Logs:**
-- Pino (JSON logging) - Configured for backend
-  - Level: Controlled by `LOG_LEVEL` environment variable (default: "info")
-  - Format: JSON (structured) in production, pretty-printed in development via `pino-pretty`
-  - HTTP requests logged via `pino-http` middleware
-  - Implementation: `artifacts/api-server/src/lib/logger.ts`
+- **Pino v9.x** - Structured JSON logging
+  - Configuration: `artifacts/api-server/src/lib/logger.ts`
+  - Development: Pretty-printed with colors (pino-pretty transport)
+  - Production: JSON format for log aggregation
+  - Log level: Configurable via `LOG_LEVEL` env var (default: "info")
+  - HTTP middleware: `pino-http` v10.x with request ID, method, URL, status code
+  - Sensitive headers redacted: `authorization`, `cookie`, `set-cookie`
+  - Console logs: Direct `console.log()` for email notifications and GHL/CRM sync messages
 
 ## CI/CD & Deployment
 
 **Hosting:**
-- Replit (primary development environment)
-  - Auto-detection: REPLIT_DEV_DOMAIN, REPLIT_DOMAINS environment variables
-  - Static files served from frontend build output
+- **Replit** (primary dev/demo target)
+  - Domain detection: `REPLIT_DOMAINS` (production) or `REPLIT_DEV_DOMAIN` (dev)
+  - Auto-detection in `artifacts/api-server/src/lib/app-url.ts`
+  - Vite plugins: Cartographer (visualization), DevBanner, RuntimeErrorModal
+
+- **Supports standard Node.js hosting** - AWS, Google Cloud, Azure, traditional VPS
+  - Docker Compose provided for local PostgreSQL development
 
 **CI Pipeline:**
-- None detected - No GitHub Actions, GitLab CI, or other CI/CD configuration
-
-**Deployment:**
-- Manual or custom (not configured in repository)
-- Build process: `pnpm build` (runs typecheck and builds all packages)
+- None detected (no GitHub Actions, CircleCI, etc.)
 
 ## Environment Configuration
 
-**Required env vars:**
-- `DATABASE_URL` - PostgreSQL connection string (e.g., `postgresql://user:pass@host:5432/hypespace`)
+**Required env vars (production):**
+- `DATABASE_URL` - PostgreSQL connection string (format: `postgresql://user:pass@host:port/database`)
+- `ANTHROPIC_API_KEY` - Claude API key for email generation
+- `SESSION_SECRET` - Session encryption key (min 32 chars)
+- `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` - Email relay or custom SMTP provider
+- `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME` - Email sender identity
 
-**Optional env vars (with defaults):**
-- `PORT` - API server port (default: 4000 via pnpm scripts)
+**Optional env vars:**
+- `PORT` - API server port (default: 4000 when not in Replit)
+- `BASE_PATH` - Frontend base URL path (default: `/`)
 - `VITE_PORT` - Frontend dev server port (default: 5173)
-- `BASE_PATH` - Frontend base URL path (default: "/")
-- `API_PROXY_TARGET` - Vite proxy target for /api routes (default: "http://localhost:4000")
-- `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` - Email provider credentials
-  - Fallback: Ethereal test account auto-provisioned if not provided
-- `SMTP_PORT` - Email port (default: 587)
-- `SMTP_FROM_EMAIL` - Sender email address (default: from SMTP_USER or "noreply@hypespace.app")
-- `SMTP_FROM_NAME` - Sender display name (default: "HypeSpace")
-- `APP_BASE_URL` - Application base URL (auto-detected on Replit if not set)
-- `NODE_ENV` - "development" or "production"
+- `API_PROXY_TARGET` - Backend URL for Vite proxy (default: `http://localhost:4000`)
+- `APP_BASE_URL`, `APP_URL` - Full application URL (auto-detected from Replit domains)
+- `NODE_ENV` - "development" or "production" (affects logging, plugins)
 - `LOG_LEVEL` - Pino log level (default: "info")
-- `REPLIT_DEV_DOMAIN`, `REPLIT_DOMAINS` - Replit-specific domain configuration
+- `REPLIT_DEV_DOMAIN`, `REPLIT_DOMAINS` - Auto-detected Replit hostnames
+- `ALLOWED_ORIGINS` - CORS allowed origins
+- `ADMIN_EMAIL`, `ADMIN_PASSWORD` - Seed/bootstrap credentials (not fully implemented)
 
 **Secrets location:**
-- `.env` file at repository root (git-ignored)
-- Organization-specific SMTP config stored in `integrations` table with `platform="smtp_provider"`
-- GoHighLevel API keys stored in `integrations.metadata` with `platform="gohighlevel"`
+- `.env` file at project root (NOT in git; `.gitignore` present)
+- Database credentials in `DATABASE_URL`
+- API keys in `ANTHROPIC_API_KEY`
+- SMTP credentials in `SMTP_*` vars
+- Session secret in `SESSION_SECRET`
 
 ## Webhooks & Callbacks
 
 **Incoming:**
-- Webhook endpoint for custom CRM RSVP sync
-  - Endpoint: User-configured URL (stored in integrations table)
-  - Method: POST
-  - Payload: Guest RSVP data with event details
-  - Implementation: `artifacts/api-server/src/routes/integrations.ts` (lines 409-451)
+- None detected (no webhook receivers in routes)
 
 **Outgoing:**
-- Email delivery via Nodemailer
-  - Method: SMTP relay to configured provider
-  - Events: User invitations, campaign sending, test emails
-  - Implementation: `artifacts/api-server/src/lib/email.ts` (sendEmail, sendInviteEmail functions)
+- **Custom CRM webhook** - RSVP sync endpoint
+  - Triggered: On guest RSVP status change
+  - Method: POST to `integrations.metadata.webhookUrl`
+  - Payload: `{ event, guest, rsvpStatus, timestamp, source, contactListId? }`
+  - File: `artifacts/api-server/src/routes/integrations.ts` (lines 410-452)
+  - Best-effort (non-fatal on failure)
 
-- RSVP Sync to GoHighLevel (tag updates)
-  - Method: PUT to `https://services.leadconnectorhq.com/contacts/{contactId}`
-  - Payload: Updated tags array
-  - Best-effort (non-blocking) - Failures don't affect RSVP
-  - Implementation: `artifacts/api-server/src/routes/integrations.ts` (lines 331-359)
+- **GoHighLevel API** - RSVP tag updates
+  - Not a webhook; direct API calls to GHL on RSVP change
+  - Tag-based sync for RSVP status tracking
+  - File: `artifacts/api-server/src/routes/integrations.ts` (lines 365-402)
 
-- RSVP Sync to Custom Webhook
-  - Method: POST to user-configured webhook URL
-  - Payload: JSON with guest, rsvpStatus, event title
-  - Best-effort (non-blocking)
-  - Implementation: `artifacts/api-server/src/routes/integrations.ts` (lines 409-451)
+## Integration Management
 
-## Integration Data Models
+**Storage:**
+- `integrations` table in PostgreSQL
+  - Columns: `id`, `organizationId`, `platform`, `platformType`, `status`, `accountName`, `accountId`, `metadata` (JSONB), `connectedAt`, `updatedAt`
+  - File: `lib/db/src/schema/integrations.ts`
 
-**Integrations Table:**
-- Location: `lib/db/src/schema/integrations.ts`
-- Columns:
-  - `id` (serial) - Primary key
-  - `organizationId` (int) - Foreign key to organizations
-  - `platform` (text) - Integration type (e.g., "gohighlevel", "google_calendar", "smtp_provider", "custom_crm")
-  - `platformType` (text) - Category ("crm", "calendar", "email", etc.)
-  - `status` (text) - "connected" or "disconnected"
-  - `accountName` (text) - Display name for the connected account
-  - `accountId` (text) - External account identifier
-  - `metadata` (jsonb) - Platform-specific credentials and config
-    - GoHighLevel: `{ apiKey, locationId }`
-    - SMTP: `{ host, port, user, pass, fromEmail, fromName }`
-    - Calendar: `{ calendarUrl }`
-    - Custom CRM: `{ webhookUrl, apiKey, contactListId }`
-  - `connectedAt`, `updatedAt` - Timestamps
+**Endpoints:**
+- `GET /organizations/:orgId/integrations` - List connected integrations
+- `POST /organizations/:orgId/integrations` - Connect a new integration (platform, metadata)
+- `DELETE /organizations/:orgId/integrations/:platform` - Disconnect integration
 
-**Sending Domains Table:**
-- Location: `lib/db/src/schema/sending_domains.ts`
-- Purpose: Custom email domain configuration for SMTP relay
-- Columns:
-  - `id` (serial) - Primary key
-  - `organizationId` (int) - Foreign key
-  - `domain` (text) - Custom domain for emails
-  - `fromEmail`, `fromName` - Email address and display name
-  - `dnsRecords` (jsonb) - DNS MX, DKIM, SPF records for configuration
-  - `status` - "pending", "verifying", "verified", or "failed"
-  - `verifiedAt` - Verification timestamp
-  - `providerMeta` - Provider-specific metadata (e.g., SES identity ARN, Postmark server ID)
-  - `createdAt`, `updatedAt` - Timestamps
+**GHL-specific endpoints:**
+- `POST /organizations/:orgId/integrations/gohighlevel/preview` - Fetch contacts from GHL (for preview)
+- `POST /organizations/:orgId/integrations/gohighlevel/import` - Bulk import GHL contacts as event guests
+  - Enforces plan attendee limits (capped import on quota exceeded)
+  - Returns: `{ imported, skipped, total, planCapped }`
 
-## Plan-Based Feature Limits
-
-**API Implementation:**
-- Location: `artifacts/api-server/src/lib/plans.ts`
-- Plans: "free", "starter", "professional"
-- Limits enforced:
-  - `attendeesPerEvent` - Max guests per event
-  - `eventsPerMonth` - Max events in a rolling month
-  - `campaignsPerMonth` - Max campaigns per month
-  - `canSendCampaigns` - Boolean flag for campaign sending capability
-- Enforcement: GHL contact import caps import size if limit exceeded; campaign sending returns 402 if free plan
+**Calendar-specific endpoints:**
+- `GET /organizations/:orgId/calendar/events?year=YYYY&month=MM` - Fetch events from all connected calendars
+  - Returns: `{ events, errors }` (errors on a per-platform basis)
 
 ---
 
-*Integration audit: 2026-04-15*
+*Integration audit: 2026-04-20*
