@@ -91,6 +91,10 @@ None yet.
 - Phase 1 SEC-02 (email verification) requires an outbound email transport configured in the environment — confirm SMTP/Resend credentials before planning
 - Deadline is Monday April 20, 2026 — 4 days; 3 phases must complete sequentially
 
+### Roadmap Evolution
+
+- Phase 03.1 inserted after Phase 3: Security cleanup — C2 session store, C3 calendar SSRF, C4 residual IDOR audit (URGENT — pre-ship)
+
 ### Quick Tasks Completed
 
 | # | Description | Date | Commit | Directory |

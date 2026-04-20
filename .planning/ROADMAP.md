@@ -76,3 +76,13 @@ Phases execute in numeric order: 1 → 2 → 3
 | 1. Security Hardening | 3/3 | Complete | 2026-04-15 |
 | 2. Multi-Organization | 1/2 | In Progress|  |
 | 3. Campaign & Quality | 1/3 | In Progress | - |
+
+### Phase 03.1: Security cleanup — C2 session store, C3 calendar SSRF, C4 residual IDOR audit (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 3
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 03.1 to break down)
