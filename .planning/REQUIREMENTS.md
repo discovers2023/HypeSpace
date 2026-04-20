@@ -16,21 +16,21 @@
 ### Multi-Organization
 
 - [x] **ORG-01**: Frontend reads org from auth context instead of hardcoded ORG_ID=1
-- [ ] **ORG-02**: Org switcher in navbar for users belonging to multiple organizations
+- [x] **ORG-02**: Org switcher in navbar for users belonging to multiple organizations
 - [x] **ORG-03**: All API calls pass the current org from auth context
 
 ### Campaign Enhancements
 
-- [ ] **CAMP-01**: User can schedule a campaign to send at a future date/time
-- [ ] **CAMP-02**: Scheduled campaigns auto-send at the specified time
+- [x] **CAMP-01**: User can schedule a campaign to send at a future date/time
+- [x] **CAMP-02**: Scheduled campaigns auto-send at the specified time
 - [x] **CAMP-03**: Campaign tracks open rate via tracking pixel
 - [x] **CAMP-04**: Campaign tracks click rate via redirect links
 
 ### Code Quality
 
-- [ ] **QUAL-01**: All pre-existing TypeScript errors resolved (12 across settings, social, team pages)
-- [ ] **QUAL-02**: Consistent error toast handling across all API mutation calls
-- [ ] **QUAL-03**: API errors return structured JSON with actionable messages
+- [x] **QUAL-01**: All pre-existing TypeScript errors resolved (12 across settings, social, team pages)
+- [x] **QUAL-02**: Consistent error toast handling across all API mutation calls
+- [x] **QUAL-03**: API errors return structured JSON with actionable messages
 
 ## v2 Requirements
 
@@ -74,12 +74,12 @@
 | SEC-04 | Phase 1 | Complete |
 | SEC-05 | Phase 1 | Complete |
 | ORG-01 | Phase 2 | Complete |
-| ORG-02 | Phase 2 | Pending |
+| ORG-02 | Phase 2 | Complete |
 | ORG-03 | Phase 2 | Complete |
-| CAMP-01 | Phase 3 | Pending |
-| CAMP-02 | Phase 3 | Pending |
+| CAMP-01 | Phase 3 | Complete |
+| CAMP-02 | Phase 3 | Complete |
 | CAMP-03 | Phase 3 | Complete |
 | CAMP-04 | Phase 3 | Complete |
-| QUAL-01 | Phase 3 | Pending |
-| QUAL-02 | Phase 3 | Pending |
-| QUAL-03 | Phase 3 | Pending |
+| QUAL-01 | Phase 3 | Complete |
+| QUAL-02 | Phase 3 | Complete |
+| QUAL-03 | Phase 3 | Complete |
