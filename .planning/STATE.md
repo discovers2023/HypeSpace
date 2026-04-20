@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 status: verifying
 stopped_at: Completed 03-campaign-quality plan 02 (tracking pixel + click redirect — CAMP-03, CAMP-04 done)
-last_updated: "2026-04-15T00:00:00.000Z"
-last_activity: 2026-04-15
+last_updated: "2026-04-20T18:00:00.000Z"
+last_activity: 2026-04-20
 progress:
   total_phases: 3
   completed_phases: 1
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-16)
 Phase: 1 of 3 (Security Hardening) — COMPLETE
 Plan: 3 of 3 in current phase — all plans done
 Status: Phase complete — ready for verification
-Last activity: 2026-04-19 - Completed quick task 260419-idor (close cross-org IDOR with requireOrgMembership middleware)
+Last activity: 2026-04-20 - Completed quick task 260420-ozg (fix team invite password overwrite — C1)
 
 Progress: [███░░░░░░░] 33%
 
@@ -103,6 +103,7 @@ None yet.
 | 260418-rmv | App-wide RequireAuth guard — redirect non-public routes to /login when unauthenticated (kills the recurring orgId=0/401 bug class) | 2026-04-18 | 7b11457 | [260418-rmv-app-wide-auth-guard-redirect-non-public-](./quick/260418-rmv-app-wide-auth-guard-redirect-non-public-/) |
 | 260419-apb | Inline AI prompt bar on campaign-edit + event-edit — always-visible Ask AI input wired to existing /ai-rewrite and /ai-describe endpoints | 2026-04-19 | ecfee4d | [260419-apb-inline-ai-prompt-bar-campaign-event-edit](./quick/260419-apb-inline-ai-prompt-bar-campaign-event-edit/) |
 | 260419-idor | P0 security: close cross-org IDOR via requireOrgMembership middleware — 403 on any /organizations/:orgId/* for non-members (prevents cross-tenant data read AND write) | 2026-04-19 | 5dc391a | [260419-idor-cross-org-membership-guard](./quick/260419-idor-cross-org-membership-guard/) |
+| 260420-ozg | Fix team invite password overwrite (C1) — stop rewriting existing user's passwordHash on invite accept; gate password update on "invited" sentinel | 2026-04-20 | 0f756a1 | [260420-ozg-fix-team-invite-password-overwrite-c1-do](./quick/260420-ozg-fix-team-invite-password-overwrite-c1-do/) |
 
 ## Deferred Items
 
