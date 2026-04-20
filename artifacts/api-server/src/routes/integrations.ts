@@ -4,6 +4,7 @@ import { integrationsTable } from "@workspace/db/schema";
 import { eq, and, count } from "drizzle-orm";
 import { getPlan, assertWithinLimit, PlanLimitError } from "../lib/plans";
 import ical from "node-ical";
+import { safeFetchText, UnsafeUrlError } from "../lib/ssrf-guard";
 
 const router = Router();
 
@@ -488,7 +489,11 @@ async function fetchIcalEvents(
   monthStart: Date,
   monthEnd: Date,
 ): Promise<CalendarEventItem[]> {
-  const data = await ical.async.fromURL(calendarUrl);
+  // SSRF guard: resolve + block private/loopback/link-local/metadata ranges,
+  // refuse redirects, cap body size. Replaces ical.async.fromURL which would
+  // otherwise follow redirects server-side after our host check.
+  const icalText = await safeFetchText(calendarUrl, { maxBytes: 10 * 1024 * 1024 });
+  const data = ical.parseICS(icalText);
   const events: CalendarEventItem[] = [];
 
   for (const key of Object.keys(data)) {
