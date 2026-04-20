@@ -1,7 +1,8 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import session from "express-session";
+import session, { type Store } from "express-session";
+import connectPgSimple from "connect-pg-simple";
 import pinoHttp from "pino-http";
 import path from "node:path";
 import { mkdirSync } from "node:fs";
@@ -83,10 +84,27 @@ if (!SESSION_SECRET && process.env.NODE_ENV === "production") {
   throw new Error("SESSION_SECRET env var is required in production");
 }
 
-// TODO: Replace MemoryStore with connect-pg-simple for production
-// pnpm add connect-pg-simple @types/connect-pg-simple
+// Postgres-backed session store — persists across restarts and scales
+// across instances. Dev without DATABASE_URL falls back to the default
+// MemoryStore; production without DATABASE_URL fails fast on boot.
+const DATABASE_URL = process.env.DATABASE_URL;
+let sessionStore: Store | undefined;
+if (DATABASE_URL) {
+  const PgStore = connectPgSimple(session);
+  sessionStore = new PgStore({
+    conString: DATABASE_URL,
+    createTableIfMissing: true,
+    ttl: 7 * 24 * 60 * 60, // seconds — matches cookie.maxAge
+  });
+} else if (process.env.NODE_ENV === "production") {
+  throw new Error("DATABASE_URL env var is required in production (session store)");
+} else {
+  logger.warn({ store: "memory" }, "Session store: DATABASE_URL unset — using MemoryStore (dev only)");
+}
+
 app.use(
   session({
+    store: sessionStore,
     secret: SESSION_SECRET ?? "dev-secret-change-in-production",
     resave: false,
     saveUninitialized: false,
