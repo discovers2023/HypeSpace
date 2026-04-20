@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-04-16)
 
 ## Current Position
 
-Phase: 1 of 3 (Security Hardening) — COMPLETE
-Plan: 3 of 3 in current phase — all plans done
-Status: Phase complete — ready for verification
-Last activity: 2026-04-20 - Completed quick task 260420-ozg (fix team invite password overwrite — C1)
+Phase: 03.1 of 4 (Security Cleanup — INSERTED) — COMPLETE (pending human UAT)
+Plan: 1 of 1 in phase 03.1 — 3 tasks done (C2, C3, C4)
+Status: All milestone phases complete — phase 03.1 needs manual UAT before ship
+Last activity: 2026-04-20 - Completed phase 03.1 (C2 pg-session store, C3 SSRF guard, C4 route audit)
 
-Progress: [███░░░░░░░] 33%
+Progress: [██████████] 100% (4 of 4 phases)
 
 ## Performance Metrics
 
