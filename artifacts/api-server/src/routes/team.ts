@@ -131,11 +131,11 @@ router.get("/invite/:token", async (req, res): Promise<void> => {
   });
 });
 
-// POST /invite/:token/accept — set password and activate membership
+// POST /invite/:token/accept — activate membership; set password ONLY for
+// brand-new users. Existing users (invited to a second org) keep their login.
 router.post("/invite/:token/accept", async (req, res): Promise<void> => {
   const { token } = req.params;
   const { password } = req.body ?? {};
-  if (!password || password.length < 8) { res.status(400).json({ error: "INVALID_INPUT" }); return; }
 
   const [member] = await db.select().from(teamMembersTable).where(eq(teamMembersTable.inviteToken, token));
   if (!member) { res.status(404).json({ error: "INVALID_TOKEN" }); return; }
@@ -145,14 +145,25 @@ router.post("/invite/:token/accept", async (req, res): Promise<void> => {
   }
   if (member.status !== "invited") { res.status(409).json({ error: "ALREADY_ACCEPTED" }); return; }
 
-  const bcrypt = await import("bcryptjs");
-  const passwordHash = await bcrypt.hash(password, 12);
+  const [existingUser] = await db.select().from(usersTable).where(eq(usersTable.id, member.userId));
+  if (!existingUser) { res.status(404).json({ error: "USER_NOT_FOUND" }); return; }
 
-  // Update user password and activate membership
-  const [user] = await db.update(usersTable)
-    .set({ passwordHash })
-    .where(eq(usersTable.id, member.userId))
-    .returning();
+  // Sentinel "invited" (set at invite-creation time in POST /organizations/:orgId/team)
+  // distinguishes brand-new accounts from pre-existing users. We must NEVER rewrite
+  // passwordHash for a pre-existing user — that would hijack their primary account.
+  const isNewUser = existingUser.passwordHash === "invited";
+
+  let user = existingUser;
+  if (isNewUser) {
+    if (!password || password.length < 8) { res.status(400).json({ error: "INVALID_INPUT" }); return; }
+    const bcrypt = await import("bcryptjs");
+    const passwordHash = await bcrypt.hash(password, 12);
+    const [updated] = await db.update(usersTable)
+      .set({ passwordHash })
+      .where(eq(usersTable.id, member.userId))
+      .returning();
+    user = updated;
+  }
 
   await db.update(teamMembersTable)
     .set({ status: "active", joinedAt: new Date(), inviteToken: null })
