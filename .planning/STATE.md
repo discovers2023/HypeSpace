@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 status: verifying
 stopped_at: Completed 03-campaign-quality plan 02 (tracking pixel + click redirect — CAMP-03, CAMP-04 done)
-last_updated: "2026-04-20T18:00:00.000Z"
-last_activity: 2026-04-20
+last_updated: "2026-04-22T03:38:00.000Z"
+last_activity: 2026-04-22
 progress:
   total_phases: 3
   completed_phases: 1
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-16)
 Phase: 03.1 of 4 (Security Cleanup — INSERTED) — COMPLETE (pending human UAT)
 Plan: 1 of 1 in phase 03.1 — 3 tasks done (C2, C3, C4)
 Status: All milestone phases complete — phase 03.1 needs manual UAT before ship
-Last activity: 2026-04-20 - Completed quick task 260420-q1f (audit tech-debt close: session types + REQUIREMENTS sync)
+Last activity: 2026-04-22 - Completed quick task 260422-4t1: Wire up forgot-password flow on login page
 
 Progress: [██████████] 100% (4 of 4 phases)
 
@@ -109,6 +109,7 @@ None yet.
 | 260419-idor | P0 security: close cross-org IDOR via requireOrgMembership middleware — 403 on any /organizations/:orgId/* for non-members (prevents cross-tenant data read AND write) | 2026-04-19 | 5dc391a | [260419-idor-cross-org-membership-guard](./quick/260419-idor-cross-org-membership-guard/) |
 | 260420-ozg | Fix team invite password overwrite (C1) — stop rewriting existing user's passwordHash on invite accept; gate password update on "invited" sentinel | 2026-04-20 | 0f756a1 | [260420-ozg-fix-team-invite-password-overwrite-c1-do](./quick/260420-ozg-fix-team-invite-password-overwrite-c1-do/) |
 | 260420-q1f | Audit tech-debt close — declare session.isAdmin/impersonating types + sync 6 stale REQUIREMENTS.md checkboxes to shipped state | 2026-04-20 | 4213dfb | [260420-q1f-sync-requirements-md-checkboxes-to-match](./quick/260420-q1f-sync-requirements-md-checkboxes-to-match/) |
+| 260422-4t1 | Wire up forgot-password flow on login page (schema + backend POST /auth/forgot-password & /auth/reset-password + frontend pages + login link) | 2026-04-22 | 4f06fff | [260422-4t1-wire-up-forgot-password-flow-on-login-pa](./quick/260422-4t1-wire-up-forgot-password-flow-on-login-pa/) |
 
 ## Deferred Items
 
