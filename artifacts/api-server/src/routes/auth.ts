@@ -1,15 +1,19 @@
 import { Router, type IRouter } from "express";
-import { db, usersTable, organizationsTable, teamMembersTable } from "@workspace/db";
-import { eq, asc } from "drizzle-orm";
+import { db, usersTable, organizationsTable, teamMembersTable, passwordResetTokensTable } from "@workspace/db";
+import { eq, asc, gt, and, isNull } from "drizzle-orm";
 import { GetMeResponse } from "@workspace/api-zod";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
-import { sendVerificationEmail } from "../lib/email";
+import { sendVerificationEmail, sendPasswordResetEmail } from "../lib/email";
 
 const router: IRouter = Router();
 
 function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
 }
 
 // GET /auth/me
@@ -286,6 +290,73 @@ router.post("/auth/change-password", async (req, res): Promise<void> => {
   await db.update(usersTable).set({ passwordHash: newHash }).where(eq(usersTable.id, userId));
 
   res.json({ message: "Password updated successfully" });
+});
+
+// POST /auth/forgot-password — always returns the same response to prevent email enumeration
+router.post("/auth/forgot-password", async (req, res): Promise<void> => {
+  const { email } = req.body ?? {};
+  const generic = { message: "If an account exists with that email, a reset link has been sent." };
+
+  if (!email || typeof email !== "string" || !isValidEmail(email)) {
+    // Same response shape — DO NOT leak validation outcome to the client
+    res.json(generic);
+    return;
+  }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase()));
+
+  if (user) {
+    // Generate token, store hash, send email — best-effort. Failures are logged, not surfaced.
+    const token = crypto.randomBytes(32).toString("base64url"); // URL-safe
+    const tokenHash = hashToken(token);
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    try {
+      await db.insert(passwordResetTokensTable).values({ userId: user.id, tokenHash, expiresAt });
+      await sendPasswordResetEmail(user.email, user.name, token);
+    } catch (err) {
+      req.log.error({ err }, "Failed to issue password reset token");
+    }
+  }
+
+  res.json(generic);
+});
+
+// POST /auth/reset-password — validates token, sets new password, marks token used
+router.post("/auth/reset-password", async (req, res): Promise<void> => {
+  const { token, newPassword } = req.body ?? {};
+  if (!token || typeof token !== "string" || !newPassword || typeof newPassword !== "string" || newPassword.length < 8) {
+    res.status(400).json({ error: "INVALID_INPUT", message: "Invalid or expired reset link." });
+    return;
+  }
+
+  const tokenHash = hashToken(token);
+  const now = new Date();
+
+  const [row] = await db
+    .select()
+    .from(passwordResetTokensTable)
+    .where(
+      and(
+        eq(passwordResetTokensTable.tokenHash, tokenHash),
+        gt(passwordResetTokensTable.expiresAt, now),
+        isNull(passwordResetTokensTable.usedAt),
+      ),
+    )
+    .limit(1);
+
+  if (!row) {
+    res.status(400).json({ error: "INVALID_TOKEN", message: "This reset link is invalid or has expired." });
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+
+  // Update password and mark token used in sequence.
+  await db.update(usersTable).set({ passwordHash }).where(eq(usersTable.id, row.userId));
+  await db.update(passwordResetTokensTable).set({ usedAt: now }).where(eq(passwordResetTokensTable.id, row.id));
+
+  res.json({ message: "Password updated successfully. You can now log in." });
 });
 
 export default router;

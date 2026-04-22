@@ -1,5 +1,6 @@
 export * from "./users";
 export * from "./organizations";
+export * from "./password_reset_tokens";
 export * from "./team_members";
 export * from "./events";
 export * from "./guests";
