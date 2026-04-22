@@ -4,6 +4,18 @@ import { eq, and } from "drizzle-orm";
 
 let testAccountPromise: Promise<nodemailer.SentMessageInfo> | null = null;
 
+function getAppBaseUrl(): string {
+  if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL;
+  // Replit autoscale deployment — REPLIT_DOMAINS is comma-separated
+  if (process.env.REPLIT_DOMAINS) {
+    const first = process.env.REPLIT_DOMAINS.split(",")[0]?.trim();
+    if (first) return `https://${first}`;
+  }
+  // Replit dev preview
+  if (process.env.REPLIT_DEV_DOMAIN) return `https://${process.env.REPLIT_DEV_DOMAIN}`;
+  return "http://localhost:5173";
+}
+
 function escapeHtml(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -206,7 +218,7 @@ export async function sendVerificationEmail(
   name: string,
   token: string,
 ): Promise<void> {
-  const baseUrl = process.env.APP_BASE_URL ?? "http://localhost:5173";
+  const baseUrl = getAppBaseUrl();
   const verifyUrl = `${baseUrl}/verify-email?token=${encodeURIComponent(token)}`;
   await sendEmail({
     to,
@@ -278,7 +290,7 @@ export async function sendPasswordResetEmail(
   name: string,
   token: string,
 ): Promise<void> {
-  const baseUrl = process.env.APP_BASE_URL ?? "http://localhost:5173";
+  const baseUrl = getAppBaseUrl();
   const resetUrl = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
   await sendEmail({
     to,
