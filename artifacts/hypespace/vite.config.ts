@@ -60,7 +60,10 @@ export default defineConfig({
     // just work. Locally we run them on separate ports and need this.
     proxy: {
       "/api": {
-        target: process.env.API_PROXY_TARGET || "http://localhost:4000",
+        target: process.env.API_PROXY_TARGET ||
+          (process.env.REPLIT_DEV_DOMAIN
+            ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+            : "http://localhost:8080"),
         changeOrigin: true,
       },
     },
