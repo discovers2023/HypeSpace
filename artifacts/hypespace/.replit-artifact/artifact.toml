@@ -17,15 +17,6 @@ localPort = 19498
 [services.development]
 run = "pnpm --filter @workspace/hypespace run dev"
 
-[services.production]
-build = [ "pnpm", "--filter", "@workspace/hypespace", "run", "build" ]
-publicDir = "artifacts/hypespace/dist/public"
-serve = "static"
-
-[[services.production.rewrites]]
-from = "/*"
-to = "/index.html"
-
 [services.env]
 PORT = "19498"
 BASE_PATH = "/"

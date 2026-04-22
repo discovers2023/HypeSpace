@@ -5,7 +5,7 @@ import session, { type Store } from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import pinoHttp from "pino-http";
 import path from "node:path";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, existsSync } from "node:fs";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
@@ -48,30 +48,30 @@ const configuredOrigins = process.env.ALLOWED_ORIGINS
   : [];
 
 // In development, be permissive: include the Vite dev server + Capacitor
-// native origins by default. In production, the operator MUST set
-// ALLOWED_ORIGINS explicitly — Capacitor origins are NOT auto-allowed in prod
-// to force a conscious decision about which native shells can call the API.
+// native origins by default. In production the frontend is co-hosted on the
+// same origin as the API, so same-origin requests need no CORS headers.
+// ALLOWED_ORIGINS can still be set to allow native mobile shells or other
+// external callers in production.
 const allowedOrigins =
   process.env.NODE_ENV === "production"
-    ? configuredOrigins.length > 0
-      ? configuredOrigins
-      : (() => {
-          throw new Error(
-            "ALLOWED_ORIGINS env var is required in production (comma-separated list of origins, e.g. https://app.example.com,capacitor://localhost)",
-          );
-        })()
+    ? configuredOrigins
     : [
         ...configuredOrigins,
         "http://localhost:5173",
         ...CAPACITOR_NATIVE_ORIGINS,
       ];
 
-app.use(
-  cors({
-    origin: allowedOrigins,
-    credentials: true, // required for session cookies
-  }),
-);
+// When allowedOrigins is empty (production with co-hosted frontend), disable
+// CORS middleware entirely — same-origin requests don't need it, and we don't
+// want to block legitimate same-origin browser traffic.
+if (allowedOrigins.length > 0) {
+  app.use(
+    cors({
+      origin: allowedOrigins,
+      credentials: true, // required for session cookies
+    }),
+  );
+}
 
 // --- Body parsing + cookie parsing ---
 app.use(cookieParser());
@@ -139,10 +139,30 @@ app.use(
 
 app.use("/api", router);
 
-// JSON 404 catch-all (prevents Express default HTML error pages)
-app.use((_req, res) => {
-  res.status(404).json({ error: "Not found" });
-});
+// --- Serve React frontend in production ---
+// The frontend is built to artifacts/hypespace/dist/public and co-hosted on
+// the same Express server so we only need one port in production.
+if (process.env.NODE_ENV === "production") {
+  const frontendDist = path.resolve(process.cwd(), "artifacts/hypespace/dist/public");
+  if (existsSync(frontendDist)) {
+    app.use(express.static(frontendDist, { maxAge: "1d" }));
+    // SPA fallback: all non-API routes serve index.html
+    app.get("*", (_req, res) => {
+      res.sendFile(path.join(frontendDist, "index.html"));
+    });
+  } else {
+    logger.warn({ frontendDist }, "Frontend build not found — static serving skipped");
+    // JSON 404 for non-API routes when frontend isn't built
+    app.use((_req, res) => {
+      res.status(404).json({ error: "Not found" });
+    });
+  }
+} else {
+  // JSON 404 catch-all (prevents Express default HTML error pages)
+  app.use((_req, res) => {
+    res.status(404).json({ error: "Not found" });
+  });
+}
 
 // Global error handler — returns JSON for all errors including CSRF failures
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
