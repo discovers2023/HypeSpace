@@ -22,6 +22,8 @@ import Settings from "@/pages/settings";
 import Onboarding from "@/pages/onboarding";
 import Profile from "@/pages/profile";
 import AcceptInvite from "@/pages/accept-invite";
+import ForgotPassword from "@/pages/forgot-password";
+import ResetPassword from "@/pages/reset-password";
 import CalendarPage from "@/pages/calendar";
 import PublicEvent from "@/pages/public-event";
 import About from "@/pages/about";
@@ -54,6 +56,8 @@ function Router() {
       <Route path="/about" component={About} />
       <Route path="/careers" component={Careers} />
       <Route path="/accept-invite" component={AcceptInvite} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
       <Route path="/e/:slug" component={PublicEvent} />
       {/* /admin has its own admin-credential gate — intentionally public from the user-auth guard's perspective */}
       <Route path="/admin" component={AdminDashboard} />
