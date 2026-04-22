@@ -5,6 +5,7 @@ import { GetMeResponse } from "@workspace/api-zod";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
 import { sendVerificationEmail, sendPasswordResetEmail } from "../lib/email";
+import { getAppBaseUrl } from "../lib/app-url";
 
 const router: IRouter = Router();
 
@@ -210,7 +211,7 @@ router.get("/auth/verify/:token", async (req, res): Promise<void> => {
     .where(eq(usersTable.id, user.id));
 
   // Redirect to login page with success indicator
-  const baseUrl = process.env.APP_BASE_URL ?? "http://localhost:5173";
+  const baseUrl = getAppBaseUrl(req);
   res.redirect(`${baseUrl}/login?verified=true`);
 });
 

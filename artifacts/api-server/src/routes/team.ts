@@ -10,13 +10,9 @@ import {
   UpdateTeamMemberResponse,
 } from "@workspace/api-zod";
 import { sendInviteEmail } from "../lib/email.js";
+import { getAppBaseUrl } from "../lib/app-url";
 
 const router: IRouter = Router();
-
-const APP_URL = process.env.APP_URL ??
-  (process.env.REPLIT_DEV_DOMAIN
-    ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-    : "http://localhost:5173");
 
 function formatMember(member: typeof teamMembersTable.$inferSelect, user: typeof usersTable.$inferSelect) {
   return {
@@ -91,7 +87,7 @@ router.post("/organizations/:orgId/team", async (req, res): Promise<void> => {
     inviteExpiresAt,
   }).returning();
 
-  const inviteLink = `${APP_URL}/accept-invite?token=${inviteToken}`;
+  const inviteLink = `${getAppBaseUrl(req)}/accept-invite?token=${inviteToken}`;
 
   // Send invite email (fire and forget — don't block the response on email delivery)
   const inviterName = (parsed.data as any).inviterName ?? "A team admin";
