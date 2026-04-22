@@ -14,7 +14,7 @@ run = "pnpm --filter @workspace/api-server run dev"
 
 [services.production]
 build = ["sh", "-c", "pnpm --filter @workspace/hypespace run build && pnpm --filter @workspace/api-server run build"]
-run = "PORT=8080 NODE_ENV=production node --enable-source-maps artifacts/api-server/dist/index.mjs"
+run = "pnpm --filter @workspace/api-server run start:prod"
 
 [services.production.health.startup]
 path = "/api/healthz"
